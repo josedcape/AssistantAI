@@ -369,6 +369,11 @@ export async function executeAgent(
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
+    
+    // Forzar el lenguaje JavaScript cuando se usan agentes, a menos que se especifique explícitamente
+    if (!request.language) {
+      request.language = "javascript";
+    }
 
     // Configurar los mensajes para el agente
     const messages: AgentMessage[] = [

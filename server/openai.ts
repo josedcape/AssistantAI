@@ -124,16 +124,25 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
     // Método estándar: Primero, crear un plan de desarrollo
     const developmentPlan = await createDevelopmentPlan(prompt, language);
     
+    // Determinar el lenguaje a utilizar
+    const targetLanguage = language || developmentPlan.language || "javascript";
+    
+    // Lista de lenguajes soportados para ejecución
+    const supportedLanguages = ["javascript", "js", "html", "css"];
+    
     // Crear un mensaje del sistema que guía al AI para generar código
     const systemMessage = `Eres un experto programador que genera código de alta calidad basado en descripciones y planes de desarrollo.
-    - Genera solo el código necesario para resolver la solicitud, siguiendo el plan proporcionado.
+    - Genera ÚNICAMENTE el código necesario para resolver la solicitud, siguiendo el plan proporcionado.
     - Usa buenas prácticas y patrones modernos.
     - Comenta el código cuando sea necesario para explicar partes complejas.
-    - Si se solicita un lenguaje específico, usa ese lenguaje. De lo contrario, usa el lenguaje más apropiado para la tarea.
+    - IMPORTANTE: En este entorno, SOLAMENTE se pueden ejecutar los siguientes lenguajes: JavaScript, HTML y CSS.
+    ${supportedLanguages.includes(targetLanguage.toLowerCase()) 
+      ? `- Debes generar código en ${targetLanguage}. Este es un requisito obligatorio.` 
+      : `- Aunque la preferencia es ${targetLanguage}, DEBES generar código en JavaScript para asegurar la ejecución correcta.`}
     - Responde con JSON en este formato: 
     { 
       "code": "string con el código", 
-      "language": "lenguaje usado", 
+      "language": "${supportedLanguages.includes(targetLanguage.toLowerCase()) ? targetLanguage : "javascript"}", 
       "suggestions": ["sugerencia 1", "sugerencia 2"]
     }`;
 
@@ -152,11 +161,11 @@ ${developmentPlan.components?.map(comp => `- ${comp}`).join('\n') || 'No definid
 Requisitos técnicos:
 ${developmentPlan.requirements?.map(req => `- ${req}`).join('\n') || 'No definidos'}
 
-Ahora, genera el código basado en este plan de desarrollo.`;
+IMPORTANTE: DEBES generar código en ${supportedLanguages.includes(targetLanguage.toLowerCase()) 
+    ? targetLanguage 
+    : "JavaScript (aunque la preferencia es " + targetLanguage + ", este entorno solo ejecuta JavaScript, HTML o CSS)"}.
 
-    if (language !== "javascript") {
-      userMessage += `\n\nPreferencia de lenguaje: ${language}`;
-    }
+Ahora, genera el código basado en este plan de desarrollo.`;
 
     const response = await openai.chat.completions.create({
       model: MODEL,

@@ -6,9 +6,22 @@ import { CodeExecutionRequest, CodeExecutionResponse } from "@shared/schema";
  * Execute code in a secure sandbox environment
  */
 export async function executeCode(request: CodeExecutionRequest): Promise<CodeExecutionResponse> {
-  const { code, language } = request;
+  let { code, language } = request;
   
   try {
+    // Detectamos automáticamente el lenguaje si parece incorrecto
+    const detectedLanguage = detectCodeLanguage(code);
+    
+    // Si el lenguaje detectado es diferente al proporcionado, mostrar una advertencia
+    if (detectedLanguage !== language && detectedLanguage !== "unknown") {
+      console.warn(`Lenguaje declarado: ${language}, pero se detectó: ${detectedLanguage}`);
+      // Si el usuario especificó un lenguaje no soportado pero detectamos uno soportado, usamos el detectado
+      if ((language !== "javascript" && language !== "js" && language !== "html" && language !== "css") &&
+          (detectedLanguage === "javascript" || detectedLanguage === "html" || detectedLanguage === "css")) {
+        language = detectedLanguage;
+      }
+    }
+    
     if (language === "javascript" || language === "js") {
       return executeJavaScript(code);
     } else if (language === "html") {
@@ -16,10 +29,18 @@ export async function executeCode(request: CodeExecutionRequest): Promise<CodeEx
     } else if (language === "css") {
       return executeCss(code);
     } else {
+      // Intentamos ejecutar como JavaScript si el lenguaje no está soportado (como fallback)
+      if (detectedLanguage === "javascript") {
+        console.log("Intentando ejecutar como JavaScript aunque se especificó otro lenguaje");
+        return executeJavaScript(code);
+      }
+      
       return {
         success: false,
         output: "",
-        error: `Ejecución de código en ${language} no está soportada actualmente.`
+        error: `Ejecución de código en ${language} no está soportada actualmente. 
+        
+Solo se soporta JavaScript, HTML y CSS. Por favor, genera el código en uno de estos lenguajes.`
       };
     }
   } catch (error) {
@@ -33,10 +54,128 @@ export async function executeCode(request: CodeExecutionRequest): Promise<CodeEx
 }
 
 /**
+ * Detecta el lenguaje del código basado en su contenido
+ */
+function detectCodeLanguage(code: string): string {
+  // Extrae las primeras líneas para analizar
+  const firstLines = code.split('\n').slice(0, 10).join('\n');
+  
+  // Detecta Javascript/TypeScript
+  if (firstLines.includes('function ') || 
+      firstLines.includes('const ') || 
+      firstLines.includes('let ') || 
+      firstLines.includes('import ') && firstLines.includes('from ') ||
+      firstLines.includes('export ') ||
+      firstLines.includes('() =>') ||
+      /class\s+\w+\s*\{/.test(firstLines)) {
+    return "javascript";
+  }
+  
+  // Detecta HTML
+  if (firstLines.includes('<html') || 
+      firstLines.includes('<!DOCTYPE html') || 
+      (firstLines.includes('<div') && firstLines.includes('</div>')) ||
+      (firstLines.includes('<p') && firstLines.includes('</p>'))) {
+    return "html";
+  }
+  
+  // Detecta CSS
+  if ((firstLines.includes('{') && firstLines.includes('}') && 
+      (firstLines.includes('px') || firstLines.includes('em') || firstLines.includes('rem'))) ||
+      firstLines.includes('@media') ||
+      /\.\w+\s*\{/.test(firstLines)) {
+    return "css";
+  }
+  
+  // Detecta Python
+  if (firstLines.includes('def ') || 
+      firstLines.includes('import ') && !firstLines.includes('from ') ||
+      firstLines.includes('print(') ||
+      firstLines.includes('if __name__ == "__main__"')) {
+    return "python";
+  }
+  
+  // Si no se pudo determinar, devolvemos unknown
+  return "unknown";
+}
+
+/**
  * Execute JavaScript code in a secure VM
  */
 function executeJavaScript(code: string): CodeExecutionResponse {
   try {
+    // Detectar si hay imports o exports en el código
+    const hasModuleSyntax = /\b(import|export)\b/.test(code);
+    
+    // Si hay imports o exports, mostrar un mensaje de error más claro
+    if (hasModuleSyntax) {
+      // Extraer el lenguaje detectado de las primeras líneas para mostrar un mejor mensaje
+      const firstLines = code.split('\n').slice(0, 5).join('\n');
+      let detectedLanguage = "JavaScript";
+      
+      if (firstLines.includes("import random") || firstLines.includes("def ") || firstLines.includes("print(")) {
+        detectedLanguage = "Python";
+      } else if (firstLines.includes("package ") || firstLines.includes("public class")) {
+        detectedLanguage = "Java";
+      }
+      
+      if (detectedLanguage !== "JavaScript") {
+        return {
+          success: false,
+          output: "",
+          error: `Se detectó código en ${detectedLanguage}. Este entorno solo ejecuta JavaScript. 
+          
+El agente generó código en un lenguaje incorrecto. Por favor, intenta nuevamente seleccionando el lenguaje JavaScript explícitamente en tu prompt o usando un agente diferente.`
+        };
+      }
+
+      // Para código JavaScript con módulos, transformarlo para ejecución en el entorno actual
+      const importStatements: string[] = [];
+      const exportStatements: string[] = [];
+      
+      // Extraer imports para simular su funcionalidad
+      code.replace(/\bimport\s+\{([^}]+)\}\s+from\s+['"](.+?)['"]/g, (_, imports, module) => {
+        importStatements.push(`// Simulación de: import { ${imports} } from "${module}"`);
+        imports.split(',').map(imp => imp.trim()).forEach(imp => {
+          const varName = imp.split(' as ').pop()?.trim() || imp.trim();
+          importStatements.push(`const ${varName} = { /* Simulación de módulo importado */ };`);
+        });
+        return _;
+      });
+      
+      // Extraer default imports
+      code.replace(/\bimport\s+(\w+)\s+from\s+['"](.+?)['"]/g, (_, varName, module) => {
+        importStatements.push(`// Simulación de: import ${varName} from "${module}"`);
+        importStatements.push(`const ${varName} = { /* Simulación de módulo importado */ };`);
+        return _;
+      });
+      
+      // Extraer exports para mejor simulación
+      code.replace(/\bexport\s+(const|let|var|function|class)\s+(\w+)/g, (_, type, name) => {
+        exportStatements.push(`// Se exportaría: ${name}`);
+        return `${type} ${name}`;
+      });
+      
+      // Preparamos el código transformado
+      code = `
+// Declaraciones de import/export detectadas. En este entorno simulado:
+console.log("⚠️ Las importaciones y exportaciones no están disponibles en este entorno de ejecución.");
+console.log("ℹ️ Mostrando una simulación de la ejecución del código...");
+
+// Simulaciones para evitar errores
+${importStatements.join('\n')}
+
+// Código principal (con imports/exports comentados)
+${code.replace(/\bimport\s+.*?from\s+['"].*?['"]/g, '// $&')
+       .replace(/\bimport\s+['"].*?['"]/g, '// $&')
+       .replace(/\bexport\s+/g, '// export ')}
+
+${exportStatements.join('\n')}
+
+console.log("✅ Código transformado para simulación. Los imports/exports reales funcionarían en un entorno Node.js.");
+`;
+    }
+
     // Create a secure VM with limited access
     const vm = new VM({
       timeout: 5000, // 5 second timeout
@@ -96,7 +235,12 @@ function executeJavaScript(code: string): CodeExecutionResponse {
           json: () => Promise.resolve({}),
           text: () => Promise.resolve(""),
           status: 200
-        })
+        }),
+        // Mock require para código CommonJS
+        require: (moduleName: string) => {
+          results.push(`⚠️ Módulo "${moduleName}" simulado en el entorno de ejecución.`);
+          return {};
+        }
       },
       allowAsync: true
     });
