@@ -92,8 +92,8 @@ function executeMultipleFiles(files: GeneratedFile[]): CodeExecutionResponse {
     const cssFile = files.find(f => f.type === 'css' || f.name.endsWith('.css'));
     const jsFile = files.find(f => f.type === 'javascript' || f.name.endsWith('.js'));
     
+    // Si no hay archivo HTML, intentar ejecutar solo el JavaScript o CSS
     if (!htmlFile) {
-      // Si no hay archivo HTML, intentar ejecutar solo el JavaScript
       if (jsFile) {
         return executeJavaScript(jsFile.content);
       } else if (cssFile) {
@@ -107,41 +107,89 @@ function executeMultipleFiles(files: GeneratedFile[]): CodeExecutionResponse {
       }
     }
     
-    // Combinar HTML, CSS y JS en un solo documento HTML
+    // Si hay un archivo HTML, crear un documento completo
     let htmlContent = htmlFile.content;
     
-    // Reemplazar los enlaces a CSS y JS con el contenido real
-    if (cssFile) {
-      // Si el HTML ya incluye un enlace a la hoja de estilos, reemplazarlo
-      if (htmlContent.includes('<link rel="stylesheet" href="styles.css">')) {
-        htmlContent = htmlContent.replace(
-          '<link rel="stylesheet" href="styles.css">', 
-          `<style>${cssFile.content}</style>`
-        );
-      } else {
-        // Sino, agregar el estilo en el <head>
-        htmlContent = htmlContent.replace(
-          '</head>', 
-          `<style>${cssFile.content}</style></head>`
-        );
+    // Si el archivo HTML no tiene una estructura completa, crear una
+    if (!htmlContent.includes('<!DOCTYPE html>')) {
+      htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vista Previa</title>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+    }
+    
+    // Asegurarse de que el HTML tenga las etiquetas <head> y <body>
+    if (!htmlContent.includes('<head>')) {
+      htmlContent = htmlContent.replace('<html>', '<html>\n<head>\n<meta charset="UTF-8">\n<title>Vista Previa</title>\n</head>');
+    }
+    
+    if (!htmlContent.includes('<body>')) {
+      const headCloseIndex = htmlContent.indexOf('</head>') + 7;
+      htmlContent = htmlContent.slice(0, headCloseIndex) + '\n<body>\n' + htmlContent.slice(headCloseIndex);
+      
+      // Y asegurarse de que tenga el cierre de body antes del cierre de html
+      if (htmlContent.includes('</html>') && !htmlContent.includes('</body>')) {
+        htmlContent = htmlContent.replace('</html>', '</body>\n</html>');
       }
     }
     
-    if (jsFile) {
-      // Si el HTML ya incluye un script, reemplazarlo
-      if (htmlContent.includes('<script src="script.js"></script>')) {
-        htmlContent = htmlContent.replace(
-          '<script src="script.js"></script>', 
-          `<script>${jsFile.content}</script>`
-        );
+    // Agregar CSS
+    if (cssFile) {
+      // Buscar patrones de link a CSS
+      const linkPattern = /<link\s+[^>]*?href=["']styles\.css["'][^>]*?>/i;
+      if (linkPattern.test(htmlContent)) {
+        // Reemplazar el link existente
+        htmlContent = htmlContent.replace(linkPattern, `<style>\n${cssFile.content}\n</style>`);
       } else {
-        // Sino, agregar el script antes de cerrar el body
-        htmlContent = htmlContent.replace(
-          '</body>', 
-          `<script>${jsFile.content}</script></body>`
-        );
+        // Agregar el estilo en el head
+        htmlContent = htmlContent.replace('</head>', `  <style>\n${cssFile.content}\n  </style>\n</head>`);
       }
     }
+    
+    // Agregar JavaScript
+    if (jsFile) {
+      // Buscar patrones de script
+      const scriptPattern = /<script\s+[^>]*?src=["']script\.js["'][^>]*?><\/script>/i;
+      if (scriptPattern.test(htmlContent)) {
+        // Reemplazar el script existente
+        htmlContent = htmlContent.replace(scriptPattern, `<script>\n${jsFile.content}\n</script>`);
+      } else {
+        // Agregar el script antes de cerrar el body
+        htmlContent = htmlContent.replace('</body>', `  <script>\n${jsFile.content}\n  </script>\n</body>`);
+      }
+    }
+    
+    // Aplicar algunas mejoras al código HTML para visualización y debugging
+    htmlContent = htmlContent.replace('</body>', `
+  <!-- Código generado automáticamente -->
+  <script>
+    // Captura errores para mostrarlos al usuario
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error('Error JS:', message);
+      const errorDiv = document.createElement('div');
+      errorDiv.style.position = 'fixed';
+      errorDiv.style.bottom = '10px';
+      errorDiv.style.left = '10px';
+      errorDiv.style.right = '10px';
+      errorDiv.style.padding = '10px';
+      errorDiv.style.backgroundColor = 'rgba(255,0,0,0.1)';
+      errorDiv.style.border = '1px solid red';
+      errorDiv.style.color = 'red';
+      errorDiv.style.zIndex = '9999';
+      errorDiv.style.fontSize = '14px';
+      errorDiv.textContent = 'Error JavaScript: ' + message + ' (línea: ' + lineno + ')';
+      document.body.appendChild(errorDiv);
+      return true; // Previene el error por defecto en consola
+    };
+  </script>
+</body>`);
     
     return {
       output: "Contenido HTML generado correctamente.",

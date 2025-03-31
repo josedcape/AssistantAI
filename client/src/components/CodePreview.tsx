@@ -9,7 +9,7 @@ interface CodePreviewProps {
   allFiles?: File[];
 }
 
-export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
+const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
   const [previewHtml, setPreviewHtml] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +29,19 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       
       // Si tenemos múltiples archivos relacionados (HTML, CSS, JS), enviamos todos juntos
       if (allFiles && allFiles.length > 0) {
+        // Encontrar los archivos HTML, CSS y JS
+        const htmlFile = allFiles.find(f => f.type === 'html' || f.name.endsWith('.html'));
+        const cssFile = allFiles.find(f => f.type === 'css' || f.name.endsWith('.css'));
+        const jsFile = allFiles.find(f => f.type === 'javascript' || f.name.endsWith('.js'));
+        
+        console.log("Archivos encontrados:", { 
+          html: htmlFile?.name, 
+          css: cssFile?.name, 
+          js: jsFile?.name 
+        });
+        
         // Preparar el código con un formato de múltiples archivos
-        const files = allFiles.map(f => ({
+        const filesToSend = allFiles.map(f => ({
           name: f.name,
           content: f.content,
           language: f.type,
@@ -38,8 +49,8 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
         }));
         
         const response = await apiRequest("POST", "/api/execute", {
-          code: JSON.stringify({ files }),
-          language: file.type
+          code: JSON.stringify({ files: filesToSend }),
+          language: htmlFile ? 'html' : (file.type || 'javascript') // Preferir HTML si está disponible
         });
         
         result = await response.json();
@@ -53,6 +64,8 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
         result = await response.json();
       }
 
+      console.log("Respuesta de ejecución:", result); // Añadimos log para depuración
+
       if (!result.success) {
         setError(result.error || "Error al ejecutar el código");
         toast({
@@ -62,9 +75,6 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
         });
         setPreviewHtml("");
       } else {
-        // Guardamos la salida de texto estándar
-        setPreviewHtml(result.output);
-        
         // Si la respuesta indica que es contenido visual (HTML/CSS), activamos la vista visual
         if (result.visualOutput) {
           setIsVisualPreview(true);
@@ -74,6 +84,9 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
             // En este caso, usaremos el contenido HTML directamente
             setPreviewHtml(result.htmlContent);
           }
+        } else {
+          // Guardamos la salida de texto estándar para vista no visual (consola)
+          setPreviewHtml(result.output);
         }
       }
     } catch (err) {
@@ -425,7 +438,8 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                       title="Preview"
                       srcDoc={previewHtml}
                       className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-popups"
+                      sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+                      onLoad={(e) => console.log("iframe cargado", e.currentTarget.contentWindow?.document.title)}
                     />
                   )}
                 </div>

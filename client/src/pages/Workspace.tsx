@@ -10,7 +10,7 @@ import { getLanguageFromFileType } from "@/lib/types";
 import Header from "@/components/Header";
 import FileExplorer from "@/components/FileExplorer";
 import CodeEditor from "@/components/CodeEditor";
-import { CodePreview } from "@/components/CodePreview";
+import CodePreview from "@/components/CodePreview";
 import ConsoleOutput from "@/components/ConsoleOutput";
 import StatusBar from "@/components/StatusBar";
 import DevelopmentPlan from "@/components/DevelopmentPlan";
@@ -31,6 +31,7 @@ const Workspace = () => {
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
   // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
@@ -84,6 +85,17 @@ const Workspace = () => {
       }
     }
   }, [filesData, activeFile]);
+  
+  // Efecto para ocultar automáticamente el mensaje de éxito después de 10 segundos
+  useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage]);
   
   // Handle back to home button
   const handleBackToHome = () => {
@@ -225,10 +237,8 @@ const Workspace = () => {
         setActiveFile(newFile);
       }
       
-      toast({
-        title: "Código generado",
-        description: "El código se ha generado correctamente"
-      });
+      // Mostrar mensaje de éxito con opción para ver el plan
+      setShowSuccessMessage(true);
       
       // Clear the prompt
       setAiPrompt("");
@@ -549,8 +559,39 @@ const Workspace = () => {
         </div>
       </main>
 
+      {/* Mensaje de éxito con botón para ver plan de desarrollo */}
+      {showSuccessMessage && developmentPlan && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 shadow-lg rounded-lg px-6 py-4 flex items-center z-50 border border-green-200 dark:border-green-900">
+          <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-2 mr-4">
+            <i className="ri-check-line text-green-600 dark:text-green-300 text-xl"></i>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-medium text-gray-900 dark:text-white">¡Código generado con éxito!</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Se ha creado un plan para la construcción de tu aplicación.</p>
+          </div>
+          <div className="ml-4">
+            <Button
+              onClick={() => {
+                setShowSuccessMessage(false);
+                setDevelopmentPlan(developmentPlan);
+              }}
+            >
+              <i className="ri-eye-line mr-2"></i>
+              Ver plan
+            </Button>
+            <button 
+              className="ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+              onClick={() => setShowSuccessMessage(false)}
+              aria-label="Cerrar"
+            >
+              <i className="ri-close-line text-lg"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Plan de desarrollo modal */}
-      {developmentPlan && (
+      {developmentPlan && !showSuccessMessage && (
         <DevelopmentPlan
           plan={developmentPlan.plan}
           architecture={developmentPlan.architecture}
