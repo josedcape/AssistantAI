@@ -2,6 +2,15 @@ import { VM } from "vm2";
 import { JSDOM } from "jsdom";
 import { CodeExecutionRequest, CodeExecutionResponse } from "@shared/schema";
 
+// Objeto para almacenar información sobre la última ejecución
+const ExecutionContext = {
+  lastExecutionTimestamp: 0,
+  lastHtmlContent: '',
+  lastHtmlWithCss: '', // Para combinar HTML y CSS
+  lastJsOutput: '',
+  isHtmlMode: false
+};
+
 /**
  * Execute code in a secure sandbox environment
  */
@@ -377,6 +386,11 @@ function formatOutput(value: any): string {
  */
 function executeHTML(code: string): CodeExecutionResponse {
   try {
+    // Actualizar el contexto de ejecución
+    ExecutionContext.isHtmlMode = true;
+    ExecutionContext.lastExecutionTimestamp = Date.now();
+    ExecutionContext.lastHtmlContent = code;
+    
     // Check if the HTML has basic structure, if not add it
     let processedCode = code;
     if (!code.includes('<html') && !code.includes('<HTML')) {
@@ -386,23 +400,101 @@ function executeHTML(code: string): CodeExecutionResponse {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vista previa HTML</title>
+  <style>
+    /* Estilos básicos para mejorar la visualización */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.5;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 15px;
+    }
+    
+    /* Estilos de responsive design básicos */
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+    }
+  </style>
 </head>
 <body>
 ${code}
+<script>
+  // Código para monitorear y reportar mensajes de consola
+  (function() {
+    const originalConsole = { ...console };
+    console.log = function(...args) {
+      originalConsole.log(...args);
+      try {
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        // Aquí podríamos enviar los logs al servidor si fuera necesario
+      } catch (e) {
+        // Ignorar errores de logging
+      }
+    };
+    
+    console.error = function(...args) {
+      originalConsole.error(...args);
+      try {
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        // Reportar errores
+      } catch (e) {
+        // Ignorar errores de logging
+      }
+    };
+    
+    // Capturar errores no controlados
+    window.addEventListener('error', function(event) {
+      originalConsole.error('Error no controlado:', event.message);
+    });
+  })();
+</script>
 </body>
 </html>`;
+    }
+    
+    // Si hay CSS guardado de una ejecución anterior, lo integramos
+    // Esto permite probar CSS y HTML de forma separada
+    if (ExecutionContext.lastHtmlWithCss && code.includes('<head>')) {
+      // Intentamos extraer el CSS para insertarlo en el HTML actual
+      try {
+        const styleMatch = ExecutionContext.lastHtmlWithCss.match(/<style>([\s\S]*?)<\/style>/);
+        const cssContent = styleMatch ? styleMatch[1] : '';
+        
+        if (cssContent && !processedCode.includes(cssContent)) {
+          processedCode = processedCode.replace(
+            /<head>([\s\S]*?)<\/head>/,
+            `<head>$1<style>${cssContent}</style></head>`
+          );
+        }
+      } catch (e) {
+        console.warn("Error integrating CSS into HTML:", e);
+      }
     }
     
     // Create a JSDOM instance to render the HTML
     const dom = new JSDOM(processedCode, {
       runScripts: "dangerously", // Enable scripts to run for better preview
-      resources: "usable"
+      resources: "usable",
+      url: "https://example.org/", // Necesario para que algunas APIs del DOM funcionen correctamente
+      referrer: "https://example.com/",
+      contentType: "text/html",
+      includeNodeLocations: true,
+      storageQuota: 10000000,
     });
+    
+    // Guardar el HTML procesado con el CSS integrado
+    ExecutionContext.lastHtmlWithCss = dom.serialize();
 
     // Return HTML document details
     return {
       success: true,
-      output: dom.serialize()
+      output: dom.serialize(),
+      visualOutput: true // Flag para indicar que es una salida visual
     };
   } catch (error) {
     console.error("HTML execution error:", error);
@@ -419,7 +511,16 @@ ${code}
  */
 function executeCss(code: string): CodeExecutionResponse {
   try {
-    // Create a simple HTML page to preview the CSS
+    // Guardamos el CSS para usarlo con HTML posteriormente
+    ExecutionContext.lastExecutionTimestamp = Date.now();
+    
+    // Si hay contenido HTML previo, integramos el CSS con ese HTML
+    if (ExecutionContext.isHtmlMode && ExecutionContext.lastHtmlContent) {
+      // Intentamos aplicar el CSS al HTML existente
+      return executeHTML(ExecutionContext.lastHtmlContent);
+    }
+    
+    // Template enriquecido con varios elementos para probar los estilos
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -427,28 +528,134 @@ function executeCss(code: string): CodeExecutionResponse {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vista previa CSS</title>
   <style>
+    /* Estilos base para mejorar la visualización */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.5;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    
+    .css-preview-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    
+    .preview-section {
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .preview-title {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+    
+    code {
+      background-color: #f5f5f5;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    /* Tus estilos personalizados */
 ${code}
   </style>
 </head>
 <body>
   <div class="css-preview-container">
-    <h1>Ejemplo de estilos aplicados</h1>
-    <p>Este es un párrafo de ejemplo para mostrar estilos de texto.</p>
-    <div class="box">Este es un contenedor con clase "box"</div>
-    <button class="btn">Botón de ejemplo</button>
-    <div class="flex-container">
-      <div class="flex-item">Item 1</div>
-      <div class="flex-item">Item 2</div>
-      <div class="flex-item">Item 3</div>
+    <h1>Vista previa de CSS</h1>
+    <p>Esta página muestra cómo se ven los elementos con los estilos que has definido.</p>
+    
+    <div class="preview-section">
+      <h2 class="preview-title">Tipografía</h2>
+      <h1>Encabezado H1</h1>
+      <h2>Encabezado H2</h2>
+      <h3>Encabezado H3</h3>
+      <p>Párrafo normal con <strong>texto en negrita</strong> y <em>texto en cursiva</em>.</p>
+      <p>Otro párrafo con <a href="#">un enlace</a> para probar los estilos.</p>
+      <blockquote>Esta es una cita para probar estilos de blockquote.</blockquote>
+    </div>
+    
+    <div class="preview-section">
+      <h2 class="preview-title">Contenedores y Clases</h2>
+      <div class="container">Un div con clase "container"</div>
+      <div class="box">Un div con clase "box"</div>
+      <div class="card">
+        <div class="card-header">Encabezado de tarjeta</div>
+        <div class="card-body">Cuerpo de la tarjeta</div>
+        <div class="card-footer">Pie de la tarjeta</div>
+      </div>
+    </div>
+    
+    <div class="preview-section">
+      <h2 class="preview-title">Elementos de Formulario</h2>
+      <form>
+        <div class="form-group">
+          <label for="input1">Campo de texto:</label>
+          <input type="text" id="input1" class="form-control" placeholder="Escribe aquí...">
+        </div>
+        <div class="form-group">
+          <label for="select1">Selección:</label>
+          <select id="select1" class="form-control">
+            <option>Opción 1</option>
+            <option>Opción 2</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Checkbox:</label>
+          <div class="checkbox">
+            <input type="checkbox" id="check1">
+            <label for="check1">Opción de checkbox</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <button type="button" class="btn">Botón normal</button>
+          <button type="button" class="btn btn-primary">Botón primario</button>
+          <button type="button" class="btn btn-secondary">Botón secundario</button>
+        </div>
+      </form>
+    </div>
+    
+    <div class="preview-section">
+      <h2 class="preview-title">Elementos Flexbox</h2>
+      <div class="flex-container">
+        <div class="flex-item">Flex item 1</div>
+        <div class="flex-item">Flex item 2</div>
+        <div class="flex-item">Flex item 3</div>
+      </div>
+    </div>
+    
+    <div class="preview-section">
+      <h2 class="preview-title">Grid Layout</h2>
+      <div class="grid-container">
+        <div class="grid-item">Grid item 1</div>
+        <div class="grid-item">Grid item 2</div>
+        <div class="grid-item">Grid item 3</div>
+        <div class="grid-item">Grid item 4</div>
+      </div>
     </div>
   </div>
 </body>
 </html>`;
+
+    // Guardar el HTML con CSS para uso futuro
+    ExecutionContext.lastHtmlWithCss = html;
     
     // Return the HTML with the CSS applied
     return {
       success: true,
-      output: html
+      output: html,
+      visualOutput: true
     };
   } catch (error) {
     console.error("CSS execution error:", error);
