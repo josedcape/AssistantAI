@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File, Project, CodeGenerationResponse } from "@shared/schema";
+import { File, Project, CodeGenerationResponse, Agent } from "@shared/schema";
 import { getLanguageFromFileType } from "@/lib/types";
 import Header from "@/components/Header";
 import FileExplorer from "@/components/FileExplorer";
@@ -28,6 +28,9 @@ const Workspace = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   
   // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
@@ -53,6 +56,22 @@ const Workspace = () => {
     queryKey: [`/api/projects/${projectId}/files`],
     enabled: !isNaN(projectId),
   });
+  
+  // Fetch available agents
+  const {
+    data: agentsData,
+    isLoading: isLoadingAgents,
+    error: agentsError
+  } = useQuery<Agent[]>({
+    queryKey: ['/api/agents'],
+  });
+  
+  // Set up agents array once data is loaded
+  useEffect(() => {
+    if (agentsData) {
+      setAvailableAgents(agentsData);
+    }
+  }, [agentsData]);
   
   // Set up files array once data is loaded
   useEffect(() => {
@@ -98,11 +117,18 @@ const Workspace = () => {
       // Get the language from the active file if any
       const language = activeFile ? getLanguageFromFileType(activeFile.type) : undefined;
       
-      const response = await apiRequest("POST", "/api/generate", {
+      const requestPayload: any = {
         prompt: aiPrompt,
         language,
         projectId
-      });
+      };
+      
+      // Si hay agentes seleccionados, incluirlos en la solicitud
+      if (selectedAgents.length > 0) {
+        requestPayload.agents = selectedAgents;
+      }
+      
+      const response = await apiRequest("POST", "/api/generate", requestPayload);
       
       const result: CodeGenerationResponse = await response.json();
       
@@ -334,26 +360,92 @@ const Workspace = () => {
                   </div>
                   
                   <div className="mt-2">
-                    <div className="flex flex-wrap gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <button
+                          className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                          onClick={() => selectQuickPrompt("Crea una app web básica con HTML, CSS y JavaScript")}
+                        >
+                          App web básica
+                        </button>
+                        <button
+                          className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                          onClick={() => selectQuickPrompt("Crea un formulario de contacto con validación")}
+                        >
+                          Formulario de contacto
+                        </button>
+                        <button
+                          className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                          onClick={() => selectQuickPrompt("Crea una calculadora simple")}
+                        >
+                          Calculadora
+                        </button>
+                      </div>
+                      
                       <button
-                        className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                        onClick={() => selectQuickPrompt("Crea una app web básica con HTML, CSS y JavaScript")}
+                        className="px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 flex items-center text-xs"
+                        onClick={() => setShowAgentsSelector(!showAgentsSelector)}
                       >
-                        App web básica
-                      </button>
-                      <button
-                        className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                        onClick={() => selectQuickPrompt("Crea un formulario de contacto con validación")}
-                      >
-                        Formulario de contacto
-                      </button>
-                      <button
-                        className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                        onClick={() => selectQuickPrompt("Crea una calculadora simple")}
-                      >
-                        Calculadora
+                        <i className="ri-robot-line mr-1"></i>
+                        {selectedAgents.length > 0 ? `${selectedAgents.length} agentes` : "Agentes"}
+                        <i className={`ri-arrow-${showAgentsSelector ? 'up' : 'down'}-s-line ml-1`}></i>
                       </button>
                     </div>
+                    
+                    {/* Selector de agentes */}
+                    {showAgentsSelector && (
+                      <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
+                        <h4 className="text-sm font-medium mb-2">Selecciona agentes especializados</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                          Los agentes se encargarán de generar componentes específicos de tu aplicación.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                          {availableAgents.map((agent) => (
+                            <div 
+                              key={agent.name}
+                              className="flex items-start"
+                            >
+                              <input
+                                type="checkbox"
+                                id={`agent-${agent.name}`}
+                                checked={selectedAgents.includes(agent.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAgents([...selectedAgents, agent.name]);
+                                  } else {
+                                    setSelectedAgents(selectedAgents.filter(name => name !== agent.name));
+                                  }
+                                }}
+                                className="mr-2 mt-1"
+                              />
+                              <div>
+                                <label 
+                                  htmlFor={`agent-${agent.name}`}
+                                  className="text-sm font-medium cursor-pointer"
+                                >
+                                  {agent.description}
+                                </label>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                  {agent.functions.length} funciones
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {selectedAgents.length > 0 && (
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                              onClick={() => setSelectedAgents([])}
+                            >
+                              Limpiar selección
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

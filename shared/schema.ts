@@ -57,10 +57,22 @@ export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 
 // Types for code generation and execution
+export type AgentFunctionCall = {
+  name: string;
+  arguments: any;
+};
+
+export type Agent = {
+  name: string;
+  description: string;
+  functions: string[];
+};
+
 export type CodeGenerationRequest = {
   prompt: string;
   language?: string;
   projectId?: number;
+  agents?: string[]; // Nombres de los agentes a utilizar
 };
 
 export type CodeGenerationResponse = {
@@ -71,6 +83,11 @@ export type CodeGenerationResponse = {
   architecture?: string;
   components?: Array<string>;
   requirements?: Array<string>;
+  agentName?: string;
+  functionCall?: {
+    name: string;
+    arguments: any;
+  };
 };
 
 export type CodeExecutionRequest = {

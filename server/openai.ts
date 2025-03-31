@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { CodeGenerationRequest, CodeGenerationResponse } from "@shared/schema";
+import { executeAgent, orchestrateAgents, getAvailableAgents } from "./agents";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const MODEL = "gpt-4o";
@@ -88,14 +89,39 @@ export async function createDevelopmentPlan(description: string, language: strin
  * Generate code based on a natural language prompt
  */
 export async function generateCode(request: CodeGenerationRequest): Promise<CodeGenerationResponse> {
-  const { prompt, language = "javascript" } = request;
+  const { prompt, language = "javascript", agents } = request;
   
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
     
-    // Primero, crear un plan de desarrollo
+    // Si se solicitan agentes específicos, usar el orquestador de agentes
+    if (agents && agents.length > 0) {
+      console.log(`Orquestando agentes: ${agents.join(", ")}`);
+      const agentResults = await orchestrateAgents(request, agents);
+      
+      // Para simplicidad, devolvemos el primer resultado y guardamos información del agente
+      if (agentResults.length > 0) {
+        const mainResult = agentResults[0];
+        
+        // Si hay más de un resultado, agregar sugerencias sobre otros archivos generados
+        if (agentResults.length > 1) {
+          const suggestions = agentResults.slice(1).map((result, index) => 
+            `Archivo adicional generado por agente ${result.agentName || `#${index+2}`}: ${result.code.substring(0, 50)}...`
+          );
+          
+          return {
+            ...mainResult,
+            suggestions: [...(mainResult.suggestions || []), ...suggestions]
+          };
+        }
+        
+        return mainResult;
+      }
+    }
+    
+    // Método estándar: Primero, crear un plan de desarrollo
     const developmentPlan = await createDevelopmentPlan(prompt, language);
     
     // Crear un mensaje del sistema que guía al AI para generar código

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateCode } from "./openai";
 import { executeCode } from "./codeExecution";
+import { getAvailableAgents } from "./agents";
 import { CodeGenerationRequest, CodeExecutionRequest } from "@shared/schema";
 import { z } from "zod";
 
@@ -199,6 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prompt: z.string().min(1),
         language: z.string().optional(),
         projectId: z.number().optional(),
+        agents: z.array(z.string()).optional(),
       });
       
       const validatedData = requestSchema.parse(req.body) as CodeGenerationRequest;
@@ -215,6 +217,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ 
         message: "Error generating code",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Endpoints específicos para el sistema de agentes
+  apiRouter.get("/agents", async (req: Request, res: Response) => {
+    try {
+      const agents = getAvailableAgents();
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching agents:", error);
+      res.status(500).json({ 
+        message: "Error fetching agents",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
