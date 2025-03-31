@@ -129,7 +129,36 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       <body>
         <div id="app">
           <h2>Vista previa interactiva</h2>
-          <div id="content"></div>
+          <div id="content">
+            <!-- Elementos básicos para interactuar con el código JS -->
+            <div style="margin-bottom: 15px;">
+              <input type="text" id="userInput" placeholder="Escribe un mensaje..." style="padding: 8px; width: 70%; margin-right: 10px;">
+              <button id="sendButton">Enviar</button>
+            </div>
+            
+            <div id="output" style="min-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 15px;"></div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <button id="button1">Botón 1</button>
+              <button id="button2">Botón 2</button>
+              <button id="resetButton">Reiniciar</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <select id="dropdown" style="padding: 5px;">
+                <option value="">-- Seleccionar --</option>
+                <option value="opcion1">Opción 1</option>
+                <option value="opcion2">Opción 2</option>
+                <option value="opcion3">Opción 3</option>
+              </select>
+              
+              <div>
+                <input type="checkbox" id="checkbox1"> <label for="checkbox1">Opción A</label>
+              </div>
+            </div>
+            
+            <div id="visual-container" style="height: 100px; background-color: #f5f5f5; border-radius: 4px; margin-bottom: 15px;"></div>
+          </div>
           <div id="console-output"></div>
         </div>
         <script>
@@ -178,9 +207,76 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
             return true;
           };
           
-          // Tu código JavaScript personalizado se inyectará aquí
+          // Configuración de eventos para elementos interactivos
+          document.getElementById('button1')?.addEventListener('click', function() {
+            console.log('Botón 1 clickeado');
+            const output = document.getElementById('output');
+            if (output) output.innerHTML += '<p>Botón 1 clickeado</p>';
+          });
+          
+          document.getElementById('button2')?.addEventListener('click', function() {
+            console.log('Botón 2 clickeado');
+            const output = document.getElementById('output');
+            if (output) output.innerHTML += '<p>Botón 2 clickeado</p>';
+          });
+          
+          document.getElementById('resetButton')?.addEventListener('click', function() {
+            console.log('Reiniciando...');
+            const output = document.getElementById('output');
+            if (output) output.innerHTML = '';
+          });
+          
+          document.getElementById('dropdown')?.addEventListener('change', function(e) {
+            console.log('Opción seleccionada:', e.target.value);
+            const output = document.getElementById('output');
+            if (output) output.innerHTML += '<p>Seleccionado: ' + e.target.value + '</p>';
+          });
+          
+          // Para facilitar la depuración de funciones handleUserInput comunes en chatbots
+          window.handleUserInput = function(message) {
+            console.log('Mensaje recibido:', message);
+            const output = document.getElementById('output');
+            if (output) output.innerHTML += '<p><strong>Tú:</strong> ' + message + '</p>';
+            return message;
+          };
+          
+          // Analizamos si el código es una función o un objeto para ejecutarlo correctamente
           try {
+            // Ejecutamos el código inmediatamente como script
             ${file.content}
+            
+            // Intentamos extraer cualquier función de inicialización autoejecutada
+            const code = \`${file.content}\`;
+            
+            // Ejecutar posibles funciones de inicialización (patrones comunes)
+            try {
+              // Verificar si es una IIFE (Immediately Invoked Function Expression)
+              const iifeFunctionMatch = code.match(/\\(function\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\}\\)\\s*\\([^)]*\\)/);
+              if (iifeFunctionMatch) {
+                console.log('Detectada función autoejecutada (IIFE), ejecutando...');
+                eval(iifeFunctionMatch[0]);
+              }
+              
+              // Buscar funciones posiblemente exportadas o definidas que podrían ser principales
+              const mainFunctionMatch = code.match(/function\\s+(init|main|setup|start|app|initialize)\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\}/);
+              if (mainFunctionMatch) {
+                const fnName = mainFunctionMatch[1];
+                console.log(\`Detectada posible función principal "\${fnName}", intentando ejecutar...\`);
+                eval(\`if (typeof \${fnName} === 'function') \${fnName}();\`);
+              }
+              
+              // Ejecutar window.onload si está definido
+              if (typeof window.onload === 'function') {
+                console.log('Ejecutando window.onload...');
+                window.onload(new Event('load'));
+              }
+              
+              // Disparar DOMContentLoaded si hay listeners
+              console.log('Disparando evento DOMContentLoaded...');
+              document.dispatchEvent(new Event('DOMContentLoaded'));
+            } catch (innerError) {
+              console.warn('Error en ejecución de patrones:', innerError.message);
+            }
           } catch (error) {
             console.error('Error al ejecutar el código:', error.message);
           }
