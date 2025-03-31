@@ -75,9 +75,15 @@ export type CodeGenerationRequest = {
   agents?: string[]; // Nombres de los agentes a utilizar
 };
 
-export type CodeGenerationResponse = {
-  code: string;
+export type GeneratedFile = {
+  name: string;
+  content: string;
   language: string;
+  type: string;
+};
+
+export type CodeGenerationResponse = {
+  files: GeneratedFile[];
   suggestions?: Array<string>;
   plan?: Array<string>;
   architecture?: string;

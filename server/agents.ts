@@ -417,9 +417,56 @@ export async function executeAgent(
       const functionArgs = JSON.parse(functionCall.function.arguments);
 
       // Generar código basado en la función llamada
+      const code = await generateCodeFromFunctionCall(functionName, functionArgs, request.language || "javascript");
+        
+      // Crear estructura de archivos básica
+      const files = [
+        {
+          name: "index.html",
+          content: `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto Generado</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Contenido generado por la IA -->
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`,
+          language: "html",
+          type: "html"
+        },
+        {
+          name: "styles.css",
+          content: `/* Estilos generados por la IA */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+}`,
+          language: "css",
+          type: "css"
+        },
+        {
+          name: "script.js",
+          content: code,
+          language: "javascript",
+          type: "javascript"
+        }
+      ];
+
       return {
-        code: await generateCodeFromFunctionCall(functionName, functionArgs, request.language || "javascript"),
-        language: request.language || "javascript",
+        files,
         suggestions: [],
         agentName: agent.name,
         functionCall: {
@@ -429,10 +476,16 @@ export async function executeAgent(
       };
     }
 
-    // Si no hay function calls, devolver la respuesta como código
+    // Si no hay function calls, devolver la respuesta como código en un archivo JS
     return {
-      code: responseMessage.content || "// No se pudo generar código",
-      language: request.language || "javascript",
+      files: [
+        {
+          name: "script.js",
+          content: responseMessage.content || "// No se pudo generar código",
+          language: "javascript",
+          type: "javascript"
+        }
+      ],
       suggestions: [],
       agentName: agent.name
     };
@@ -505,7 +558,13 @@ export async function orchestrateAgents(
       results.push(architectResult);
 
       // Modificar el prompt original con la arquitectura generada
-      request.prompt = `${request.prompt}\n\nArquitectura sugerida:\n${architectResult.code}`;
+      // Intentar extraer el código del primer archivo si existe
+      let architectureContent = '';
+      if (architectResult.files && architectResult.files.length > 0) {
+        architectureContent = architectResult.files[0].content;
+      }
+      
+      request.prompt = `${request.prompt}\n\nArquitectura sugerida:\n${architectureContent}`;
     }
 
     // Ejecutar cada agente solicitado

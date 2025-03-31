@@ -1,6 +1,6 @@
 import { VM } from "vm2";
 import { JSDOM } from "jsdom";
-import { CodeExecutionRequest, CodeExecutionResponse } from "@shared/schema";
+import { CodeExecutionRequest, CodeExecutionResponse, GeneratedFile } from "@shared/schema";
 
 // Objeto para almacenar información sobre la última ejecución
 const ExecutionContext = {
@@ -18,6 +18,16 @@ export async function executeCode(request: CodeExecutionRequest): Promise<CodeEx
   let { code, language } = request;
   
   try {
+    // Detectar si contiene formato JSON para múltiples archivos
+    try {
+      const parsedCode = JSON.parse(code);
+      if (parsedCode.files && Array.isArray(parsedCode.files) && parsedCode.files.length > 0) {
+        return executeMultipleFiles(parsedCode.files);
+      }
+    } catch (e) {
+      // No es un JSON válido, continuar con la ejecución normal
+    }
+  
     // Detectamos automáticamente el lenguaje si parece incorrecto
     const detectedLanguage = detectCodeLanguage(code);
     
@@ -68,6 +78,83 @@ Solo se soporta JavaScript, HTML y CSS. Por favor, genera el código en uno de e
       success: false,
       output: "",
       error: error instanceof Error ? error.message : "Error desconocido al ejecutar el código"
+    };
+  }
+}
+
+/**
+ * Execute multiple files together (HTML, CSS, JS)
+ */
+function executeMultipleFiles(files: GeneratedFile[]): CodeExecutionResponse {
+  try {
+    // Buscar los archivos necesarios
+    const htmlFile = files.find(f => f.type === 'html' || f.name.endsWith('.html'));
+    const cssFile = files.find(f => f.type === 'css' || f.name.endsWith('.css'));
+    const jsFile = files.find(f => f.type === 'javascript' || f.name.endsWith('.js'));
+    
+    if (!htmlFile) {
+      // Si no hay archivo HTML, intentar ejecutar solo el JavaScript
+      if (jsFile) {
+        return executeJavaScript(jsFile.content);
+      } else if (cssFile) {
+        return executeCss(cssFile.content);
+      } else {
+        return {
+          output: "No se encontraron archivos válidos para ejecutar",
+          error: "Archivos no válidos",
+          success: false
+        };
+      }
+    }
+    
+    // Combinar HTML, CSS y JS en un solo documento HTML
+    let htmlContent = htmlFile.content;
+    
+    // Reemplazar los enlaces a CSS y JS con el contenido real
+    if (cssFile) {
+      // Si el HTML ya incluye un enlace a la hoja de estilos, reemplazarlo
+      if (htmlContent.includes('<link rel="stylesheet" href="styles.css">')) {
+        htmlContent = htmlContent.replace(
+          '<link rel="stylesheet" href="styles.css">', 
+          `<style>${cssFile.content}</style>`
+        );
+      } else {
+        // Sino, agregar el estilo en el <head>
+        htmlContent = htmlContent.replace(
+          '</head>', 
+          `<style>${cssFile.content}</style></head>`
+        );
+      }
+    }
+    
+    if (jsFile) {
+      // Si el HTML ya incluye un script, reemplazarlo
+      if (htmlContent.includes('<script src="script.js"></script>')) {
+        htmlContent = htmlContent.replace(
+          '<script src="script.js"></script>', 
+          `<script>${jsFile.content}</script>`
+        );
+      } else {
+        // Sino, agregar el script antes de cerrar el body
+        htmlContent = htmlContent.replace(
+          '</body>', 
+          `<script>${jsFile.content}</script></body>`
+        );
+      }
+    }
+    
+    return {
+      output: "Contenido HTML generado correctamente.",
+      success: true,
+      visualOutput: true,
+      htmlContent: htmlContent
+    };
+  } catch (error) {
+    console.error("Error executing multiple files:", error);
+    return {
+      output: "",
+      error: `Error al ejecutar múltiples archivos: ${error instanceof Error ? error.message : "Error desconocido"}`,
+      success: false
     };
   }
 }

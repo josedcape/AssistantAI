@@ -10,11 +10,13 @@ const openai = new OpenAI({
 });
 
 // Interfaz extendida para incluir el plan de acción
-interface CodeGenerationWithPlanResponse extends CodeGenerationResponse {
+interface CodeGenerationWithPlanResponse extends Omit<CodeGenerationResponse, 'files'> {
   plan?: string[];
   architecture?: string;
   components?: string[];
   requirements?: string[];
+  language?: string;
+  code?: string;
 }
 
 /**
@@ -107,9 +109,12 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
         
         // Si hay más de un resultado, agregar sugerencias sobre otros archivos generados
         if (agentResults.length > 1) {
-          const suggestions = agentResults.slice(1).map((result, index) => 
-            `Archivo adicional generado por agente ${result.agentName || `#${index+2}`}: ${result.code.substring(0, 50)}...`
-          );
+          const suggestions = agentResults.slice(1).map((result, index) => {
+            const filePreview = result.files && result.files.length > 0 ? 
+              result.files[0].content.substring(0, 50) : 
+              "No content available";
+            return `Archivo adicional generado por agente ${result.agentName || `#${index+2}`}: ${filePreview}...`;
+          });
           
           return {
             ...mainResult,
@@ -132,17 +137,37 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
     
     // Crear un mensaje del sistema que guía al AI para generar código
     const systemMessage = `Eres un experto programador que genera código de alta calidad basado en descripciones y planes de desarrollo.
-    - Genera ÚNICAMENTE el código necesario para resolver la solicitud, siguiendo el plan proporcionado.
+    - Genera MÚLTIPLES ARCHIVOS necesarios para resolver la solicitud, siguiendo el plan proporcionado.
     - Usa buenas prácticas y patrones modernos.
     - Comenta el código cuando sea necesario para explicar partes complejas.
     - IMPORTANTE: En este entorno, SOLAMENTE se pueden ejecutar los siguientes lenguajes: JavaScript, HTML y CSS.
+    - PARA APLICACIONES WEB: Debes generar por lo menos tres archivos: index.html, styles.css y script.js.
+    - PARA CHATBOTS: Genera como mínimo los archivos HTML, CSS y JavaScript necesarios para implementar un chatbot funcional.
     ${supportedLanguages.includes(targetLanguage.toLowerCase()) 
-      ? `- Debes generar código en ${targetLanguage}. Este es un requisito obligatorio.` 
-      : `- Aunque la preferencia es ${targetLanguage}, DEBES generar código en JavaScript para asegurar la ejecución correcta.`}
+      ? `- Debes generar código en ${targetLanguage} y sus tecnologías complementarias (HTML/CSS si corresponde).` 
+      : `- Aunque la preferencia es ${targetLanguage}, DEBES generar código en JavaScript, HTML y CSS para asegurar la ejecución correcta.`}
     - Responde con JSON en este formato: 
     { 
-      "code": "string con el código", 
-      "language": "${supportedLanguages.includes(targetLanguage.toLowerCase()) ? targetLanguage : "javascript"}", 
+      "files": [
+        {
+          "name": "index.html",
+          "content": "string con el código HTML",
+          "language": "html",
+          "type": "html"
+        },
+        {
+          "name": "styles.css",
+          "content": "string con el código CSS",
+          "language": "css",
+          "type": "css"
+        },
+        {
+          "name": "script.js",
+          "content": "string con el código JavaScript",
+          "language": "javascript",
+          "type": "javascript"
+        }
+      ],
       "suggestions": ["sugerencia 1", "sugerencia 2"]
     }`;
 
@@ -185,14 +210,20 @@ Ahora, genera el código basado en este plan de desarrollo.`;
     const parsedResponse = JSON.parse(content);
 
     // Ensure the response has the expected structure
-    if (!parsedResponse.code || !parsedResponse.language) {
-      throw new Error("La respuesta del modelo de IA no tiene el formato esperado");
+    if (!parsedResponse.files || !Array.isArray(parsedResponse.files) || parsedResponse.files.length === 0) {
+      throw new Error("La respuesta del modelo de IA no tiene el formato esperado. Debe incluir un array de 'files'");
     }
+    
+    // Verificar que cada archivo tenga la estructura correcta
+    parsedResponse.files.forEach((file: any, index: number) => {
+      if (!file.name || !file.content || !file.language || !file.type) {
+        throw new Error(`El archivo #${index + 1} no tiene todos los campos requeridos (name, content, language, type)`);
+      }
+    });
 
     // Combinar la respuesta del código con el plan de desarrollo
     return {
-      code: parsedResponse.code,
-      language: parsedResponse.language,
+      files: parsedResponse.files,
       suggestions: parsedResponse.suggestions || [],
       plan: developmentPlan.plan,
       architecture: developmentPlan.architecture,
