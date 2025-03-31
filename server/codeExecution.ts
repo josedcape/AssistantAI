@@ -134,9 +134,9 @@ El agente generó código en un lenguaje incorrecto. Por favor, intenta nuevamen
       const exportStatements: string[] = [];
       
       // Extraer imports para simular su funcionalidad
-      code.replace(/\bimport\s+\{([^}]+)\}\s+from\s+['"](.+?)['"]/g, (_, imports, module) => {
+      code.replace(/\bimport\s+\{([^}]+)\}\s+from\s+['"](.+?)['"]/g, (_, imports: string, module: string) => {
         importStatements.push(`// Simulación de: import { ${imports} } from "${module}"`);
-        imports.split(',').map(imp => imp.trim()).forEach(imp => {
+        imports.split(',').map((imp: string) => imp.trim()).forEach((imp: string) => {
           const varName = imp.split(' as ').pop()?.trim() || imp.trim();
           importStatements.push(`const ${varName} = { /* Simulación de módulo importado */ };`);
         });
@@ -144,14 +144,14 @@ El agente generó código en un lenguaje incorrecto. Por favor, intenta nuevamen
       });
       
       // Extraer default imports
-      code.replace(/\bimport\s+(\w+)\s+from\s+['"](.+?)['"]/g, (_, varName, module) => {
+      code.replace(/\bimport\s+(\w+)\s+from\s+['"](.+?)['"]/g, (_, varName: string, module: string) => {
         importStatements.push(`// Simulación de: import ${varName} from "${module}"`);
         importStatements.push(`const ${varName} = { /* Simulación de módulo importado */ };`);
         return _;
       });
       
       // Extraer exports para mejor simulación
-      code.replace(/\bexport\s+(const|let|var|function|class)\s+(\w+)/g, (_, type, name) => {
+      code.replace(/\bexport\s+(const|let|var|function|class)\s+(\w+)/g, (_, type: string, name: string) => {
         exportStatements.push(`// Se exportaría: ${name}`);
         return `${type} ${name}`;
       });
@@ -220,16 +220,96 @@ console.log("✅ Código transformado para simulación. Los imports/exports real
         },
         clearInterval,
         document: {
-          querySelector: () => null,
-          querySelectorAll: () => [],
-          getElementById: () => null,
+          querySelector: () => ({ 
+            addEventListener: () => results.push("📝 Event listener agregado (simulado)"),
+            style: {},
+            value: "",
+            innerText: "",
+            innerHTML: "",
+            classList: {
+              add: () => {},
+              remove: () => {},
+              toggle: () => {},
+              contains: () => false
+            },
+            setAttribute: () => {},
+            getAttribute: () => null,
+            removeAttribute: () => {}
+          }),
+          querySelectorAll: () => ({
+            forEach: (callback: Function) => {
+              results.push("📝 querySelectorAll forEach llamado (simulado)");
+            },
+            length: 0
+          }),
+          getElementById: () => ({ 
+            addEventListener: () => results.push("📝 Event listener agregado (simulado)"),
+            style: {},
+            value: "",
+            innerText: "",
+            innerHTML: "",
+            classList: {
+              add: () => {},
+              remove: () => {},
+              toggle: () => {},
+              contains: () => false
+            },
+            setAttribute: () => {},
+            getAttribute: () => null,
+            removeAttribute: () => {}
+          }),
           getElementsByClassName: () => [],
-          getElementsByTagName: () => []
+          getElementsByTagName: () => [],
+          createElement: (tag: string) => ({
+            style: {},
+            className: "",
+            id: "",
+            innerText: "",
+            innerHTML: "",
+            appendChild: () => {},
+            setAttribute: () => {},
+            addEventListener: () => results.push(`📝 Event listener agregado a elemento ${tag} (simulado)`)
+          }),
+          body: {
+            appendChild: () => {},
+            addEventListener: () => results.push("📝 Event listener agregado al body (simulado)")
+          },
+          addEventListener: (event: string, callback: Function) => {
+            results.push(`📝 Event listener '${event}' agregado al documento (simulado)`);
+          }
         },
         window: {
           alert: (msg: string) => results.push(`🔔 Alert: ${msg}`),
           confirm: () => false,
-          prompt: () => null
+          prompt: () => null,
+          addEventListener: (event: string, callback: Function) => {
+            results.push(`📝 Event listener '${event}' agregado a window (simulado)`);
+            if (event === 'load' && typeof callback === 'function') {
+              // Ejecutar inmediatamente callbacks de window.onload
+              try {
+                callback();
+              } catch (e) {
+                results.push(`❌ Error en window.addEventListener('load'): ${e instanceof Error ? e.message : String(e)}`);
+              }
+            }
+          },
+          location: {
+            href: "https://example.com",
+            host: "example.com",
+            pathname: "/",
+            search: "",
+            hash: ""
+          },
+          localStorage: {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {}
+          },
+          sessionStorage: {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {}
+          }
         },
         fetch: () => Promise.resolve({
           json: () => Promise.resolve({}),

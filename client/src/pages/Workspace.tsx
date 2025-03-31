@@ -412,9 +412,9 @@ const Workspace = () => {
                                 checked={selectedAgents.includes(agent.name)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedAgents([...selectedAgents, agent.name]);
+                                    setSelectedAgents(prevAgents => [...prevAgents, agent.name]);
                                   } else {
-                                    setSelectedAgents(selectedAgents.filter(name => name !== agent.name));
+                                    setSelectedAgents(prevAgents => prevAgents.filter(name => name !== agent.name));
                                   }
                                 }}
                                 className="mr-2 mt-1"
