@@ -123,7 +123,7 @@ const Home = () => {
                 </div>
                 <h3 className="text-lg sm:text-xl font-semibold mb-2">Generación con IA</h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
-                  Convierte tus ideas en código funcional con una simple descripción en lenguaje natural.
+                  Crea aplicaciones y todo lo que quieras crear el limite es tu mente!!.
                 </p>
               </div>
 
