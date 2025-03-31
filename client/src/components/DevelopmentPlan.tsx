@@ -6,6 +6,7 @@ import {
   AccordionItem, 
   AccordionTrigger 
 } from "@/components/ui/accordion";
+import { useToast } from "@/hooks/use-toast";
 
 interface DevelopmentPlanProps {
   plan?: string[];
@@ -23,10 +24,74 @@ const DevelopmentPlan = ({
   onClose
 }: DevelopmentPlanProps) => {
   const [expandedSection, setExpandedSection] = useState<string>("plan");
+  const { toast } = useToast();
 
   if (!plan && !architecture && !components && !requirements) {
     return null;
   }
+  
+  // Función para exportar el plan de desarrollo
+  const exportPlan = () => {
+    try {
+      // Crear el contenido del archivo
+      let content = "# PLAN DE DESARROLLO\n\n";
+      
+      if (architecture) {
+        content += "## ARQUITECTURA\n\n";
+        content += architecture + "\n\n";
+      }
+      
+      if (plan && plan.length > 0) {
+        content += "## PASOS DEL PLAN\n\n";
+        plan.forEach((step, index) => {
+          content += `${index + 1}. ${step}\n`;
+        });
+        content += "\n";
+      }
+      
+      if (components && components.length > 0) {
+        content += "## COMPONENTES\n\n";
+        components.forEach(component => {
+          content += `- ${component}\n`;
+        });
+        content += "\n";
+      }
+      
+      if (requirements && requirements.length > 0) {
+        content += "## REQUERIMIENTOS TÉCNICOS\n\n";
+        requirements.forEach(req => {
+          content += `- ${req}\n`;
+        });
+      }
+      
+      // Crear blob y enlace de descarga
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "plan_desarrollo.md";
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      toast({
+        title: "Plan exportado",
+        description: "El plan de desarrollo se ha descargado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error al exportar el plan:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo exportar el plan de desarrollo.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -122,7 +187,7 @@ const DevelopmentPlan = ({
           <Button variant="outline" onClick={onClose} className="mr-2">
             Cerrar
           </Button>
-          <Button>
+          <Button onClick={exportPlan}>
             <i className="ri-download-line mr-2"></i>
             Exportar Plan
           </Button>
