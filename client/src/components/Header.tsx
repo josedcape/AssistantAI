@@ -212,7 +212,7 @@ const Header = () => {
                 }}
                 className="w-full flex items-center justify-center"
               >
-                <i className="ri-add-line mr-2"></i> Nuevo Proyecto
+                <img src="/attached_assets/robot-logo.jpg" alt="Robot Logo" className="w-6 h-6 mr-2 rounded-full" /> Nuevo Proyecto
               </Button>
               
               <div className="mt-4 flex items-center justify-between">
