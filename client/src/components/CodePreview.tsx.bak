@@ -332,7 +332,7 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
 
   useEffect(() => {
     executeCode();
-  }, [file, allFiles]);
+  }, [file, allFiles, toast]);
   
   // Efecto para inicializar la vista visual cuando cambia isVisualPreview
   useEffect(() => {
@@ -431,11 +431,16 @@ export const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 </div>
               )}
               
-              {/* Salida de consola para texto (cuando no es una vista visual) */}
-              {!isVisualPreview && file.type === "javascript" && (
-                <pre className="text-sm whitespace-pre-wrap overflow-auto max-h-96 p-4 bg-slate-100 dark:bg-slate-800 rounded-md">
-                  {previewHtml || "// Sin salida en consola"}
-                </pre>
+              {/* JavaScript en modo consola */}
+              {file.type === "javascript" && !isVisualPreview && (
+                <div className="max-w-md mx-auto">
+                  <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">Salida de consola:</h3>
+                    <pre className="bg-slate-100 dark:bg-slate-800 p-3 rounded text-sm overflow-auto min-h-[200px]">
+                      {previewHtml || "(Sin salida)"}
+                    </pre>
+                  </div>
+                </div>
               )}
             </div>
           )}

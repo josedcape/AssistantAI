@@ -10,7 +10,7 @@ import { getLanguageFromFileType } from "@/lib/types";
 import Header from "@/components/Header";
 import FileExplorer from "@/components/FileExplorer";
 import CodeEditor from "@/components/CodeEditor";
-import CodePreview from "@/components/CodePreview";
+import { CodePreview } from "@/components/CodePreview";
 import ConsoleOutput from "@/components/ConsoleOutput";
 import StatusBar from "@/components/StatusBar";
 import DevelopmentPlan from "@/components/DevelopmentPlan";
@@ -149,9 +149,46 @@ const Workspace = () => {
         });
       }
       
-      // If we have an active file, update it
-      if (activeFile) {
-        // Update the file
+      // Manejar los archivos generados
+      if (result.files && result.files.length > 0) {
+        // Crear todos los archivos uno por uno
+        for (const file of result.files) {
+          // Crear un nuevo archivo para cada uno
+          try {
+            await apiRequest("POST", `/api/projects/${projectId}/files`, {
+              name: file.name,
+              content: file.content,
+              type: file.type
+            });
+          } catch (error) {
+            console.error(`Error creating file ${file.name}:`, error);
+            toast({
+              title: `Error al crear ${file.name}`,
+              description: "No se pudo crear el archivo. Inténtalo de nuevo.",
+              variant: "destructive"
+            });
+          }
+        }
+        
+        // Actualizar la lista de archivos y seleccionar el primero HTML como activo
+        const filesResult = await refetchFiles();
+        const updatedFiles = filesResult.data || [];
+        
+        // Intentar seleccionar un archivo HTML primero, luego JS, luego cualquiera
+        const htmlFile = updatedFiles.find((f: File) => f.type === 'html');
+        const jsFile = updatedFiles.find((f: File) => f.type === 'javascript');
+        
+        if (htmlFile) {
+          setActiveFile(htmlFile);
+        } else if (jsFile) {
+          setActiveFile(jsFile);
+        } else if (updatedFiles.length > 0) {
+          setActiveFile(updatedFiles[0]);
+        }
+      } else if (activeFile && result.code) {
+        // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
+        // y tenemos un archivo activo, actualizarlo
+        
         const updateResponse = await apiRequest("PUT", `/api/files/${activeFile.id}`, {
           content: result.code
         });
@@ -161,8 +198,10 @@ const Workspace = () => {
         // Update the files array
         setFiles(files.map(file => file.id === activeFile.id ? updatedFile : file));
         setActiveFile(updatedFile);
-      } else {
-        // Create a new file
+      } else if (result.code) {
+        // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
+        // y no tenemos un archivo activo, crear uno nuevo
+        
         const fileType = result.language === "html" ? "html" : 
                         result.language === "css" ? "css" : 
                         "javascript";

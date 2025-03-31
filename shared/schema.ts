@@ -94,6 +94,9 @@ export type CodeGenerationResponse = {
     name: string;
     arguments: any;
   };
+  // Campos de compatibilidad anterior
+  code?: string;
+  language?: string;
 };
 
 export type CodeExecutionRequest = {
