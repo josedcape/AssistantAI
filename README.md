@@ -1,8 +1,8 @@
-# AssistantAI - Plataforma de Generación de Código con IA
+# CODESTORM AI - Plataforma de Generación de Código con IA
 
 ## Descripción
 
-AssistantAI es una plataforma avanzada que transforma descripciones en lenguaje natural en código funcional a través de un sistema inteligente basado en agentes. La aplicación cuenta con una interfaz moderna y adaptable que permite a los usuarios crear, editar y ejecutar aplicaciones directamente desde el navegador.
+CODESTORM AI es una plataforma avanzada que transforma descripciones en lenguaje natural en código funcional a través de un sistema inteligente basado en agentes. La aplicación cuenta con una interfaz moderna y adaptable que permite a los usuarios crear, editar y ejecutar aplicaciones directamente desde el navegador.
 
 ## Características principales
 

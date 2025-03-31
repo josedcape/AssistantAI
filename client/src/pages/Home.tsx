@@ -23,7 +23,7 @@ const Home = () => {
 
                 {/* Main title with gradient - responsive sizes */}
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 sm:mb-4 relative z-10">
-                  <span className="gradient-bg text-transparent bg-clip-text">CodeCraft AI</span>
+                  <span className="gradient-bg text-transparent bg-clip-text golden-text">CODESTORM AI</span>
                 </h1>
               </div>
 
@@ -251,7 +251,7 @@ const Home = () => {
               <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center mr-2">
                 <i className="ri-code-box-line text-white text-sm"></i>
               </div>
-              <span className="text-lg font-bold text-white">CodeCraft AI</span>
+              <span className="text-lg font-bold golden-text">CODESTORM AI</span>
             </div>
             <div className="flex space-x-4 sm:space-x-8">
               <a href="#" className="hover:text-white text-sm sm:text-base">Términos</a>
@@ -260,7 +260,7 @@ const Home = () => {
             </div>
           </div>
           <div className="mt-4 sm:mt-8 text-center text-xs sm:text-sm">
-            &copy; {new Date().getFullYear()} CodeCraft AI. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} CODESTORM AI. Todos los derechos reservados.
           </div>
         </div>
       </footer>

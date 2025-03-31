@@ -12,22 +12,22 @@ const Tutorials = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Tutoriales</h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Aprende a utilizar todas las funcionalidades de CodeCraft AI con nuestras guías detalladas.
+            Aprende a utilizar todas las funcionalidades de <span className="golden-text">CODESTORM AI</span> con nuestras guías detalladas.
           </p>
         </div>
-        
+
         <Tabs defaultValue="chatbot" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="chatbot">Chatbot</TabsTrigger>
             <TabsTrigger value="web-app">Aplicación Web</TabsTrigger>
             <TabsTrigger value="api">API REST</TabsTrigger>
           </TabsList>
-          
+
           {/* Tutorial de Chatbot */}
           <TabsContent value="chatbot" className="space-y-6">
             <Card>
@@ -71,7 +71,7 @@ const Tutorials = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <p className="text-slate-700 dark:text-slate-300 mb-4">
-                        Para comenzar a crear un chatbot, primero necesitas iniciar un nuevo proyecto en la plataforma CodeCraft AI:
+                        Para comenzar a crear un chatbot, primero necesitas iniciar un nuevo proyecto en la plataforma <span className="golden-text">CODESTORM AI</span>:
                       </p>
                       <ol className="list-decimal pl-6 space-y-2 text-slate-700 dark:text-slate-300">
                         <li>Haz clic en el botón <span className="font-semibold">"Empezar ahora"</span> en la página principal</li>
@@ -152,7 +152,7 @@ const Tutorials = () => {
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Paso 3: Seleccionar Agentes y Generar Código</h3>
                   <p className="text-slate-700 dark:text-slate-300 mb-4">
-                    CodeCraft AI utiliza un sistema de agentes especializados para generar diferentes tipos de código. Para un chatbot, recomendamos seleccionar:
+                    <span className="golden-text">CODESTORM AI</span> utiliza un sistema de agentes especializados para generar diferentes tipos de código. Para un chatbot, recomendamos seleccionar:
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -372,6 +372,109 @@ const Tutorials = () => {
                   </div>
                 </div>
 
+                <Separator />
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3">Paso 5: Probar el Chatbot</h3>
+                  <p className="text-slate-700 dark:text-slate-300 mb-4">
+                    Una vez que hayas revisado y personalizado tu chatbot, es hora de probarlo:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <ol className="list-decimal pl-6 space-y-2 text-slate-700 dark:text-slate-300">
+                        <li>Haz clic en la pestaña <span className="font-semibold">"Vista previa"</span> en la parte superior del editor</li>
+                        <li>Interactúa con tu chatbot escribiendo preguntas en el campo de entrada</li>
+                        <li>Prueba diferentes tipos de preguntas para ver cómo responde</li>
+                        <li>Verifica que el historial de mensajes se muestre correctamente</li>
+                        <li>Comprueba que la interfaz sea agradable y funcional</li>
+                      </ol>
+                      <div className="mt-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                        <div className="text-sm font-semibold mb-2">Depuración:</div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          Si encuentras algún error o comportamiento inesperado, puedes utilizar la consola del navegador para depurar problemas en el código JavaScript.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="bg-slate-200 dark:bg-slate-700 px-4 py-2 text-sm font-semibold">
+                        Vista previa
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 max-h-56 overflow-y-auto">
+                          <div className="flex flex-col space-y-3">
+                            <div className="ml-auto bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 p-2 rounded-lg max-w-[80%] text-sm">
+                              ¿Qué es JavaScript?
+                            </div>
+                            <div className="mr-auto bg-slate-200 dark:bg-slate-700 p-2 rounded-lg max-w-[80%] text-sm">
+                              JavaScript es un lenguaje de programación interpretado, dialecto del estándar ECMAScript. Se define como orientado a objetos, basado en prototipos, imperativo, débilmente tipado y dinámico.
+                            </div>
+                            <div className="ml-auto bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 p-2 rounded-lg max-w-[80%] text-sm">
+                              ¿Cómo creo una función en Python?
+                            </div>
+                            <div className="mr-auto bg-slate-200 dark:bg-slate-700 p-2 rounded-lg max-w-[80%] text-sm">
+                              En Python, puedes crear una función utilizando la palabra clave 'def', seguida del nombre de la función y paréntesis. Por ejemplo: def mi_funcion(): pass
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Escribe tu pregunta aquí..." 
+                            className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                          />
+                          <button className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg">
+                            Enviar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3">Paso 6: Ampliar Funcionalidades (Avanzado)</h3>
+                  <p className="text-slate-700 dark:text-slate-300 mb-4">
+                    Una vez que tengas un chatbot básico funcionando, puedes mejorar sus capacidades con estas funcionalidades avanzadas:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="font-semibold mb-2">Integración con OpenAI</div>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        Conecta tu chatbot con la API de OpenAI para generar respuestas dinámicas utilizando modelos de lenguaje avanzados como GPT-4o.
+                      </p>
+                      <div className="mt-3">
+                        <Link href="/tutorials/chatbot-openai">
+                          <a className="text-primary-600 dark:text-primary-400 text-sm">Ver guía →</a>
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="font-semibold mb-2">Persistencia de datos</div>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        Implementa almacenamiento local o en la nube para guardar conversaciones entre sesiones y mejorar el aprendizaje.
+                      </p>
+                      <div className="mt-3">
+                        <Link href="/tutorials/chatbot-storage">
+                          <a className="text-primary-600 dark:text-primary-400 text-sm">Ver guía →</a>
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="font-semibold mb-2">Personalización avanzada</div>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        Añade avatares, indicadores de escritura, opciones de voz y temas personalizables para mejorar la experiencia.
+                      </p>
+                      <div className="mt-3">
+                        <Link href="/tutorials/chatbot-ui">
+                          <a className="text-primary-600 dark:text-primary-400 text-sm">Ver guía →</a>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-center mt-8">
                   <Link href="/workspace/new?template=chatbot">
                     <a>
@@ -384,7 +487,7 @@ const Tutorials = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Tutorial de Aplicación Web */}
           <TabsContent value="web-app" className="space-y-6">
             <Card>
@@ -404,7 +507,7 @@ const Tutorials = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Tutorial de API REST */}
           <TabsContent value="api" className="space-y-6">
             <Card>
@@ -426,7 +529,7 @@ const Tutorials = () => {
           </TabsContent>
         </Tabs>
       </main>
-      
+
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -435,7 +538,7 @@ const Tutorials = () => {
               <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center mr-2">
                 <i className="ri-code-box-line text-white text-sm"></i>
               </div>
-              <span className="text-lg font-bold text-white">CodeCraft AI</span>
+              <span className="text-lg font-bold text-white"><span className="golden-text">CODESTORM AI</span></span>
             </div>
             <div className="flex space-x-4 sm:space-x-8">
               <a href="#" className="hover:text-white text-sm sm:text-base">Términos</a>
@@ -444,7 +547,7 @@ const Tutorials = () => {
             </div>
           </div>
           <div className="mt-4 sm:mt-8 text-center text-xs sm:text-sm">
-            &copy; {new Date().getFullYear()} CodeCraft AI. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} <span className="golden-text">CODESTORM AI</span>. Todos los derechos reservados.
           </div>
         </div>
       </footer>
