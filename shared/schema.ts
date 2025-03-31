@@ -111,3 +111,21 @@ export type CodeExecutionResponse = {
   visualOutput?: boolean; // Indica si la salida debe mostrarse como contenido visual (HTML/CSS)
   htmlContent?: string; // Contenido HTML para renderizar cuando visualOutput es true
 };
+
+// Types para la corrección de código
+export type CodeCorrectionRequest = {
+  fileId: number;
+  content: string;
+  instructions: string;
+  language?: string;
+  projectId?: number;
+};
+
+export type CodeCorrectionResponse = {
+  correctedCode: string;
+  changes: Array<{
+    description: string;
+    lineNumbers?: number[];
+  }>;
+  explanation?: string;
+};

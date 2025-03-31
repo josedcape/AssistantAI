@@ -1,10 +1,10 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCode } from "./openai";
+import { generateCode, correctCode } from "./openai";
 import { executeCode } from "./codeExecution";
 import { getAvailableAgents } from "./agents";
-import { CodeGenerationRequest, CodeExecutionRequest } from "@shared/schema";
+import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -257,6 +257,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ 
         message: "Error executing code",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Endpoint para la corrección de código
+  apiRouter.post("/correct", async (req: Request, res: Response) => {
+    try {
+      const requestSchema = z.object({
+        fileId: z.number(),
+        content: z.string().min(1),
+        instructions: z.string().min(1),
+        language: z.string().optional(),
+        projectId: z.number().optional()
+      });
+      
+      const validatedData = requestSchema.parse(req.body) as CodeCorrectionRequest;
+      
+      const correctionResult = await correctCode(validatedData);
+      res.json(correctionResult);
+    } catch (error) {
+      console.error("Error correcting code:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: "Error correcting code",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { CodeGenerationRequest, CodeGenerationResponse } from "@shared/schema";
+import { CodeGenerationRequest, CodeGenerationResponse, CodeCorrectionRequest, CodeCorrectionResponse } from "@shared/schema";
 import { executeAgent, orchestrateAgents, getAvailableAgents } from "./agents";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -88,8 +88,87 @@ export async function createDevelopmentPlan(description: string, language: strin
 }
 
 /**
- * Generate code based on a natural language prompt
+ * Corrige y mejora código existente basado en instrucciones específicas
  */
+export async function correctCode(request: CodeCorrectionRequest): Promise<CodeCorrectionResponse> {
+  const { content, instructions, language = "javascript" } = request;
+  
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
+    }
+    
+    // Detectar el tipo de lenguaje basado en el contenido o usar el proporcionado
+    const detectedLanguage = language || (
+      content.includes('<html') ? 'html' : 
+      content.includes('function') || content.includes('const ') || content.includes('let ') ? 'javascript' : 
+      content.includes('{') && content.includes(':') && !content.includes('function') ? 'css' : 
+      'javascript'
+    );
+    
+    // Crear un mensaje del sistema que guía la corrección de código
+    const systemMessage = `Eres un experto programador especializado en revisar y mejorar código.
+    - Tu tarea es corregir, optimizar y mejorar el código proporcionado según las instrucciones específicas.
+    - Mantén el mismo lenguaje y estructura general, a menos que las instrucciones indiquen lo contrario.
+    - Proporciona explicaciones claras sobre los cambios realizados.
+    - Indica los números de línea donde se realizaron los cambios importantes.
+    - Responde con JSON en este formato exacto: 
+    {
+      "correctedCode": "código completo corregido",
+      "changes": [
+        {
+          "description": "descripción del cambio realizado",
+          "lineNumbers": [1, 2, 3]
+        }
+      ],
+      "explanation": "explicación general de las mejoras"
+    }`;
+
+    // Preparar el mensaje con el código y las instrucciones
+    const userMessage = `
+    # Código a corregir (${detectedLanguage}):
+    \`\`\`${detectedLanguage}
+    ${content}
+    \`\`\`
+    
+    # Instrucciones para la corrección:
+    ${instructions}
+    
+    Por favor, corrige y mejora este código siguiendo las instrucciones proporcionadas.`;
+
+    const response = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.5,
+    });
+
+    const responseContent = response.choices[0].message.content;
+    if (!responseContent) {
+      throw new Error("No se recibió respuesta del modelo de IA");
+    }
+    
+    const parsedResponse = JSON.parse(responseContent);
+    
+    // Verificar que la respuesta tiene la estructura esperada
+    if (!parsedResponse.correctedCode) {
+      throw new Error("La respuesta no contiene el código corregido");
+    }
+
+    return {
+      correctedCode: parsedResponse.correctedCode,
+      changes: parsedResponse.changes || [],
+      explanation: parsedResponse.explanation || ""
+    };
+  } catch (error) {
+    console.error("Error correcting code:", error);
+    throw new Error(`Error al corregir código: ${error instanceof Error ? error.message : "Error desconocido"}`);
+  }
+}
+
 export async function generateCode(request: CodeGenerationRequest): Promise<CodeGenerationResponse> {
   const { prompt, language = "javascript", agents } = request;
   

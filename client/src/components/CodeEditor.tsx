@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getLanguageIcon, getLanguageFromFileType } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import CodeCorrectionModal from "./CodeCorrectionModal";
 
 interface CodeEditorProps {
   file: File;
@@ -18,12 +19,46 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
   const language = getLanguageFromFileType(file.type);
   const languageIcon = getLanguageIcon(file.type);
+  
+  // Función para actualizar el archivo con el código corregido
+  const handleApplyCorrections = async (correctedCode: string) => {
+    setContent(correctedCode);
+    setIsDirty(true);
+    
+    // Si el usuario quiere guardar inmediatamente
+    const shouldSaveImmediately = true; // Puedes hacer esto configurable
+    if (shouldSaveImmediately) {
+      try {
+        setIsSaving(true);
+        
+        const response = await apiRequest("PUT", `/api/files/${file.id}`, {
+          content: correctedCode
+        });
+        
+        const updatedFile = await response.json();
+        setIsDirty(false);
+        
+        if (onUpdate) {
+          onUpdate(updatedFile);
+        }
+        return Promise.resolve();
+      } catch (error) {
+        console.error("Error saving corrected code:", error);
+        return Promise.reject(error);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+    
+    return Promise.resolve();
+  };
 
   useEffect(() => {
     setContent(file.content);
@@ -137,6 +172,14 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
           {isDirty && <span className="text-xs text-blue-500 animate-pulse flex-shrink-0">•</span>}
         </div>
         <div className="flex space-x-1">
+          <button
+            className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
+            onClick={() => setShowCorrectionModal(true)}
+            aria-label="Corregir código con IA"
+            title="Corregir código con IA"
+          >
+            <i className="ri-robot-line"></i>
+          </button>
           <button
             className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
             onClick={saveFile}
@@ -288,6 +331,16 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
             )}
           </Button>
         </div>
+      )}
+      
+      {/* Modal de corrección de código con IA */}
+      {showCorrectionModal && (
+        <CodeCorrectionModal
+          file={file}
+          onClose={() => setShowCorrectionModal(false)}
+          onApplyChanges={handleApplyCorrections}
+          projectId={file.projectId}
+        />
       )}
     </div>
   );
