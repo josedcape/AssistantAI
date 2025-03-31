@@ -32,12 +32,20 @@ const Home = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-                <Button size={isMobile ? "default" : "lg"} className="text-base">
-                  <i className="ri-rocket-line mr-2"></i> Empezar ahora
-                </Button>
-                <Button variant="outline" size={isMobile ? "default" : "lg"} className="text-base">
-                  <i className="ri-book-open-line mr-2"></i> Ver tutorial
-                </Button>
+                <Link href="/workspace/new">
+                  <a>
+                    <Button size={isMobile ? "default" : "lg"} className="text-base">
+                      <i className="ri-rocket-line mr-2"></i> Empezar ahora
+                    </Button>
+                  </a>
+                </Link>
+                <Link href="/tutorials">
+                  <a>
+                    <Button variant="outline" size={isMobile ? "default" : "lg"} className="text-base">
+                      <i className="ri-book-open-line mr-2"></i> Ver tutorial
+                    </Button>
+                  </a>
+                </Link>
               </div>
               
               {/* Mobile app demo preview - visible only on larger screens */}

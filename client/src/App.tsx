@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useState, useEffect } from "react";
 import Home from "@/pages/Home";
 import Workspace from "@/pages/Workspace";
+import Tutorials from "@/pages/Tutorials";
 import NotFound from "@/pages/not-found";
 
 // Theme context for dark mode
@@ -25,6 +26,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/workspace/:id" component={Workspace} />
+      <Route path="/tutorials" component={Tutorials} />
       <Route component={NotFound} />
     </Switch>
   );
