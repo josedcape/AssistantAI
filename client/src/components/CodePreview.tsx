@@ -42,11 +42,18 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
         });
         setPreviewHtml("");
       } else {
+        // Guardamos la salida de texto estándar
         setPreviewHtml(result.output);
         
         // Si la respuesta indica que es contenido visual (HTML/CSS), activamos la vista visual
         if (result.visualOutput) {
           setIsVisualPreview(true);
+          
+          // Si hay contenido HTML específico, lo usamos para el iframe
+          if (result.htmlContent) {
+            // En este caso, usaremos el contenido HTML directamente
+            setPreviewHtml(result.htmlContent);
+          }
         }
       }
     } catch (err) {
@@ -384,7 +391,8 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
               {/* HTML o CSS con visualOutput mostrará un iframe */}
               {((file.type === "html" || file.type === "css") || isVisualPreview) && (
                 <div className="w-full h-full min-h-[350px] border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                  {file.type === "javascript" && isVisualPreview ? (
+                  {file.type === "javascript" && isVisualPreview && !previewHtml.includes('<!DOCTYPE html>') ? (
+                    // Usamos el entorno por defecto que configuramos (cuando no hay HTML específico)
                     <iframe
                       ref={iframeRef}
                       title="JavaScript Visual Preview"
@@ -392,8 +400,9 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                       sandbox="allow-scripts allow-popups"
                     />
                   ) : (
+                    // Usamos previewHtml cuando viene del backend (ya sea HTML directo o desde la función especializada)
                     <iframe
-                      title="HTML/CSS Preview"
+                      title="Preview"
                       srcDoc={previewHtml}
                       className="w-full h-full border-0"
                       sandbox="allow-scripts allow-popups"

@@ -31,7 +31,17 @@ export async function executeCode(request: CodeExecutionRequest): Promise<CodeEx
       }
     }
     
-    if (language === "javascript" || language === "js") {
+    // Verificar si el código JavaScript podría beneficiarse de una vista previa HTML
+    const mightNeedHtmlInterface = (code.includes('document.getElementById') || 
+                                  code.includes('addEventListener') || 
+                                  code.includes('querySelector') || 
+                                  code.includes('createElement')) &&
+                                  (language === "javascript" || language === "js");
+    
+    if (mightNeedHtmlInterface) {
+      // Este JavaScript parece interactuar con el DOM, entregamos una vista HTML interactiva
+      return executeJavaScriptWithHtmlInterface(code);
+    } else if (language === "javascript" || language === "js") {
       return executeJavaScript(code);
     } else if (language === "html") {
       return executeHTML(code);
@@ -384,6 +394,309 @@ function formatOutput(value: any): string {
 /**
  * Execute HTML code with JSDOM for preview
  */
+/**
+ * Execute JavaScript code with an HTML interface for interactive visualization
+ */
+function executeJavaScriptWithHtmlInterface(code: string): CodeExecutionResponse {
+  try {
+    // Crear una plantilla HTML básica para interactuar con el código JavaScript
+    const htmlTemplate = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JavaScript Interactivo</title>
+  <style>
+    /* Estilos básicos para la interfaz */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.5;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .chat-input {
+      display: flex;
+      gap: 10px;
+    }
+    
+    input[type="text"] {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    .chat-output {
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
+    
+    .console-log {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .user-message {
+      background-color: #e1f5fe;
+      padding: 8px 12px;
+      border-radius: 15px;
+      margin: 5px 0;
+      align-self: flex-end;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    
+    .bot-message {
+      background-color: #f1f1f1;
+      padding: 8px 12px;
+      border-radius: 15px;
+      margin: 5px 0;
+      align-self: flex-start;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    
+    .message-container {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Interfaz Interactiva JavaScript</h2>
+    
+    <!-- Chat UI -->
+    <div class="chat-output" id="chatOutput"></div>
+    
+    <div class="chat-input">
+      <input type="text" id="userInput" placeholder="Escribe un mensaje...">
+      <button id="sendButton">Enviar</button>
+    </div>
+    
+    <!-- Controles adicionales -->
+    <div style="display: flex; gap: 10px;">
+      <button id="clearButton">Limpiar chat</button>
+      <button id="resetButton">Reiniciar</button>
+    </div>
+    
+    <!-- Consola para logs -->
+    <div class="console-log" id="consoleOutput">
+      <div>Consola:</div>
+    </div>
+  </div>
+
+  <script>
+    // Configuración para capturar la salida de consola
+    const consoleOutput = document.getElementById('consoleOutput');
+    const originalConsole = { ...console };
+    
+    function appendToConsole(message, type = 'log') {
+      if (!consoleOutput) return;
+      const item = document.createElement('div');
+      item.className = 'console-' + type;
+      
+      if (typeof message === 'object') {
+        try {
+          message = JSON.stringify(message, null, 2);
+        } catch (e) {
+          message = message.toString();
+        }
+      }
+      
+      item.textContent = message;
+      consoleOutput.appendChild(item);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+    
+    console.log = function(...args) {
+      args.forEach(arg => appendToConsole(arg, 'log'));
+      originalConsole.log(...args);
+    };
+    
+    console.error = function(...args) {
+      args.forEach(arg => appendToConsole(arg, 'error'));
+      originalConsole.error(...args);
+    };
+    
+    console.warn = function(...args) {
+      args.forEach(arg => appendToConsole(arg, 'warn'));
+      originalConsole.warn(...args);
+    };
+    
+    console.info = function(...args) {
+      args.forEach(arg => appendToConsole(arg, 'info'));
+      originalConsole.info(...args);
+    };
+    
+    // Capturar errores no controlados
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error('Error: ' + message);
+      return true;
+    };
+    
+    // Función para agregar mensajes al chat
+    function addMessage(text, isUser = false) {
+      const chatOutput = document.getElementById('chatOutput');
+      if (!chatOutput) return;
+      
+      const messageElement = document.createElement('div');
+      messageElement.className = isUser ? 'user-message' : 'bot-message';
+      messageElement.textContent = text;
+      
+      const container = document.createElement('div');
+      container.className = 'message-container';
+      container.appendChild(messageElement);
+      
+      chatOutput.appendChild(container);
+      chatOutput.scrollTop = chatOutput.scrollHeight;
+    }
+    
+    // Configurar eventos UI
+    document.getElementById('sendButton').addEventListener('click', function() {
+      const userInput = document.getElementById('userInput');
+      const message = userInput.value.trim();
+      
+      if (message) {
+        addMessage(message, true);
+        userInput.value = '';
+        
+        // Si existe una función handleUserInput en el código del usuario, la llamamos
+        if (typeof window.handleUserInput === 'function') {
+          try {
+            const response = window.handleUserInput(message);
+            if (response && typeof response === 'string') {
+              // Si la función devuelve un string, lo mostramos como respuesta
+              setTimeout(() => addMessage(response), 500);
+            } else if (response instanceof Promise) {
+              // Si es una promesa, esperamos el resultado
+              response
+                .then(result => {
+                  if (result && typeof result === 'string') {
+                    setTimeout(() => addMessage(result), 500);
+                  }
+                })
+                .catch(err => console.error('Error procesando respuesta:', err));
+            }
+          } catch (error) {
+            console.error('Error al procesar entrada:', error.message);
+          }
+        }
+      }
+    });
+    
+    // Enviar mensaje al presionar Enter
+    document.getElementById('userInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('sendButton').click();
+      }
+    });
+    
+    // Botón para limpiar chat
+    document.getElementById('clearButton').addEventListener('click', function() {
+      const chatOutput = document.getElementById('chatOutput');
+      if (chatOutput) chatOutput.innerHTML = '';
+    });
+    
+    // Botón para reiniciar
+    document.getElementById('resetButton').addEventListener('click', function() {
+      const chatOutput = document.getElementById('chatOutput');
+      const consoleOutput = document.getElementById('consoleOutput');
+      if (chatOutput) chatOutput.innerHTML = '';
+      if (consoleOutput) {
+        consoleOutput.innerHTML = '<div>Consola:</div>';
+      }
+      console.log('Interfaz reiniciada');
+    });
+    
+    // Crear variables globales que puedan ser útiles para chatbots
+    window.sendResponse = function(text) {
+      if (typeof text === 'string') {
+        addMessage(text);
+      }
+    };
+    
+    // Inicializar mensajes
+    console.log('Interfaz JavaScript interactiva lista');
+    
+    // Ejecutar el código del usuario
+    try {
+      // Código JavaScript del usuario
+      ${code}
+      
+      // Si hay una función init, main o start, ejecutarla
+      if (typeof window.init === 'function') {
+        window.init();
+      } else if (typeof window.main === 'function') {
+        window.main();
+      } else if (typeof window.start === 'function') {
+        window.start();
+      }
+      
+      // Disparar DOMContentLoaded y load para que funcionen los event listeners
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+      window.dispatchEvent(new Event('load'));
+      
+    } catch (error) {
+      console.error('Error al ejecutar el código:', error.message);
+    }
+  </script>
+</body>
+</html>`;
+
+    return {
+      success: true,
+      output: "Código JavaScript preparado para visualización interactiva",
+      visualOutput: true,
+      htmlContent: htmlTemplate
+    };
+  } catch (error) {
+    console.error("JS with HTML interface error:", error);
+    return {
+      success: false,
+      output: "",
+      error: error instanceof Error ? error.message : "Error al crear la interfaz interactiva"
+    };
+  }
+}
+
 function executeHTML(code: string): CodeExecutionResponse {
   try {
     // Actualizar el contexto de ejecución

@@ -100,4 +100,5 @@ export type CodeExecutionResponse = {
   error?: string;
   success: boolean;
   visualOutput?: boolean; // Indica si la salida debe mostrarse como contenido visual (HTML/CSS)
+  htmlContent?: string; // Contenido HTML para renderizar cuando visualOutput es true
 };
