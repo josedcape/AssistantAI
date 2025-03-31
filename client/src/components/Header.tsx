@@ -49,7 +49,7 @@ const Header = () => {
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg gradient-bg flex items-center justify-center mr-2">
                   <i className="ri-code-box-line text-white text-base sm:text-xl"></i>
                 </div>
-                <span className="text-lg sm:text-xl font-bold">CodeCraft AI</span>
+                <span className="text-lg sm:text-xl font-bold golden-text">CODESTORM</span>
               </a>
             </Link>
             
