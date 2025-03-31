@@ -8,9 +8,9 @@ const Home = () => {
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-black">
       <Header />
-      
+
       <main className="flex-1">
         {/* Hero section */}
         <section className="py-10 sm:py-12 md:py-20 bg-white dark:bg-slate-800">
@@ -20,17 +20,17 @@ const Home = () => {
                 {/* Background decorations - visible on desktop only */}
                 <div className="hidden md:block absolute -top-10 -left-10 w-40 h-40 bg-primary-100 dark:bg-primary-900/20 rounded-full blur-3xl opacity-70"></div>
                 <div className="hidden md:block absolute -bottom-10 -right-10 w-40 h-40 bg-purple-100 dark:bg-purple-900/20 rounded-full blur-3xl opacity-70"></div>
-                
+
                 {/* Main title with gradient - responsive sizes */}
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 sm:mb-4 relative z-10">
                   <span className="gradient-bg text-transparent bg-clip-text">CodeCraft AI</span>
                 </h1>
               </div>
-              
+
               <p className="text-lg sm:text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-6 max-w-3xl mx-auto px-1">
                 Genera código de calidad a partir de descripciones en lenguaje natural con la ayuda de la IA
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <Link href="/workspace/new">
                   <a>
@@ -47,7 +47,7 @@ const Home = () => {
                   </a>
                 </Link>
               </div>
-              
+
               {/* Mobile app demo preview - visible only on larger screens */}
               <div className="hidden md:block relative mt-12 max-w-3xl mx-auto">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-500/10 to-transparent rounded-xl blur-xl"></div>
@@ -108,14 +108,14 @@ const Home = () => {
             </div>
           </div>
         </section>
-        
+
         {/* Features section */}
         <section className="py-10 sm:py-12 bg-slate-50 dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-8 sm:mb-10">
               Todo lo que necesitas para desarrollar más rápido
             </h2>
-            
+
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 transition-all hover:shadow-md">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
@@ -126,7 +126,7 @@ const Home = () => {
                   Convierte tus ideas en código funcional con una simple descripción en lenguaje natural.
                 </p>
               </div>
-              
+
               <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 transition-all hover:shadow-md">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
                   <i className="ri-code-box-line text-white text-lg sm:text-xl"></i>
@@ -136,7 +136,7 @@ const Home = () => {
                   Edita y mejora el código generado con un potente editor integrado y optimizado para móviles.
                 </p>
               </div>
-              
+
               <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 transition-all hover:shadow-md sm:col-span-2 md:col-span-1">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
                   <i className="ri-play-circle-line text-white text-lg sm:text-xl"></i>
@@ -147,7 +147,7 @@ const Home = () => {
                 </p>
               </div>
             </div>
-            
+
             {/* Responsive design callout - new section */}
             <div className="mt-10 bg-white dark:bg-slate-800 rounded-xl p-5 sm:p-8 border border-primary-100 dark:border-primary-900/30 shadow-sm">
               <div className="flex flex-col md:flex-row items-center">
@@ -187,7 +187,7 @@ const Home = () => {
                       </div>
                       <div className="bg-slate-200 dark:bg-slate-700 h-32 rounded animate-pulse"></div>
                     </div>
-                    
+
                     {/* Mobile device mockup */}
                     <div className="bg-slate-900 rounded-2xl w-28 h-56 p-2 shadow-lg -ml-10 mt-10 absolute top-0 left-0 transform -rotate-6">
                       <div className="bg-slate-200 dark:bg-slate-700 h-full rounded-xl animate-pulse relative overflow-hidden">
@@ -196,7 +196,7 @@ const Home = () => {
                         <div className="absolute top-12 right-2 w-12 h-32 bg-slate-300 dark:bg-slate-600 rounded-md"></div>
                       </div>
                     </div>
-                    
+
                     {/* Tablet device mockup */}
                     <div className="bg-slate-900 rounded-xl w-40 h-48 p-2 shadow-md ml-14 transform rotate-6">
                       <div className="bg-slate-200 dark:bg-slate-700 h-full rounded-lg animate-pulse relative overflow-hidden">
@@ -211,14 +211,14 @@ const Home = () => {
             </div>
           </div>
         </section>
-        
+
         {/* Projects section */}
         <section className="py-10 sm:py-12 bg-white dark:bg-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <ProjectList />
           </div>
         </section>
-        
+
         {/* CTA section */}
         <section className="py-10 sm:py-12 md:py-20 gradient-bg text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -242,7 +242,7 @@ const Home = () => {
           </div>
         </section>
       </main>
-      
+
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -268,4 +268,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;

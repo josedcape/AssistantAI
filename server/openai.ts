@@ -2,8 +2,17 @@ import OpenAI from "openai";
 import { CodeGenerationRequest, CodeGenerationResponse, CodeCorrectionRequest, CodeCorrectionResponse } from "@shared/schema";
 import { executeAgent, orchestrateAgents, getAvailableAgents } from "./agents";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const MODEL = "gpt-4o";
+const AVAILABLE_MODELS = {
+  "gpt-4o": "GPT-4O (Latest)",
+  "gpt-4o-mini": "GPT-4O Mini",
+  "gpt-o3": "GPT-O3",
+  "gpt-o3-mini": "GPT-O3 Mini",
+  "gemini-2.0-flash": "Gemini 2.0 Flash",
+  "gemini-2.0-flash-thinking-exp": "Gemini 2.0 Flash Thinking",
+  "claude-3.5-sonnet-v2": "Claude 3.5 Sonnet V2"
+};
+
+let MODEL = "gpt-4o"; // default model
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ""
