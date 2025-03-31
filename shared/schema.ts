@@ -67,6 +67,10 @@ export type CodeGenerationResponse = {
   code: string;
   language: string;
   suggestions?: Array<string>;
+  plan?: Array<string>;
+  architecture?: string;
+  components?: Array<string>;
+  requirements?: Array<string>;
 };
 
 export type CodeExecutionRequest = {

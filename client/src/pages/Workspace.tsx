@@ -13,6 +13,7 @@ import CodeEditor from "@/components/CodeEditor";
 import CodePreview from "@/components/CodePreview";
 import ConsoleOutput from "@/components/ConsoleOutput";
 import StatusBar from "@/components/StatusBar";
+import DevelopmentPlan from "@/components/DevelopmentPlan";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Workspace = () => {
@@ -27,6 +28,14 @@ const Workspace = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Estado para el plan de desarrollo
+  const [developmentPlan, setDevelopmentPlan] = useState<{
+    plan?: string[];
+    architecture?: string;
+    components?: string[];
+    requirements?: string[];
+  } | null>(null);
   
   // Fetch project details
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery<Project>({
@@ -96,6 +105,23 @@ const Workspace = () => {
       });
       
       const result: CodeGenerationResponse = await response.json();
+      
+      // Guardar el plan de desarrollo si existe
+      if (result.plan || result.architecture || result.components || result.requirements) {
+        setDevelopmentPlan({
+          plan: result.plan,
+          architecture: result.architecture,
+          components: result.components,
+          requirements: result.requirements
+        });
+        
+        // Mostrar un toast con el plan de desarrollo
+        toast({
+          title: "Plan de desarrollo creado",
+          description: "Se ha generado un plan de desarrollo para tu aplicación.",
+          duration: 5000
+        });
+      }
       
       // If we have an active file, update it
       if (activeFile) {
@@ -234,6 +260,16 @@ const Workspace = () => {
                 </div>
                 
                 <div className="flex">
+                  {developmentPlan && (
+                    <button 
+                      className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none relative"
+                      onClick={() => setDevelopmentPlan(null)}
+                      title="Ver plan de desarrollo"
+                    >
+                      <i className="ri-file-list-line text-lg"></i>
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-primary-500 rounded-full"></span>
+                    </button>
+                  )}
                   <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
                     <i className="ri-play-circle-line text-lg"></i>
                   </button>
@@ -382,22 +418,44 @@ const Workspace = () => {
         </div>
       </main>
 
+      {/* Plan de desarrollo modal */}
+      {developmentPlan && (
+        <DevelopmentPlan
+          plan={developmentPlan.plan}
+          architecture={developmentPlan.architecture}
+          components={developmentPlan.components}
+          requirements={developmentPlan.requirements}
+          onClose={() => setDevelopmentPlan(null)}
+        />
+      )}
+      
       {/* Mobile actions */}
       {isMobile && (
         <div className="md:hidden fixed bottom-5 right-5 z-10">
-          <button
-            className="w-14 h-14 rounded-full shadow-lg gradient-bg text-white flex items-center justify-center focus:outline-none"
-            onClick={() => {
-              // Toggle between editor and file explorer
-              if (activeTab === "development") {
-                setActiveTab("preview");
-              } else {
-                setActiveTab("development");
-              }
-            }}
-          >
-            <i className={`ri-${activeTab === "development" ? "eye-line" : "edit-line"} text-xl`}></i>
-          </button>
+          <div className="flex flex-col items-end space-y-2">
+            {developmentPlan && (
+              <button
+                className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
+                onClick={() => setDevelopmentPlan(null)}
+                title="Ver plan de desarrollo"
+              >
+                <i className="ri-file-list-line text-xl"></i>
+              </button>
+            )}
+            <button
+              className="w-14 h-14 rounded-full shadow-lg gradient-bg text-white flex items-center justify-center focus:outline-none"
+              onClick={() => {
+                // Toggle between editor and file explorer
+                if (activeTab === "development") {
+                  setActiveTab("preview");
+                } else {
+                  setActiveTab("development");
+                }
+              }}
+            >
+              <i className={`ri-${activeTab === "development" ? "eye-line" : "edit-line"} text-xl`}></i>
+            </button>
+          </div>
         </div>
       )}
     </div>
