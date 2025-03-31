@@ -1,6 +1,45 @@
-node_modules
-dist
+# Dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# Build
+/dist
+/build
+
+# Archivos de entorno local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos del sistema operativo
 .DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de configuración de IDEs
+/.idea
+/.vscode
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Archivos de caché
+.cache
+.parcel-cache
+.vercel
+.next
+.env.local
+**/drizzle/**
+/.drizzle
