@@ -402,7 +402,7 @@ const Workspace = () => {
                       if (htmlFile) {
                         setActiveFile(htmlFile);
                         setActiveTab("preview");
-                        
+
                         // Notificar que se debe recargar la vista previa
                         setTimeout(() => {
                           // Usar postMessage para comunicarse con el iframe
@@ -412,14 +412,14 @@ const Workspace = () => {
                               // Encontrar todos los archivos relevantes para la vista previa
                               const cssFiles = files.filter(f => f.type === 'css');
                               const jsFiles = files.filter(f => f.type === 'javascript');
-                              
+
                               // Preparar un mapa de archivos CSS y JS para actualizar contenido
                               const cssMap = {};
                               cssFiles.forEach(f => { cssMap[f.name] = f.content; });
-                              
+
                               const jsMap = {};
                               jsFiles.forEach(f => { jsMap[f.name] = f.content; });
-                              
+
                               // Enviar mensaje al iframe
                               previewIframe.contentWindow.postMessage({
                                 type: 'refreshContent',
@@ -427,7 +427,7 @@ const Workspace = () => {
                                 css: cssMap,
                                 js: jsMap
                               }, '*');
-                              
+
                               toast({
                                 title: "Vista previa actualizada",
                                 description: "Se ha actualizado la vista previa con los cambios más recientes.",
@@ -463,6 +463,8 @@ const Workspace = () => {
                           description: "ID de proyecto inválido. No se puede abrir la vista previa.",
                           variant: "destructive"
                         });
+                      } else {
+                        console.log("Abriendo vista previa para el proyecto:", projectId);
                       }
                     }}
                   >

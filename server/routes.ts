@@ -391,7 +391,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
-        return res.status(400).json({ message: "Invalid project ID" });
+        // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
+        return res.status(400).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Error en Vista Previa</title>
+              <style>
+                body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+                .error { color: #e74c3c; }
+                .error-box { background-color: #fdf2f2; border: 1px solid #fecaca; 
+                           border-radius: 8px; padding: 20px; max-width: 500px; 
+                           margin: 0 auto; }
+              </style>
+            </head>
+            <body>
+              <div class="error-box">
+                <h1 class="error">ID de proyecto inválido</h1>
+                <p>No se puede cargar la vista previa porque el ID del proyecto no es válido.</p>
+                <p>ID recibido: "${req.params.projectId}"</p>
+              </div>
+            </body>
+          </html>
+        `);
       }
 
       // Get all files for the project
