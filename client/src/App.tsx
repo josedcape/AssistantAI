@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import Home from "@/pages/Home";
 import Workspace from "@/pages/Workspace";
 import Tutorials from "@/pages/Tutorials";
+import DevelopmentPlanPage from "@/pages/DevelopmentPlanPage"; // Added import
 import NotFound from "@/pages/not-found";
 
 // Theme context for dark mode
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/workspace/:id" component={Workspace} />
       <Route path="/tutorials" component={Tutorials} />
+      <Route path="/development-plan" component={DevelopmentPlanPage} /> {/* Added route */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -40,7 +42,7 @@ function App() {
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    
+
     if (storedTheme === "dark" || (!storedTheme && prefersDark)) {
       setIsDarkMode(true);
       document.documentElement.classList.add("dark");

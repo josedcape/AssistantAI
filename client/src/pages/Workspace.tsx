@@ -336,14 +336,23 @@ const Workspace = () => {
                 
                 <div className="flex">
                   {developmentPlan && (
-                    <button 
-                      className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none relative"
-                      onClick={() => setDevelopmentPlan(null)}
-                      title="Ver plan de desarrollo"
-                    >
-                      <i className="ri-file-list-line text-lg"></i>
-                      <span className="absolute top-0 right-0 w-2 h-2 bg-primary-500 rounded-full"></span>
-                    </button>
+                    <div className="flex items-center">
+                      <button 
+                        className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none relative"
+                        onClick={() => setDevelopmentPlan(null)}
+                        title="Ver plan de desarrollo"
+                      >
+                        <i className="ri-file-list-line text-lg"></i>
+                        <span className="absolute top-0 right-0 w-2 h-2 bg-primary-500 rounded-full"></span>
+                      </button>
+                      <a
+                        href="/development-plan"
+                        className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none"
+                        title="Ver todos los planes de desarrollo"
+                      >
+                        <i className="ri-folder-chart-line text-lg"></i>
+                      </a>
+                    </div>
                   )}
                   <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
                     <i className="ri-play-circle-line text-lg"></i>

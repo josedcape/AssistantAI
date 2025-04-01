@@ -20,14 +20,14 @@ const Header = () => {
   // Close mobile menu when clicking outside of it
   useEffect(() => {
     if (!isMenuOpen) return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('#mobile-menu') && !target.closest('#mobile-menu-button')) {
         setIsMenuOpen(false);
       }
     };
-    
+
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isMenuOpen]);
@@ -52,7 +52,7 @@ const Header = () => {
                 <span className="text-lg sm:text-xl font-bold golden-text">CODESTORM</span>
               </a>
             </Link>
-            
+
             {/* Desktop Navigation */}
             <nav className="hidden md:ml-6 md:flex md:space-x-4">
               <Link href="/">
@@ -79,6 +79,11 @@ const Header = () => {
                   Documentación
                 </a>
               </Link>
+              <Link href="/development-plan">
+                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium">
+                  Plan de Desarrollo
+                </a>
+              </Link>
             </nav>
           </div>
 
@@ -91,7 +96,7 @@ const Header = () => {
             >
               <i className={`${isDarkMode ? "ri-sun-line" : "ri-moon-line"} text-lg`}></i>
             </button>
-            
+
             {/* New Project button - desktop */}
             <Button 
               onClick={() => setIsModalOpen(true)}
@@ -100,7 +105,7 @@ const Header = () => {
             >
               <i className="ri-add-line mr-1"></i> Nuevo
             </Button>
-            
+
             {/* New Project button - mobile */}
             <Button 
               onClick={() => setIsModalOpen(true)}
@@ -110,7 +115,7 @@ const Header = () => {
             >
               <i className="ri-add-line text-lg"></i>
             </Button>
-            
+
             <div className="relative">
               <button className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                 <img 
@@ -120,7 +125,7 @@ const Header = () => {
                 />
               </button>
             </div>
-            
+
             {/* Mobile menu button */}
             <div className="flex items-center md:hidden">
               <button 
@@ -164,7 +169,7 @@ const Header = () => {
                 <i className="ri-close-line text-xl"></i>
               </button>
             </div>
-            
+
             <div className="space-y-1">
               <Link href="/">
                 <a className={`block px-3 py-2.5 rounded-md text-base font-medium ${
@@ -202,8 +207,16 @@ const Header = () => {
                   </div>
                 </a>
               </Link>
+              <Link href="/development-plan">
+                <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
+                  <div className="flex items-center">
+                    <i className="ri-file-list-line mr-3 text-slate-500"></i>
+                    <span>Plan de Desarrollo</span>
+                  </div>
+                </a>
+              </Link>
             </div>
-            
+
             <div className="pt-5 mt-5 border-t border-slate-200 dark:border-slate-700">
               <Button
                 onClick={() => {
@@ -214,7 +227,7 @@ const Header = () => {
               >
                 <img src="/attached_assets/robot-logo.jpg" alt="Robot Logo" className="w-6 h-6 mr-2 rounded-full" /> Nuevo Proyecto
               </Button>
-              
+
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-sm text-slate-500 dark:text-slate-400">Tema</span>
                 <button

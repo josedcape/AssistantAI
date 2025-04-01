@@ -68,12 +68,12 @@ export type Agent = {
   functions: string[];
 };
 
-export type CodeGenerationRequest = {
+export interface CodeGenerationRequest {
   prompt: string;
   language?: string;
-  projectId?: number;
-  agents?: string[]; // Nombres de los agentes a utilizar
-};
+  projectId?: number | null;
+  agents?: string[];
+}
 
 export type GeneratedFile = {
   name: string;

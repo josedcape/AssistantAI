@@ -199,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestSchema = z.object({
         prompt: z.string().min(1),
         language: z.string().optional(),
-        projectId: z.number().optional(),
+        projectId: z.number().nullable().optional(),
         agents: z.array(z.string()).optional(),
       });
       
@@ -231,6 +231,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching agents:", error);
       res.status(500).json({ 
         message: "Error fetching agents",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Endpoint para obtener planes de desarrollo
+  apiRouter.get("/development-plans", async (req: Request, res: Response) => {
+    try {
+      // Simulación de planes de desarrollo (en una implementación real, esto vendría de una base de datos)
+      const plans = [
+        {
+          id: 1,
+          plan: [
+            "Crear estructura HTML básica con formulario de entrada",
+            "Diseñar interfaz de usuario con CSS",
+            "Implementar lógica JavaScript para procesar datos",
+            "Agregar validaciones y manejo de errores",
+            "Implementar funcionalidades adicionales solicitadas",
+            "Probar el funcionamiento completo de la aplicación"
+          ],
+          architecture: "Arquitectura MVC simple para una aplicación web. Separación de la interfaz de usuario (HTML/CSS), la lógica de negocio (JavaScript) y los datos manipulados.",
+          components: [
+            "Interfaz de usuario (HTML/CSS)",
+            "Controlador de eventos (JavaScript)",
+            "Módulo de validación",
+            "Procesamiento de datos"
+          ],
+          requirements: [
+            "HTML5",
+            "CSS3",
+            "JavaScript ES6+",
+            "Sin dependencias externas"
+          ],
+          date: new Date().toISOString()
+        }
+      ];
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching development plans:", error);
+      res.status(500).json({ 
+        message: "Error fetching development plans",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
