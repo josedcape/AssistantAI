@@ -7,6 +7,11 @@ import { getAvailableAgents } from "./agents";
 import { processAssistantChat } from "./assistantChat";
 import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import { downloadFromUrl, processUploadedFile, searchInDocuments } from "./documentProcessing";
+
+
+const upload = multer();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -384,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Endpoint para el chat con el asistente
   apiRouter.post("/assistant-chat", async (req: Request, res: Response) => {
     try {
@@ -404,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId: validatedData.projectId,
         history: validatedData.history || []
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error processing assistant chat:", error);
@@ -421,6 +426,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoints para documentos
+  apiRouter.get("/projects/:projectId/documents", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const documents = await storage.getDocumentsByProjectId(projectId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ message: "Error fetching documents" });
+    }
+  });
+
+  apiRouter.post("/projects/:projectId/documents/upload", upload.array("files", 10), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+
+      const processedFiles = await Promise.all(
+        files.map(file => processUploadedFile(file, projectId))
+      );
+
+      const processedCount = processedFiles.filter(Boolean).length;
+
+      res.json({
+        message: `${processedCount} of ${files.length} files uploaded successfully`,
+        processed: processedCount,
+        total: files.length
+      });
+    } catch (error) {
+      console.error("Error uploading documents:", error);
+      res.status(500).json({ 
+        message: "Error uploading documents",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  apiRouter.post("/projects/:projectId/documents/url", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const urlSchema = z.object({
+        url: z.string().url(),
+      });
+
+      const validatedData = urlSchema.parse(req.body);
+
+      const processedCount = await downloadFromUrl(validatedData.url, projectId);
+
+      res.json({
+        message: `Downloaded and processed ${processedCount} files from URL`,
+        processed: processedCount
+      });
+    } catch (error) {
+      console.error("Error processing URL:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid URL", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: "Error processing URL",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  apiRouter.get("/projects/:projectId/documents/search", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const results = await searchInDocuments(projectId, query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching documents:", error);
+      res.status(500).json({ 
+        message: "Error searching documents",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  apiRouter.delete("/documents/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const deleted = await storage.deleteDocument(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ message: "Error deleting document" });
+    }
+  });
+
   // Preview endpoint for projects
   apiRouter.get("/projects/:projectId/preview", async (req: Request, res: Response) => {
     try {
@@ -428,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawProjectId = req.params.projectId;
       // Asegurarse de que sea un número válido y mayor a 0
       const projectId = /^\d+$/.test(rawProjectId) ? parseInt(rawProjectId) : NaN;
-      
+
       if (isNaN(projectId) || projectId <= 0) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
         // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
@@ -458,7 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all files for the project
       const files = await storage.getFilesByProjectId(projectId);
-      
+
       if (!files || files.length === 0) {
         return res.status(404).send(`
           <!DOCTYPE html>
@@ -527,7 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Procesar contenido HTML para integrar CSS y JavaScript
       let htmlContent = htmlFile.content;
-      
+
       // Asegurarse de que sea un documento HTML completo
       if (!htmlContent.includes('<!DOCTYPE html>') && !htmlContent.includes('<html')) {
         htmlContent = `<!DOCTYPE html>
@@ -540,9 +669,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 </head>
 <body>
   ${htmlContent}
-  
+
   ${jsFiles.map(js => `<script id="script-${js.name.replace(/\./g, '-')}">${js.content}</script>`).join('\n')}
-  
+
   <script>
     // Script para comunicación con el iframe padre y manipulación DOM en tiempo real
     window.addEventListener('message', function(event) {
@@ -553,18 +682,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const [filename, content] of Object.entries(cssMap)) {
             const styleId = 'style-' + filename.replace(/\./g, '-');
             let styleEl = document.getElementById(styleId);
-            
+
             if (!styleEl) {
               // Crear nuevo elemento style si no existe
               styleEl = document.createElement('style');
               styleEl.id = styleId;
               document.head.appendChild(styleEl);
             }
-            
+
             styleEl.textContent = content;
           }
         }
-        
+
         // Actualizar scripts si se proporcionan
         if (event.data.js) {
           const jsMap = event.data.js; // { filename: content }
@@ -574,7 +703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const newScript = document.createElement('script');
               newScript.textContent = content;
               document.body.appendChild(newScript);
-              
+
               // Registrar en la consola
               console.log('Script actualizado:', filename);
             } catch (error) {
@@ -582,34 +711,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
+
         // Actualizar HTML si se proporciona
         if (event.data.html) {
           // Actualizar solo el contenido del body preservando scripts y estilos
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = event.data.html;
-          
+
           // Extraer solo los elementos del body
           const bodyContent = Array.from(tempDiv.querySelectorAll('body > *'));
-          
+
           // Preservar los scripts existentes
           const existingScripts = Array.from(document.body.querySelectorAll('script[id^="script-"]'));
-          
+
           // Limpiar el body actual
           document.body.innerHTML = '';
-          
+
           // Añadir el nuevo contenido
           bodyContent.forEach(el => document.body.appendChild(el));
-          
+
           // Restaurar los scripts
           existingScripts.forEach(script => document.body.appendChild(script));
         }
       }
     });
-    
+
     // Notificar que la vista previa está lista
     window.parent.postMessage({ type: 'previewReady', projectId: ${projectId} }, '*');
-    
+
     // Registrar en la consola
     console.log("Vista previa DOM interactiva cargada correctamente");
   </script>
@@ -624,13 +753,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const stylesBlock = cssFiles.map(css => 
               `<style id="style-${css.name.replace(/\./g, '-')}">${css.content}</style>`
             ).join('\n');
-            
+
             htmlContent = htmlContent.substring(0, headEndPos) + 
                          stylesBlock + 
                          htmlContent.substring(headEndPos);
           }
         }
-        
+
         if (jsFiles.length > 0) {
           // Agregar scripts antes del cierre del body si no están ya
           const bodyEndPos = htmlContent.indexOf('</body>');
@@ -638,7 +767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const scriptsBlock = jsFiles.map(js => 
               `<script id="script-${js.name.replace(/\./g, '-')}">${js.content}</script>`
             ).join('\n');
-            
+
             // Agregar también el script de comunicación DOM
             const communicationScript = `
   <script>
@@ -651,18 +780,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const [filename, content] of Object.entries(cssMap)) {
             const styleId = 'style-' + filename.replace(/\./g, '-');
             let styleEl = document.getElementById(styleId);
-            
+
             if (!styleEl) {
               // Crear nuevo elemento style si no existe
               styleEl = document.createElement('style');
               styleEl.id = styleId;
               document.head.appendChild(styleEl);
             }
-            
+
             styleEl.textContent = content;
           }
         }
-        
+
         // Actualizar scripts si se proporcionan
         if (event.data.js) {
           const jsMap = event.data.js; // { filename: content }
@@ -672,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const newScript = document.createElement('script');
               newScript.textContent = content;
               document.body.appendChild(newScript);
-              
+
               // Registrar en la consola
               console.log('Script actualizado:', filename);
             } catch (error) {
@@ -680,38 +809,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
+
         // Actualizar HTML si se proporciona
         if (event.data.html) {
           // Actualizar solo el contenido del body preservando scripts y estilos
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = event.data.html;
-          
+
           // Extraer solo los elementos del body
           const bodyContent = Array.from(tempDiv.querySelectorAll('body > *'));
-          
+
           // Preservar los scripts existentes
           const existingScripts = Array.from(document.body.querySelectorAll('script[id^="script-"]'));
-          
+
           // Limpiar el body actual
           document.body.innerHTML = '';
-          
+
           // Añadir el nuevo contenido
           bodyContent.forEach(el => document.body.appendChild(el));
-          
+
           // Restaurar los scripts
           existingScripts.forEach(script => document.body.appendChild(script));
         }
       }
     });
-    
+
     // Notificar que la vista previa está lista
     window.parent.postMessage({ type: 'previewReady', projectId: ${projectId} }, '*');
-    
+
     // Registrar en la consola
     console.log("Vista previa DOM interactiva cargada correctamente");
   </script>`;
-            
+
             htmlContent = htmlContent.substring(0, bodyEndPos) + 
                          scriptsBlock + 
                          communicationScript + 
@@ -726,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      
+
       // Enviar el contenido HTML procesado
       res.send(htmlContent);
     } catch (error) {
@@ -741,8 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .error { color: #e74c3c; background: #ffebee; padding: 15px; border-radius: 5px; }
               pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; }
             </style>
-          </head>
-          <body>
+          </head<body>
             <div class="error">
               <h2>Error al generar la vista previa</h2>
               <p>${error instanceof Error ? error.message : "Error desconocido"}</p>

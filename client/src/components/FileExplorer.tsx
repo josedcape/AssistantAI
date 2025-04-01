@@ -4,6 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { getLanguageIcon } from "@/lib/types";
+import { DocumentUploader } from "./DocumentUploader";
+import { Button } from "./ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 interface FileExplorerProps {
   projectId: number;
@@ -190,6 +193,26 @@ const FileExplorer = ({ projectId, files, onFileSelect, onFilesUpdate }: FileExp
             </div>
           </div>
         ))}
+      </div>
+      
+      {/* Sección de documentos */}
+      <div className="mt-6">
+        <Collapsible>
+          <div className="flex items-center justify-between mb-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="p-0 hover:bg-transparent flex items-center justify-between w-full">
+                <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Documentos</h2>
+                <i className="ri-arrow-down-s-line"></i>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent>
+            <DocumentUploader 
+              projectId={projectId} 
+              onDocumentUploaded={onFilesUpdate}
+            />
+          </CollapsibleContent>
+        </Collapsible>
       </div>
       
       <div className="mt-6">

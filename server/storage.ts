@@ -1,7 +1,8 @@
 import { 
   users, type User, type InsertUser, 
   projects, type Project, type InsertProject,
-  files, type File, type InsertFile
+  files, type File, type InsertFile,
+  type Document, type InsertDocument
 } from "@shared/schema";
 
 export interface IStorage {
@@ -23,23 +24,33 @@ export interface IStorage {
   createFile(file: InsertFile): Promise<File>;
   updateFile(id: number, content: string): Promise<File | undefined>;
   deleteFile(id: number): Promise<boolean>;
+  
+  // Document operations
+  getDocument(id: number): Promise<Document | undefined>;
+  getDocumentsByProjectId(projectId: number): Promise<Document[]>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  deleteDocument(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private projects: Map<number, Project>;
   private files: Map<number, File>;
+  private documents: Map<number, Document>;
   private userId: number;
   private projectId: number;
   private fileId: number;
+  private documentId: number;
 
   constructor() {
     this.users = new Map();
     this.projects = new Map();
     this.files = new Map();
+    this.documents = new Map();
     this.userId = 1;
     this.projectId = 1;
     this.fileId = 1;
+    this.documentId = 1;
     
     // Create a demo user
     this.createUser({ username: "demo", password: "password" });
@@ -261,6 +272,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async deleteFile(id: number): Promise<boolean> {
     return this.files.delete(id);
+  }
+  
+  // Document operations
+  async getDocument(id: number): Promise<Document | undefined> {
+    return this.documents.get(id);
+  }
+
+  async getDocumentsByProjectId(projectId: number): Promise<Document[]> {
+    return Array.from(this.documents.values()).filter(
+      (document) => document.projectId === projectId,
+    );
+  }
+
+  async createDocument(insertDocument: InsertDocument): Promise<Document> {
+    const id = this.documentId++;
+    const now = new Date();
+    const newDocument: Document = { 
+      ...insertDocument, 
+      id,
+      createdAt: now
+    };
+    this.documents.set(id, newDocument);
+    return newDocument;
+  }
+
+  async deleteDocument(id: number): Promise<boolean> {
+    return this.documents.delete(id);
   }
 }
 

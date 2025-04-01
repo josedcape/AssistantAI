@@ -27,6 +27,17 @@ export const files = pgTable("files", {
   lastModified: timestamp("last_modified").defaultNow().notNull(),
 });
 
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  type: text("type").notNull(), // 'file', 'url', 'repository'
+  size: integer("size").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -46,6 +57,15 @@ export const insertFileSchema = createInsertSchema(files).pick({
   type: true,
 });
 
+export const insertDocumentSchema = createInsertSchema(documents).pick({
+  projectId: true,
+  name: true,
+  path: true,
+  type: true,
+  size: true,
+});
+
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -55,6 +75,9 @@ export type InsertProject = z.infer<typeof insertProjectSchema>;
 
 export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 
 // Types for code generation and execution
 export type AgentFunctionCall = {
