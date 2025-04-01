@@ -10,7 +10,7 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   const apiRouter = express.Router();
-  
+
   // Projects routes
   apiRouter.get("/projects", async (req: Request, res: Response) => {
     try {
@@ -23,43 +23,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching projects" });
     }
   });
-  
+
   apiRouter.get("/projects/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const project = await storage.getProject(id);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       res.json(project);
     } catch (error) {
       console.error("Error fetching project:", error);
       res.status(500).json({ message: "Error fetching project" });
     }
   });
-  
+
   apiRouter.post("/projects", async (req: Request, res: Response) => {
     try {
       const projectSchema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
       });
-      
+
       const validatedData = projectSchema.parse(req.body);
       // For demo purposes, we'll use user ID 1
       const userId = 1;
-      
+
       const newProject = await storage.createProject({
         userId,
         name: validatedData.name,
         description: validatedData.description || "",
       });
-      
+
       res.status(201).json(newProject);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating project" });
     }
   });
-  
+
   // Files routes
   apiRouter.get("/projects/:projectId/files", async (req: Request, res: Response) => {
     try {
@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const files = await storage.getFilesByProjectId(projectId);
       res.json(files);
     } catch (error) {
@@ -88,48 +88,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching files" });
     }
   });
-  
+
   apiRouter.get("/files/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid file ID" });
       }
-      
+
       const file = await storage.getFile(id);
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.json(file);
     } catch (error) {
       console.error("Error fetching file:", error);
       res.status(500).json({ message: "Error fetching file" });
     }
   });
-  
+
   apiRouter.post("/projects/:projectId/files", async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const fileSchema = z.object({
         name: z.string().min(1),
         content: z.string(),
         type: z.string().min(1),
       });
-      
+
       const validatedData = fileSchema.parse(req.body);
-      
+
       const newFile = await storage.createFile({
         projectId,
         name: validatedData.name,
         content: validatedData.content,
         type: validatedData.type,
       });
-      
+
       res.status(201).json(newFile);
     } catch (error) {
       console.error("Error creating file:", error);
@@ -142,25 +142,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating file" });
     }
   });
-  
+
   apiRouter.put("/files/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid file ID" });
       }
-      
+
       const fileSchema = z.object({
         content: z.string(),
       });
-      
+
       const validatedData = fileSchema.parse(req.body);
-      
+
       const updatedFile = await storage.updateFile(id, validatedData.content);
       if (!updatedFile) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.json(updatedFile);
     } catch (error) {
       console.error("Error updating file:", error);
@@ -173,26 +173,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error updating file" });
     }
   });
-  
+
   apiRouter.delete("/files/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid file ID" });
       }
-      
+
       const deleted = await storage.deleteFile(id);
       if (!deleted) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.status(204).end();
     } catch (error) {
       console.error("Error deleting file:", error);
       res.status(500).json({ message: "Error deleting file" });
     }
   });
-  
+
   // Code generation and execution routes
   apiRouter.post("/generate", async (req: Request, res: Response) => {
     try {
@@ -202,9 +202,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId: z.number().nullable().optional(),
         agents: z.array(z.string()).optional(),
       });
-      
+
       const validatedData = requestSchema.parse(req.body) as CodeGenerationRequest;
-      
+
       const generatedCode = await generateCode(validatedData);
       res.json(generatedCode);
     } catch (error) {
@@ -221,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Endpoints específicos para el sistema de agentes
   apiRouter.get("/agents", async (req: Request, res: Response) => {
     try {
@@ -235,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Almacenamiento temporal de planes de desarrollo
   const developmentPlans: any[] = [
     {
@@ -265,18 +265,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       date: new Date().toISOString()
     }
   ];
-  
+
   // Endpoint para obtener planes de desarrollo
   apiRouter.get("/development-plans", async (req: Request, res: Response) => {
     try {
       // Opcionalmente filtrar por projectId si se proporciona
       const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
-      
+
       let plans = developmentPlans;
       if (projectId && !isNaN(projectId)) {
         plans = plans.filter(plan => plan.projectId === projectId || plan.projectId === null);
       }
-      
+
       res.json(plans);
     } catch (error) {
       console.error("Error fetching development plans:", error);
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Endpoint para crear un nuevo plan de desarrollo
   apiRouter.post("/development-plans", async (req: Request, res: Response) => {
     try {
@@ -297,9 +297,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requirements: z.array(z.string()).optional(),
         projectId: z.number().optional(),
       });
-      
+
       const validatedData = planSchema.parse(req.body);
-      
+
       const newPlan = {
         id: developmentPlans.length > 0 ? Math.max(...developmentPlans.map(p => p.id)) + 1 : 1,
         plan: validatedData.plan || [],
@@ -309,9 +309,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId: validatedData.projectId || null,
         date: new Date().toISOString()
       };
-      
+
       developmentPlans.push(newPlan);
-      
+
       res.status(201).json(newPlan);
     } catch (error) {
       console.error("Error creating development plan:", error);
@@ -327,16 +327,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   apiRouter.post("/execute", async (req: Request, res: Response) => {
     try {
       const requestSchema = z.object({
         code: z.string().min(1),
         language: z.string().min(1),
       });
-      
+
       const validatedData = requestSchema.parse(req.body) as CodeExecutionRequest;
-      
+
       const executionResult = await executeCode(validatedData);
       res.json(executionResult);
     } catch (error) {
@@ -353,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Endpoint para la corrección de código
   apiRouter.post("/correct", async (req: Request, res: Response) => {
     try {
@@ -364,9 +364,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         language: z.string().optional(),
         projectId: z.number().optional()
       });
-      
+
       const validatedData = requestSchema.parse(req.body) as CodeCorrectionRequest;
-      
+
       const correctionResult = await correctCode(validatedData);
       res.json(correctionResult);
     } catch (error) {
@@ -383,7 +383,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
+  // Preview endpoint for projects
+  apiRouter.get("/projects/:projectId/preview", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get all files for the project
+      const files = await storage.getFilesByProjectId(projectId);
+
+      // Find the HTML file to use as entry point
+      const htmlFile = files.find(file => file.type === 'html');
+      if (!htmlFile) {
+        return res.status(404).json({ message: "No HTML file found in project" });
+      }
+
+      // Get CSS and JS files
+      const cssFiles = files.filter(file => file.type === 'css');
+      const jsFiles = files.filter(file => file.type === 'javascript');
+
+      // Prepare files for rendering
+      const preparedFiles = [
+        {
+          name: htmlFile.name,
+          content: htmlFile.content,
+          type: 'html'
+        },
+        ...cssFiles.map(file => ({
+          name: file.name,
+          content: file.content,
+          type: 'css'
+        })),
+        ...jsFiles.map(file => ({
+          name: file.name,
+          content: file.content,
+          type: 'javascript'
+        }))
+      ];
+
+      // Execute the code to generate the preview
+      const executionResult = await executeCode({
+        code: JSON.stringify({ files: preparedFiles }),
+        language: 'html'
+      });
+
+      // Send the response
+      if (executionResult.htmlContent) {
+        res.setHeader('Content-Type', 'text/html');
+        res.send(executionResult.htmlContent);
+      } else {
+        res.status(500).json({ message: "Failed to generate preview" });
+      }
+    } catch (error) {
+      console.error("Error generating preview:", error);
+      res.status(500).json({ 
+        message: "Error generating preview",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Register API routes
   app.use("/api", apiRouter);
 

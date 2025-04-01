@@ -415,7 +415,7 @@ const Workspace = () => {
                     <i className="ri-play-circle-line text-lg"></i>
                   </button>
                   <a 
-                    href={`/preview/${projectId}`} 
+                    href={`/api/projects/${projectId}/preview`} 
                     target="_blank"
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
                     title="Abrir en nueva pestaña"
