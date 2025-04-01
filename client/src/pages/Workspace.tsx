@@ -358,19 +358,21 @@ const Workspace = () => {
                 <div className="flex overflow-x-auto scrollbar-hide space-x-1 sm:space-x-4">
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList>
-                      <TabsTrigger value="development">
-                        Desarrollo
+                      <TabsTrigger value="development" className="flex items-center gap-1.5">
+                        <i className="ri-code-s-slash-line text-blue-500"></i>Desarrollo
                       </TabsTrigger>
-                      <TabsTrigger value="preview">
-                        Vista Previa
+                      <TabsTrigger value="preview" className="flex items-center gap-1.5">
+                        <i className="ri-eye-2-line text-green-500"></i>Vista Previa
                       </TabsTrigger>
-                      <TabsTrigger value="console">
-                        Consola
+                      <TabsTrigger value="console" className="flex items-center gap-1.5">
+                        <i className="ri-terminal-box-line text-purple-500"></i>Consola
                       </TabsTrigger>
-                      <TabsTrigger value="assistant-chat">Asistente</TabsTrigger> {/* Added Assistant Chat Tab */}
+                      <TabsTrigger value="assistant-chat" className="flex items-center gap-1.5">
+                        <i className="ri-robot-line text-amber-500"></i>Asistente
+                      </TabsTrigger> {/* Added Assistant Chat Tab */}
                       {!isMobile && (
-                        <TabsTrigger value="resources">
-                          Recursos
+                        <TabsTrigger value="resources" className="flex items-center gap-1.5">
+                          <i className="ri-stack-line text-teal-500"></i>Recursos
                         </TabsTrigger>
                       )}
                     </TabsList>

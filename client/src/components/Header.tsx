@@ -56,31 +56,36 @@ const Header = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:ml-6 md:flex md:space-x-4">
               <Link href="/">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium ${
+                <a className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
                   isHome 
                     ? "bg-slate-100 dark:bg-slate-700" 
                     : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}>
+                  <i className="ri-home-6-line mr-1.5 text-primary-500"></i>
                   Inicio
                 </a>
               </Link>
               <Link href="/projects">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium">
+                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                  <i className="ri-code-box-line mr-1.5 text-blue-500"></i>
                   Mis Proyectos
                 </a>
               </Link>
               <Link href="/tutorials">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium">
+                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                  <i className="ri-book-2-line mr-1.5 text-purple-500"></i>
                   Tutoriales
                 </a>
               </Link>
               <Link href="/docs">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium">
+                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                  <i className="ri-file-code-line mr-1.5 text-teal-500"></i>
                   Documentación
                 </a>
               </Link>
               <Link href="/development-plan">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium">
+                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                  <i className="ri-rocket-2-line mr-1.5 text-amber-500"></i>
                   Plan de Desarrollo
                 </a>
               </Link>
@@ -178,7 +183,7 @@ const Header = () => {
                     : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}>
                   <div className="flex items-center">
-                    <i className="ri-home-line mr-3 text-primary-500"></i>
+                    <i className="ri-home-6-line mr-3 text-primary-500"></i>
                     <span>Inicio</span>
                   </div>
                 </a>
@@ -186,7 +191,7 @@ const Header = () => {
               <Link href="/projects">
                 <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
                   <div className="flex items-center">
-                    <i className="ri-folder-line mr-3 text-slate-500"></i>
+                    <i className="ri-code-box-line mr-3 text-blue-500"></i>
                     <span>Mis Proyectos</span>
                   </div>
                 </a>
@@ -194,7 +199,7 @@ const Header = () => {
               <Link href="/tutorials">
                 <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
                   <div className="flex items-center">
-                    <i className="ri-book-open-line mr-3 text-slate-500"></i>
+                    <i className="ri-book-2-line mr-3 text-purple-500"></i>
                     <span>Tutoriales</span>
                   </div>
                 </a>
@@ -202,7 +207,7 @@ const Header = () => {
               <Link href="/docs">
                 <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
                   <div className="flex items-center">
-                    <i className="ri-file-list-line mr-3 text-slate-500"></i>
+                    <i className="ri-file-code-line mr-3 text-teal-500"></i>
                     <span>Documentación</span>
                   </div>
                 </a>
@@ -210,7 +215,7 @@ const Header = () => {
               <Link href="/development-plan">
                 <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
                   <div className="flex items-center">
-                    <i className="ri-file-list-line mr-3 text-slate-500"></i>
+                    <i className="ri-rocket-2-line mr-3 text-amber-500"></i>
                     <span>Plan de Desarrollo</span>
                   </div>
                 </a>
