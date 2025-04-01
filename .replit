@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "dotnet-7.0", "dotnet-8.0", "angular-node-20", "bash", "bun-1.2", "bun-1.1", "bun-1.0", "c-clang14", "clojure-1.12", "dart-3.5", "deno-2", "deno-1", "elixir-1_15", "elixir-1_17", "go-1.23", "go-1.21", "go-1.19", "gcloud", "haskell-ghc9.4", "haskell-ghc9.0", "haskell-ghc9.2", "hermit-0.38.2", "java-graalvm22.3", "lua-5.2", "nodejs-23", "python-with-prybar-3.10"]
+modules = ["nodejs-20", "web"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
