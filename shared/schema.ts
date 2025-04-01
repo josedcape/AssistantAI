@@ -152,3 +152,56 @@ export type CodeCorrectionResponse = {
   }>;
   explanation?: string;
 };
+
+import { z } from "zod";
+
+// User schema
+export const UserSchema = z.object({
+  id: z.number().optional(),
+  username: z.string().min(3).max(50),
+  password: z.string().min(6),
+});
+
+export type User = z.infer<typeof UserSchema>;
+export type InsertUser = Omit<User, "id">;
+
+// Project schema
+export const ProjectSchema = z.object({
+  id: z.number().optional(),
+  userId: z.number(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export type Project = z.infer<typeof ProjectSchema>;
+export type InsertProject = Omit<Project, "id" | "createdAt" | "updatedAt">;
+
+// File schema
+export const FileSchema = z.object({
+  id: z.number().optional(),
+  projectId: z.number(),
+  name: z.string().min(1).max(100),
+  content: z.string(),
+  type: z.string().min(1).max(50),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export type File = z.infer<typeof FileSchema>;
+export type InsertFile = Omit<File, "id" | "createdAt" | "updatedAt">;
+
+// Document schema
+export const DocumentSchema = z.object({
+  id: z.number().optional(),
+  projectId: z.number(),
+  name: z.string().min(1).max(255),
+  path: z.string(),
+  type: z.string(),
+  size: z.number(),
+  createdAt: z.date().optional(),
+});
+
+export type Document = z.infer<typeof DocumentSchema>;
+export type InsertDocument = Omit<Document, "id" | "createdAt">;

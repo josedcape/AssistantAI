@@ -16,6 +16,7 @@ import StatusBar from "@/components/StatusBar";
 import DevelopmentPlan from "@/components/DevelopmentPlan";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AssistantChat from "@/components/AssistantChat"; // Import the AssistantChat component
+import { DocumentUploader } from "@/components/DocumentUploader"; // Added import
 
 
 const Workspace = () => {
