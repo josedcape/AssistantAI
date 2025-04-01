@@ -26,7 +26,12 @@ const DevelopmentPlanPage = () => {
   // Obtener los planes de desarrollo del usuario actual
   const { data: plansData, isLoading, error, refetch } = useQuery<any>({
     queryKey: ['/api/development-plans'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/development-plans');
+      return response.json();
+    },
     retry: false,
+    refetchOnWindowFocus: false,
   });
   
   useEffect(() => {

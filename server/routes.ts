@@ -236,42 +236,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Almacenamiento temporal de planes de desarrollo
+  const developmentPlans: any[] = [
+    {
+      id: 1,
+      plan: [
+        "Crear estructura HTML básica con formulario de entrada",
+        "Diseñar interfaz de usuario con CSS",
+        "Implementar lógica JavaScript para procesar datos",
+        "Agregar validaciones y manejo de errores",
+        "Implementar funcionalidades adicionales solicitadas",
+        "Probar el funcionamiento completo de la aplicación"
+      ],
+      architecture: "Arquitectura MVC simple para una aplicación web. Separación de la interfaz de usuario (HTML/CSS), la lógica de negocio (JavaScript) y los datos manipulados.",
+      components: [
+        "Interfaz de usuario (HTML/CSS)",
+        "Controlador de eventos (JavaScript)",
+        "Módulo de validación",
+        "Procesamiento de datos"
+      ],
+      requirements: [
+        "HTML5",
+        "CSS3",
+        "JavaScript ES6+",
+        "Sin dependencias externas"
+      ],
+      projectId: null,
+      date: new Date().toISOString()
+    }
+  ];
+  
   // Endpoint para obtener planes de desarrollo
   apiRouter.get("/development-plans", async (req: Request, res: Response) => {
     try {
-      // Simulación de planes de desarrollo (en una implementación real, esto vendría de una base de datos)
-      const plans = [
-        {
-          id: 1,
-          plan: [
-            "Crear estructura HTML básica con formulario de entrada",
-            "Diseñar interfaz de usuario con CSS",
-            "Implementar lógica JavaScript para procesar datos",
-            "Agregar validaciones y manejo de errores",
-            "Implementar funcionalidades adicionales solicitadas",
-            "Probar el funcionamiento completo de la aplicación"
-          ],
-          architecture: "Arquitectura MVC simple para una aplicación web. Separación de la interfaz de usuario (HTML/CSS), la lógica de negocio (JavaScript) y los datos manipulados.",
-          components: [
-            "Interfaz de usuario (HTML/CSS)",
-            "Controlador de eventos (JavaScript)",
-            "Módulo de validación",
-            "Procesamiento de datos"
-          ],
-          requirements: [
-            "HTML5",
-            "CSS3",
-            "JavaScript ES6+",
-            "Sin dependencias externas"
-          ],
-          date: new Date().toISOString()
-        }
-      ];
+      // Opcionalmente filtrar por projectId si se proporciona
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      
+      let plans = developmentPlans;
+      if (projectId && !isNaN(projectId)) {
+        plans = plans.filter(plan => plan.projectId === projectId || plan.projectId === null);
+      }
+      
       res.json(plans);
     } catch (error) {
       console.error("Error fetching development plans:", error);
       res.status(500).json({ 
         message: "Error fetching development plans",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Endpoint para crear un nuevo plan de desarrollo
+  apiRouter.post("/development-plans", async (req: Request, res: Response) => {
+    try {
+      const planSchema = z.object({
+        plan: z.array(z.string()).optional(),
+        architecture: z.string().optional(),
+        components: z.array(z.string()).optional(),
+        requirements: z.array(z.string()).optional(),
+        projectId: z.number().optional(),
+      });
+      
+      const validatedData = planSchema.parse(req.body);
+      
+      const newPlan = {
+        id: developmentPlans.length > 0 ? Math.max(...developmentPlans.map(p => p.id)) + 1 : 1,
+        plan: validatedData.plan || [],
+        architecture: validatedData.architecture || "",
+        components: validatedData.components || [],
+        requirements: validatedData.requirements || [],
+        projectId: validatedData.projectId || null,
+        date: new Date().toISOString()
+      };
+      
+      developmentPlans.push(newPlan);
+      
+      res.status(201).json(newPlan);
+    } catch (error) {
+      console.error("Error creating development plan:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid plan data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: "Error creating development plan",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

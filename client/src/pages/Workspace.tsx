@@ -146,12 +146,28 @@ const Workspace = () => {
       
       // Guardar el plan de desarrollo si existe
       if (result.plan || result.architecture || result.components || result.requirements) {
-        setDevelopmentPlan({
-          plan: result.plan,
-          architecture: result.architecture,
-          components: result.components,
-          requirements: result.requirements
-        });
+        const newPlan = {
+          plan: result.plan || [],
+          architecture: result.architecture || "",
+          components: result.components || [],
+          requirements: result.requirements || []
+        };
+        
+        setDevelopmentPlan(newPlan);
+        
+        // También guardamos el plan en el servidor si tenemos un ID de proyecto válido
+        if (projectId && !isNaN(Number(projectId))) {
+          try {
+            // Podríamos enviar el plan al servidor para almacenarlo permanentemente
+            // Este endpoint debería agregarse en el backend
+            await apiRequest("POST", "/api/development-plans", {
+              ...newPlan,
+              projectId: Number(projectId)
+            }).catch(err => console.error("No se pudo guardar el plan:", err));
+          } catch (error) {
+            console.error("Error al guardar el plan de desarrollo:", error);
+          }
+        }
         
         // Mostrar un toast con el plan de desarrollo
         toast({
@@ -165,6 +181,16 @@ const Workspace = () => {
       if (result.files && result.files.length > 0) {
         // Crear todos los archivos uno por uno
         for (const file of result.files) {
+          // Verificar que projectId sea un número válido
+          if (!projectId || isNaN(Number(projectId))) {
+            toast({
+              title: "Error",
+              description: "ID de proyecto inválido. No se pueden crear archivos.",
+              variant: "destructive"
+            });
+            break;
+          }
+            
           // Crear un nuevo archivo para cada uno
           try {
             await apiRequest("POST", `/api/projects/${projectId}/files`, {
