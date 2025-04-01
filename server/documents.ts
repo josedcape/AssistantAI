@@ -174,6 +174,11 @@ export async function getDocumentContent(documentId: number): Promise<string | n
       return null;
     }
     
+    if (!document.path) {
+      console.error(`El documento con ID ${documentId} no tiene una ruta definida`);
+      return null;
+    }
+    
     // Construir la ruta al archivo
     const projectDir = path.join(DOCUMENTS_DIR, document.projectId.toString());
     let filePath = path.join(projectDir, document.path);

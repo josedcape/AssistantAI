@@ -892,16 +892,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID de documento inválido" });
       }
 
-      const content = await getDocumentContent(documentId);
-
-      if (content === null) {
-        return res.status(404).json({ error: "Documento no encontrado" });
-      }
-
-      // Determinar el tipo de contenido basado en la extensión
+      // Obtener primero el documento para verificar
       const document = await storage.getDocumentById(documentId);
       if (!document) {
         return res.status(404).json({ error: "Documento no encontrado" });
+      }
+      
+      if (!document.path) {
+        return res.status(404).json({ error: "El documento no tiene una ruta de archivo válida" });
+      }
+
+      const content = await getDocumentContent(documentId);
+
+      if (content === null) {
+        return res.status(404).json({ error: "No se pudo leer el contenido del documento" });
       }
 
       const fileName = document.name.toLowerCase();
