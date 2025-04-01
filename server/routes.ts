@@ -456,58 +456,238 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Preview for project ${projectId}: Found ${cssFiles.length} CSS files and ${jsFiles.length} JS files`);
 
-      // Prepare files for rendering
-      const preparedFiles = [
-        {
-          name: htmlFile.name,
-          content: htmlFile.content,
-          type: 'html'
-        },
-        ...cssFiles.map(file => ({
-          name: file.name,
-          content: file.content,
-          type: 'css'
-        })),
-        ...jsFiles.map(file => ({
-          name: file.name,
-          content: file.content,
-          type: 'javascript'
-        }))
-      ];
+      // Determinar si hay archivos específicos
+      const mainHtml = htmlFile.name;
+      const mainCss = cssFiles.length > 0 ? cssFiles[0].name : null;
+      const mainJs = jsFiles.length > 0 ? jsFiles[0].name : null;
 
-      // Execute the code to generate the preview
-      const executionResult = await executeCode({
-        code: JSON.stringify({ files: preparedFiles }),
-        language: 'html'
-      });
+      console.log(`Ejecutando múltiples archivos: { html: '${mainHtml}', css: '${mainCss}', js: '${mainJs}' }`);
+
+      // Procesar contenido HTML para integrar CSS y JavaScript
+      let htmlContent = htmlFile.content;
+      
+      // Asegurarse de que sea un documento HTML completo
+      if (!htmlContent.includes('<!DOCTYPE html>') && !htmlContent.includes('<html')) {
+        htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vista Previa</title>
+  ${cssFiles.map(css => `<style id="style-${css.name.replace(/\./g, '-')}">${css.content}</style>`).join('\n')}
+</head>
+<body>
+  ${htmlContent}
+  
+  ${jsFiles.map(js => `<script id="script-${js.name.replace(/\./g, '-')}">${js.content}</script>`).join('\n')}
+  
+  <script>
+    // Script para comunicación con el iframe padre y manipulación DOM en tiempo real
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'refreshContent') {
+        // Actualizar estilos si se proporcionan
+        if (event.data.css) {
+          const cssMap = event.data.css; // { filename: content }
+          for (const [filename, content] of Object.entries(cssMap)) {
+            const styleId = 'style-' + filename.replace(/\./g, '-');
+            let styleEl = document.getElementById(styleId);
+            
+            if (!styleEl) {
+              // Crear nuevo elemento style si no existe
+              styleEl = document.createElement('style');
+              styleEl.id = styleId;
+              document.head.appendChild(styleEl);
+            }
+            
+            styleEl.textContent = content;
+          }
+        }
+        
+        // Actualizar scripts si se proporcionan
+        if (event.data.js) {
+          const jsMap = event.data.js; // { filename: content }
+          for (const [filename, content] of Object.entries(jsMap)) {
+            try {
+              // Crear un nuevo script con el contenido actualizado
+              const newScript = document.createElement('script');
+              newScript.textContent = content;
+              document.body.appendChild(newScript);
+              
+              // Registrar en la consola
+              console.log('Script actualizado:', filename);
+            } catch (error) {
+              console.error('Error al actualizar script:', filename, error);
+            }
+          }
+        }
+        
+        // Actualizar HTML si se proporciona
+        if (event.data.html) {
+          // Actualizar solo el contenido del body preservando scripts y estilos
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = event.data.html;
+          
+          // Extraer solo los elementos del body
+          const bodyContent = Array.from(tempDiv.querySelectorAll('body > *'));
+          
+          // Preservar los scripts existentes
+          const existingScripts = Array.from(document.body.querySelectorAll('script[id^="script-"]'));
+          
+          // Limpiar el body actual
+          document.body.innerHTML = '';
+          
+          // Añadir el nuevo contenido
+          bodyContent.forEach(el => document.body.appendChild(el));
+          
+          // Restaurar los scripts
+          existingScripts.forEach(script => document.body.appendChild(script));
+        }
+      }
+    });
+    
+    // Notificar que la vista previa está lista
+    window.parent.postMessage({ type: 'previewReady', projectId: ${projectId} }, '*');
+    
+    // Registrar en la consola
+    console.log("Vista previa DOM interactiva cargada correctamente");
+  </script>
+</body>
+</html>`;
+      } else {
+        // Si ya es un documento HTML completo, asegurarse de que tenga los scripts y estilos
+        if (cssFiles.length > 0) {
+          // Agregar estilos al head si no están ya
+          const headEndPos = htmlContent.indexOf('</head>');
+          if (headEndPos !== -1) {
+            const stylesBlock = cssFiles.map(css => 
+              `<style id="style-${css.name.replace(/\./g, '-')}">${css.content}</style>`
+            ).join('\n');
+            
+            htmlContent = htmlContent.substring(0, headEndPos) + 
+                         stylesBlock + 
+                         htmlContent.substring(headEndPos);
+          }
+        }
+        
+        if (jsFiles.length > 0) {
+          // Agregar scripts antes del cierre del body si no están ya
+          const bodyEndPos = htmlContent.indexOf('</body>');
+          if (bodyEndPos !== -1) {
+            const scriptsBlock = jsFiles.map(js => 
+              `<script id="script-${js.name.replace(/\./g, '-')}">${js.content}</script>`
+            ).join('\n');
+            
+            // Agregar también el script de comunicación DOM
+            const communicationScript = `
+  <script>
+    // Script para comunicación con el iframe padre y manipulación DOM en tiempo real
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'refreshContent') {
+        // Actualizar estilos si se proporcionan
+        if (event.data.css) {
+          const cssMap = event.data.css; // { filename: content }
+          for (const [filename, content] of Object.entries(cssMap)) {
+            const styleId = 'style-' + filename.replace(/\./g, '-');
+            let styleEl = document.getElementById(styleId);
+            
+            if (!styleEl) {
+              // Crear nuevo elemento style si no existe
+              styleEl = document.createElement('style');
+              styleEl.id = styleId;
+              document.head.appendChild(styleEl);
+            }
+            
+            styleEl.textContent = content;
+          }
+        }
+        
+        // Actualizar scripts si se proporcionan
+        if (event.data.js) {
+          const jsMap = event.data.js; // { filename: content }
+          for (const [filename, content] of Object.entries(jsMap)) {
+            try {
+              // Crear un nuevo script con el contenido actualizado
+              const newScript = document.createElement('script');
+              newScript.textContent = content;
+              document.body.appendChild(newScript);
+              
+              // Registrar en la consola
+              console.log('Script actualizado:', filename);
+            } catch (error) {
+              console.error('Error al actualizar script:', filename, error);
+            }
+          }
+        }
+        
+        // Actualizar HTML si se proporciona
+        if (event.data.html) {
+          // Actualizar solo el contenido del body preservando scripts y estilos
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = event.data.html;
+          
+          // Extraer solo los elementos del body
+          const bodyContent = Array.from(tempDiv.querySelectorAll('body > *'));
+          
+          // Preservar los scripts existentes
+          const existingScripts = Array.from(document.body.querySelectorAll('script[id^="script-"]'));
+          
+          // Limpiar el body actual
+          document.body.innerHTML = '';
+          
+          // Añadir el nuevo contenido
+          bodyContent.forEach(el => document.body.appendChild(el));
+          
+          // Restaurar los scripts
+          existingScripts.forEach(script => document.body.appendChild(script));
+        }
+      }
+    });
+    
+    // Notificar que la vista previa está lista
+    window.parent.postMessage({ type: 'previewReady', projectId: ${projectId} }, '*');
+    
+    // Registrar en la consola
+    console.log("Vista previa DOM interactiva cargada correctamente");
+  </script>`;
+            
+            htmlContent = htmlContent.substring(0, bodyEndPos) + 
+                         scriptsBlock + 
+                         communicationScript + 
+                         htmlContent.substring(bodyEndPos);
+          }
+        }
+      }
 
       // Establecer encabezados para evitar problemas de caché
       res.setHeader('Content-Type', 'text/html');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
-
-      // Send the response
-      if (executionResult.htmlContent) {
-        // Agregar script para habilitar recarga automática (opcional)
-        const htmlWithReload = executionResult.htmlContent.replace('</body>', `
-          <script>
-            // Este script permite recargar la vista previa automáticamente cuando se detectan cambios
-            console.log("Vista previa cargada correctamente");
-          </script>
-        </body>`);
-        
-        res.send(htmlWithReload);
-      } else {
-        // Si no hay contenido HTML generado, enviamos el contenido del archivo HTML directamente
-        res.send(htmlFile.content);
-      }
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      
+      // Enviar el contenido HTML procesado
+      res.send(htmlContent);
     } catch (error) {
       console.error("Error generating preview:", error);
-      res.status(500).json({ 
-        message: "Error generating preview",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Error en Vista Previa</title>
+            <style>
+              body { font-family: sans-serif; padding: 20px; }
+              .error { color: #e74c3c; background: #ffebee; padding: 15px; border-radius: 5px; }
+              pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; }
+            </style>
+          </head>
+          <body>
+            <div class="error">
+              <h2>Error al generar la vista previa</h2>
+              <p>${error instanceof Error ? error.message : "Error desconocido"}</p>
+            </div>
+          </body>
+        </html>
+      `);
     }
   });
 
