@@ -226,6 +226,10 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
             <span className="text-sm font-medium">Documentos</span>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            <DocumentUploader 
+              projectId={projectId} 
+              onDocumentUploaded={fetchDocuments} 
+            />
             {Object.keys(docFolders).length === 0 ? (
               <div className="py-2 px-1 text-sm text-slate-500 dark:text-slate-400">
                 No hay documentos cargados

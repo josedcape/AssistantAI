@@ -292,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newDocument: Document = { 
       ...insertDocument, 
       id,
+      path: insertDocument.path || `document_${id}`, // Added path with default
       createdAt: now
     };
     this.documents.set(id, newDocument);
