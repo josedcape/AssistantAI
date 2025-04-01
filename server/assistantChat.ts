@@ -139,14 +139,6 @@ IMPORTANTE:
     throw new Error(`Error al procesar el chat: ${error instanceof Error ? error.message : "Error desconocido"}`);
   }
 }
-</old_str>
-
-    // El código de retorno ahora está dentro del try/catch
-  } catch (error) {
-    console.error("Error en processAssistantChat:", error);
-    throw new Error(`Error al procesar el chat: ${error instanceof Error ? error.message : "Error desconocido"}`);
-  }
-}
 
 /**
  * Extrae la información de cambios de archivos de la respuesta del asistente
