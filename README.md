@@ -42,3 +42,4 @@ José D. Cape - [GitHub](https://github.com/josedcape)
 ## Licencia
 
 Este proyecto está licenciado bajo MIT License - ver el archivo LICENSE para más detalles.
+BOTIDINAMIX AI TODOS LOS DERECHOS RESERVADOS 
