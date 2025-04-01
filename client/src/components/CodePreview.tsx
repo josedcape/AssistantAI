@@ -15,10 +15,10 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isVisualPreview, setIsVisualPreview] = useState(false);
   const { toast } = useToast();
-  
+
   // Referencia para el iframe de JavaScript visual
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  
+
   // Función para ejecutar el código del archivo
   const executeCode = async () => {
     setIsLoading(true);
@@ -26,20 +26,20 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
 
     try {
       let result;
-      
+
       // Si tenemos múltiples archivos relacionados (HTML, CSS, JS), enviamos todos juntos
       if (allFiles && allFiles.length > 0) {
         // Encontrar los archivos HTML, CSS y JS
         const htmlFile = allFiles.find(f => f.type === 'html' || f.name.endsWith('.html'));
         const cssFile = allFiles.find(f => f.type === 'css' || f.name.endsWith('.css'));
         const jsFile = allFiles.find(f => f.type === 'javascript' || f.name.endsWith('.js'));
-        
+
         console.log("Archivos encontrados:", { 
           html: htmlFile?.name, 
           css: cssFile?.name, 
           js: jsFile?.name 
         });
-        
+
         // Preparar el código con un formato de múltiples archivos
         const filesToSend = allFiles.map(f => ({
           name: f.name,
@@ -47,12 +47,12 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
           language: f.type,
           type: f.type
         }));
-        
+
         const response = await apiRequest("POST", "/api/execute", {
           code: JSON.stringify({ files: filesToSend }),
           language: htmlFile ? 'html' : (file.type || 'javascript') // Preferir HTML si está disponible
         });
-        
+
         result = await response.json();
       } else {
         // Para un solo archivo, usamos el método tradicional
@@ -78,11 +78,44 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
         // Si la respuesta indica que es contenido visual (HTML/CSS), activamos la vista visual
         if (result.visualOutput) {
           setIsVisualPreview(true);
-          
+
           // Si hay contenido HTML específico, lo usamos para el iframe
           if (result.htmlContent) {
             // En este caso, usaremos el contenido HTML directamente
             setPreviewHtml(result.htmlContent);
+          } else if (file.type === 'html' && allFiles) {
+            // Si estamos viendo un archivo HTML, buscar si hay CSS relacionado
+            const cssFile = allFiles.find(f => f.type === 'css' || f.name.endsWith('.css'));
+
+            // Si tenemos CSS, inyectarlo en el HTML
+            if (cssFile) {
+              let htmlContent = file.content;
+
+              // Verificar si el HTML ya tiene una etiqueta head
+              if (htmlContent.includes('<head>')) {
+                // Insertar el CSS dentro del head existente
+                htmlContent = htmlContent.replace('<head>', `<head>\n<style>${cssFile.content}</style>`);
+              } else if (htmlContent.includes('<html>')) {
+                // Insertar un head con el CSS
+                htmlContent = htmlContent.replace('<html>', `<html>\n<head>\n<style>${cssFile.content}</style>\n</head>`);
+              } else {
+                // Si es solo un fragmento, crear una estructura HTML completa
+                htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${cssFile.content}</style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+              }
+              setPreviewHtml(htmlContent);
+            } else {
+              setPreviewHtml(file.content);
+            }
           }
         } else {
           // Guardamos la salida de texto estándar para vista no visual (consola)
@@ -101,12 +134,12 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       setIsLoading(false);
     }
   };
-  
+
   // Función para crear un ambiente visual para JavaScript
   const createVisualEnvironment = () => {
     // Solo para JavaScript
     if (file.type !== "javascript") return;
-    
+
     const htmlTemplate = `
       <!DOCTYPE html>
       <html>
@@ -175,15 +208,15 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
               <input type="text" id="userInput" placeholder="Escribe un mensaje..." style="padding: 8px; width: 70%; margin-right: 10px;">
               <button id="sendButton">Enviar</button>
             </div>
-            
+
             <div id="output" style="min-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 15px;"></div>
-            
+
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
               <button id="button1">Botón 1</button>
               <button id="button2">Botón 2</button>
               <button id="resetButton">Reiniciar</button>
             </div>
-            
+
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
               <select id="dropdown" style="padding: 5px;">
                 <option value="">-- Seleccionar --</option>
@@ -191,12 +224,12 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 <option value="opcion2">Opción 2</option>
                 <option value="opcion3">Opción 3</option>
               </select>
-              
+
               <div>
                 <input type="checkbox" id="checkbox1"> <label for="checkbox1">Opción A</label>
               </div>
             </div>
-            
+
             <div id="visual-container" style="height: 100px; background-color: #f5f5f5; border-radius: 4px; margin-bottom: 15px;"></div>
           </div>
           <div id="console-output"></div>
@@ -205,7 +238,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
           // Captura console.log y otros métodos
           const consoleOutput = document.getElementById('console-output');
           const originalConsole = { ...console };
-          
+
           function appendToConsole(message, type = 'log') {
             if (!consoleOutput) return;
             const item = document.createElement('div');
@@ -221,57 +254,57 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
             consoleOutput.appendChild(item);
             consoleOutput.scrollTop = consoleOutput.scrollHeight;
           }
-          
+
           console.log = (...args) => {
             args.forEach(arg => appendToConsole(arg, 'log'));
             originalConsole.log(...args);
           };
-          
+
           console.error = (...args) => {
             args.forEach(arg => appendToConsole(arg, 'error'));
             originalConsole.error(...args);
           };
-          
+
           console.warn = (...args) => {
             args.forEach(arg => appendToConsole(arg, 'warn'));
             originalConsole.warn(...args);
           };
-          
+
           console.info = (...args) => {
             args.forEach(arg => appendToConsole(arg, 'info'));
             originalConsole.info(...args);
           };
-          
+
           window.onerror = function(message, source, lineno, colno, error) {
             appendToConsole('Error: ' + message, 'error');
             return true;
           };
-          
+
           // Configuración de eventos para elementos interactivos
           document.getElementById('button1')?.addEventListener('click', function() {
             console.log('Botón 1 clickeado');
             const output = document.getElementById('output');
             if (output) output.innerHTML += '<p>Botón 1 clickeado</p>';
           });
-          
+
           document.getElementById('button2')?.addEventListener('click', function() {
             console.log('Botón 2 clickeado');
             const output = document.getElementById('output');
             if (output) output.innerHTML += '<p>Botón 2 clickeado</p>';
           });
-          
+
           document.getElementById('resetButton')?.addEventListener('click', function() {
             console.log('Reiniciando...');
             const output = document.getElementById('output');
             if (output) output.innerHTML = '';
           });
-          
+
           document.getElementById('dropdown')?.addEventListener('change', function(e) {
             console.log('Opción seleccionada:', e.target.value);
             const output = document.getElementById('output');
             if (output) output.innerHTML += '<p>Seleccionado: ' + e.target.value + '</p>';
           });
-          
+
           // Para facilitar la depuración de funciones handleUserInput comunes en chatbots
           window.handleUserInput = function(message) {
             console.log('Mensaje recibido:', message);
@@ -279,15 +312,15 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
             if (output) output.innerHTML += '<p><strong>Tú:</strong> ' + message + '</p>';
             return message;
           };
-          
+
           // Analizamos si el código es una función o un objeto para ejecutarlo correctamente
           try {
             // Ejecutamos el código inmediatamente como script
             ${file.content}
-            
+
             // Intentamos extraer cualquier función de inicialización autoejecutada
             const code = \`${file.content}\`;
-            
+
             // Ejecutar posibles funciones de inicialización (patrones comunes)
             try {
               // Verificar si es una IIFE (Immediately Invoked Function Expression)
@@ -296,7 +329,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 console.log('Detectada función autoejecutada (IIFE), ejecutando...');
                 eval(iifeFunctionMatch[0]);
               }
-              
+
               // Buscar funciones posiblemente exportadas o definidas que podrían ser principales
               const mainFunctionMatch = code.match(/function\\s+(init|main|setup|start|app|initialize)\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\}/);
               if (mainFunctionMatch) {
@@ -304,13 +337,13 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 console.log(\`Detectada posible función principal "\${fnName}", intentando ejecutar...\`);
                 eval(\`if (typeof \${fnName} === 'function') \${fnName}();\`);
               }
-              
+
               // Ejecutar window.onload si está definido
               if (typeof window.onload === 'function') {
                 console.log('Ejecutando window.onload...');
                 window.onload(new Event('load'));
               }
-              
+
               // Disparar DOMContentLoaded si hay listeners
               console.log('Disparando evento DOMContentLoaded...');
               document.dispatchEvent(new Event('DOMContentLoaded'));
@@ -324,12 +357,12 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       </body>
       </html>
     `;
-    
+
     if (iframeRef.current) {
       // Establecer el contenido del iframe
       const iframeDoc = iframeRef.current.contentDocument || 
                        (iframeRef.current.contentWindow && iframeRef.current.contentWindow.document);
-                       
+
       if (iframeDoc) {
         iframeDoc.open();
         iframeDoc.write(htmlTemplate);
@@ -337,7 +370,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       }
     }
   };
-  
+
   // Cambiar entre vista de consola y vista visual
   const togglePreviewMode = () => {
     setIsVisualPreview(!isVisualPreview);
@@ -346,7 +379,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
   useEffect(() => {
     executeCode();
   }, [file, allFiles]);
-  
+
   // Efecto para inicializar la vista visual cuando cambia isVisualPreview
   useEffect(() => {
     if (isVisualPreview) {
@@ -359,7 +392,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
       <div className="flex-none border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between h-10 px-4">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Vista Previa</span>
-          
+
           {/* Controles para JavaScript */}
           {file.type === "javascript" && !isLoading && !error && (
             <div className="flex items-center space-x-2">
@@ -372,7 +405,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 <i className="ri-play-circle-line mr-1"></i>
                 Ejecutar
               </Button>
-              
+
               <Button 
                 variant={isVisualPreview ? "default" : "outline"} 
                 size="sm" 
@@ -384,7 +417,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
               </Button>
             </div>
           )}
-          
+
           {/* Controles para HTML y CSS */}
           {(file.type === "html" || file.type === "css") && !isLoading && !error && (
             <div className="flex items-center space-x-2">
@@ -397,7 +430,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                 <i className="ri-refresh-line mr-1"></i>
                 Actualizar vista
               </Button>
-              
+
               {file.type === "css" && (
                 <span className="text-xs text-slate-500 dark:text-slate-400">
                   <i className="ri-information-line mr-1"></i>
@@ -444,7 +477,7 @@ const CodePreview = ({ file, allFiles }: CodePreviewProps) => {
                   )}
                 </div>
               )}
-              
+
               {/* Salida de consola para texto (cuando no es una vista visual) */}
               {!isVisualPreview && file.type === "javascript" && (
                 <pre className="text-sm whitespace-pre-wrap overflow-auto max-h-96 p-4 bg-slate-100 dark:bg-slate-800 rounded-md">

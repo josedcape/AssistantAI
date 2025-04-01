@@ -92,6 +92,12 @@ function executeMultipleFiles(files: GeneratedFile[]): CodeExecutionResponse {
     const cssFile = files.find(f => f.type === 'css' || f.name.endsWith('.css'));
     const jsFile = files.find(f => f.type === 'javascript' || f.name.endsWith('.js'));
     
+    console.log("Ejecutando múltiples archivos:", {
+      html: htmlFile?.name,
+      css: cssFile?.name,
+      js: jsFile?.name
+    });
+    
     // Si no hay archivo HTML, intentar ejecutar solo el JavaScript o CSS
     if (!htmlFile) {
       if (jsFile) {

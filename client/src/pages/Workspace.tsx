@@ -394,12 +394,34 @@ const Workspace = () => {
                       </a>
                     </div>
                   )}
-                  <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
+                  <button 
+                    className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
+                    onClick={() => {
+                      // Buscar un archivo HTML para mostrar la aplicación
+                      const htmlFile = files.find(f => f.type === 'html');
+                      if (htmlFile) {
+                        setActiveFile(htmlFile);
+                        setActiveTab("preview");
+                      } else {
+                        toast({
+                          title: "No hay archivo HTML",
+                          description: "No se encontró un archivo HTML para mostrar la aplicación",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    title="Ver aplicación"
+                  >
                     <i className="ri-play-circle-line text-lg"></i>
                   </button>
-                  <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
+                  <a 
+                    href={`/preview/${projectId}`} 
+                    target="_blank"
+                    className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
+                    title="Abrir en nueva pestaña"
+                  >
                     <i className="ri-share-line text-lg"></i>
-                  </button>
+                  </a>
                   <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
                     <i className="ri-more-2-line text-lg"></i>
                   </button>
