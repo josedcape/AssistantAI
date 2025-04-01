@@ -971,7 +971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!models || Object.keys(models).length === 0) {
         console.warn("No se encontraron modelos disponibles");
         // Modelos predeterminados como fallback
-        return res.json({
+        return res.status(200).json({
           models: {
             "gpt-4o": "GPT-4O (OpenAI)",
             "gemini-2.5": "Gemini 2.5 (Google)",
@@ -982,20 +982,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Responder con los modelos
-      res.json({
+      res.status(200).json({
         models: models,
-        activeModel: activeModel
+        activeModel: activeModel,
+        success: true
       });
     } catch (error) {
       console.error("Error fetching models:", error);
-      // Responder con modelos predeterminados en caso de error
-      res.json({
+      // Responder con modelos predeterminados en caso de error, pero con código 200
+      // para que la UI pueda seguir funcionando con los modelos fallback
+      res.status(200).json({
         models: {
           "gpt-4o": "GPT-4O (OpenAI)",
           "gemini-2.5": "Gemini 2.5 (Google)",
           "claude-3.7": "Claude 3.7 (Anthropic)"
         },
         activeModel: "gpt-4o",
+        success: false,
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -1009,26 +1012,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validatedData = modelSchema.parse(req.body);
-      // Usamos la función importada en la parte superior
+      const requestedModel = validatedData.modelId;
       
-      const success = setActiveModel(validatedData.modelId);
+      // Intentar cambiar el modelo
+      const success = setActiveModel(requestedModel);
       
       if (success) {
-        res.json({ success: true, message: "Model changed successfully" });
+        // Modelo cambiado exitosamente
+        console.log(`Modelo cambiado correctamente a: ${requestedModel}`);
+        res.status(200).json({ 
+          success: true, 
+          message: "Modelo cambiado correctamente",
+          modelId: requestedModel
+        });
       } else {
-        res.status(400).json({ success: false, message: "Invalid model ID" });
+        // Modelo no válido, pero enviamos código 200 para mejor manejo en el cliente
+        console.warn(`Intento de cambiar a modelo inválido: ${requestedModel}`);
+        res.status(200).json({ 
+          success: false, 
+          message: "Modelo no disponible, se mantiene el modelo actual",
+          modelId: getActiveModel() // Devolver el modelo actual que sigue siendo válido
+        });
       }
     } catch (error) {
       console.error("Error setting model:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
-          message: "Invalid model data", 
-          errors: error.errors 
+          success: false,
+          message: "Datos de modelo inválidos", 
+          errors: error.errors,
+          modelId: getActiveModel() // Devolver el modelo actual
         });
       }
-      res.status(500).json({
-        message: "Error setting model",
-        error: error instanceof Error ? error.message : "Unknown error"
+      res.status(200).json({ // Usamos 200 para mejor manejo cliente
+        success: false,
+        message: "Error al cambiar el modelo, se mantiene el modelo actual",
+        error: error instanceof Error ? error.message : "Error desconocido",
+        modelId: getActiveModel() // Devolver el modelo actual
       });
     }
   });

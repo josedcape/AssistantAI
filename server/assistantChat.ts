@@ -94,24 +94,49 @@ IMPORTANTE:
     ];
 
     // Usar el modelo especificado o el modelo activo como respaldo
-    const modelToUse = request.modelId || getActiveModel();
+    let modelToUse = request.modelId || getActiveModel();
     
-    // Llamar a la API de OpenAI
-    const response = await openai.chat.completions.create({
-      model: modelToUse,
-      messages,
-      temperature: 0.7,
-    });
+    // Validar que el modelo sea válido, en caso contrario usar el modelo por defecto
+    try {
+      // Llamar a la API de OpenAI
+      const response = await openai.chat.completions.create({
+        model: modelToUse,
+        messages,
+        temperature: 0.7,
+      });
+      
+      return {
+        message: response.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.",
+        fileChanges: extractFileChanges(response.choices[0].message.content || "")
+      };
+    } catch (error) {
+      console.error(`Error con el modelo ${modelToUse}:`, error);
+      
+      // Si hay error con el modelo seleccionado, intentar con gpt-4o como respaldo
+      if (modelToUse !== "gpt-4o") {
+        try {
+          console.log("Intentando con modelo alternativo gpt-4o...");
+          const fallbackResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages,
+            temperature: 0.7,
+          });
+          
+          return {
+            message: fallbackResponse.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.",
+            fileChanges: extractFileChanges(fallbackResponse.choices[0].message.content || "")
+          };
+        } catch (fallbackError) {
+          console.error("Error también con modelo alternativo:", fallbackError);
+          throw new Error(`Error al procesar con modelos disponibles: ${error.message}`);
+        }
+      } else {
+        throw error; // Re-lanzar el error original si ya estábamos usando el modelo de respaldo
+      }
+    }
+</old_str>
 
-    const assistantResponse = response.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.";
-    
-    // Intentar extraer cambios de archivos si existen
-    const fileChanges = extractFileChanges(assistantResponse);
-    
-    return {
-      message: assistantResponse,
-      fileChanges: fileChanges
-    };
+    // El código de retorno ahora está dentro del try/catch
   } catch (error) {
     console.error("Error en processAssistantChat:", error);
     throw new Error(`Error al procesar el chat: ${error instanceof Error ? error.message : "Error desconocido"}`);

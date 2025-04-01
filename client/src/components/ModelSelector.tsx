@@ -70,24 +70,31 @@ export function ModelSelector({ onModelChange }: ModelSelectorProps) {
 
   const handleModelChange = async (value: string) => {
     try {
+      // Actualizar estado local primero para mejor UX
+      setCurrentModel(value);
+      
+      // Si hay un callback, llamarlo inmediatamente para actualizar componentes padre
+      if (onModelChange) {
+        onModelChange(value);
+      }
+      
+      // Luego hacer la petición al servidor
       const response = await apiRequest('POST', '/api/models/set', { modelId: value });
+      
       if (response.ok) {
-        setCurrentModel(value);
         toast({
           title: "Modelo cambiado",
           description: `Se ha cambiado al modelo: ${models[value]}`,
         });
-        if (onModelChange) {
-          onModelChange(value);
-        }
       } else {
-        throw new Error('Error al cambiar modelo');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al cambiar modelo');
       }
     } catch (error) {
       console.error('Error changing model:', error);
       toast({
-        title: "Error",
-        description: "No se pudo cambiar el modelo de IA",
+        title: "Aviso",
+        description: "El modelo ha cambiado localmente, pero hubo un problema al sincronizar con el servidor. La funcionalidad puede verse afectada.",
         variant: "destructive",
       });
     }

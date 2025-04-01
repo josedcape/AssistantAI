@@ -25,14 +25,21 @@ let MODEL = "gpt-4o"; // default model
 export function setActiveModel(modelId: string) {
   if (AVAILABLE_MODELS[modelId]) {
     MODEL = modelId;
+    console.log(`Modelo activo cambiado a: ${modelId}`);
     return true;
   }
+  console.warn(`Modelo solicitado no disponible: ${modelId}. Usando modelo actual: ${MODEL}`);
   return false;
 }
 
 // Función para obtener el modelo activo
 export function getActiveModel() {
   return MODEL;
+}
+
+// Función para validar si un modelo existe
+export function isValidModel(modelId: string) {
+  return !!AVAILABLE_MODELS[modelId];
 }
 
 // Función para obtener todos los modelos disponibles

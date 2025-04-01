@@ -48,10 +48,21 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
           const data = await response.json();
           if (data.activeModel) {
             setModelId(data.activeModel);
+            console.log("Modelo activo cargado:", data.activeModel);
+          } else {
+            // Si no hay modelo activo, usar el modelo por defecto
+            setModelId("gpt-4o");
+            console.log("Usando modelo por defecto: gpt-4o");
           }
+        } else {
+          // Si hay error en la petición, usar modelo por defecto
+          setModelId("gpt-4o");
+          console.log("Error al obtener modelos, usando modelo por defecto: gpt-4o");
         }
       } catch (error) {
         console.error("Error fetching active model:", error);
+        // En caso de error, asegurar que haya un modelo por defecto
+        setModelId("gpt-4o");
       }
     };
     
