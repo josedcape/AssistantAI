@@ -415,10 +415,20 @@ const Workspace = () => {
                     <i className="ri-play-circle-line text-lg"></i>
                   </button>
                   <a 
-                    href={`/api/projects/${projectId}/preview`} 
+                    href={isNaN(projectId) ? "#" : `/api/projects/${Number(projectId)}/preview`}
                     target="_blank"
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
                     title="Abrir en nueva pestaña"
+                    onClick={(e) => {
+                      if (isNaN(projectId)) {
+                        e.preventDefault();
+                        toast({
+                          title: "Error",
+                          description: "ID de proyecto inválido. No se puede abrir la vista previa.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                   >
                     <i className="ri-share-line text-lg"></i>
                   </a>

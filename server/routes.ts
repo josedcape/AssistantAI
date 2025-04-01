@@ -389,21 +389,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
+        console.error(`Invalid project ID: ${req.params.projectId}`);
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
       // Get all files for the project
       const files = await storage.getFilesByProjectId(projectId);
+      
+      if (!files || files.length === 0) {
+        return res.status(404).json({ message: "No files found in project" });
+      }
 
       // Find the HTML file to use as entry point
       const htmlFile = files.find(file => file.type === 'html');
       if (!htmlFile) {
-        return res.status(404).json({ message: "No HTML file found in project" });
+        // Si no hay archivo HTML, creamos uno simple con un mensaje
+        return res.status(404).json({ 
+          message: "No HTML file found in project",
+          files: files.map(f => ({ name: f.name, type: f.type }))
+        });
       }
 
       // Get CSS and JS files
       const cssFiles = files.filter(file => file.type === 'css');
       const jsFiles = files.filter(file => file.type === 'javascript');
+
+      console.log(`Preview for project ${projectId}: Found ${cssFiles.length} CSS files and ${jsFiles.length} JS files`);
 
       // Prepare files for rendering
       const preparedFiles = [
@@ -435,7 +446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Type', 'text/html');
         res.send(executionResult.htmlContent);
       } else {
-        res.status(500).json({ message: "Failed to generate preview" });
+        // Si no hay contenido HTML, enviamos el contenido del archivo HTML tal cual
+        res.setHeader('Content-Type', 'text/html');
+        res.send(htmlFile.content);
       }
     } catch (error) {
       console.error("Error generating preview:", error);

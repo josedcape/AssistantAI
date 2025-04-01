@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import { File, CodeExecutionResponse } from "@shared/schema";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { File } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface CodePreviewProps {
   file: File;
@@ -9,182 +9,227 @@ interface CodePreviewProps {
 }
 
 const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
-  const [result, setResult] = useState<CodeExecutionResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("preview");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
+  // Efecto para renderizar el código en el iframe
   useEffect(() => {
-    if (file) {
-      previewCode();
-    }
-  }, [file]);
+    const renderPreview = async () => {
+      if (!iframeRef.current) return;
 
-  const previewCode = async () => {
-    try {
-      setIsLoading(true);
-      setError("");
+      setLoading(true);
 
-      // Determinar si debemos ejecutar el código individualmente o como parte de un conjunto
-      if (file.type === 'html' && allFiles && allFiles.length > 0) {
-        // Si es HTML, buscar archivos CSS y JS relacionados
-        const cssFiles = allFiles.filter(f => f.type === 'css');
-        const jsFiles = allFiles.filter(f => f.type === 'javascript');
+      try {
+        // Si es un archivo HTML, intentamos obtener una vista previa completa
+        if (file.type === 'html') {
+          // Obtenemos la URL de la API para la vista previa del proyecto
+          const projectId = file.projectId;
 
-        // Si hay archivos relacionados, enviar todo como un conjunto
-        if (cssFiles.length > 0 || jsFiles.length > 0) {
-          const files = [
-            {
-              name: file.name,
-              content: file.content,
-              type: file.type
-            },
-            ...cssFiles.map(f => ({
-              name: f.name,
-              content: f.content,
-              type: f.type
-            })),
-            ...jsFiles.map(f => ({
-              name: f.name,
-              content: f.content,
-              type: f.type
-            }))
-          ];
+          // Verificar que el ID del proyecto sea válido
+          if (!projectId || isNaN(Number(projectId))) {
+            throw new Error("ID de proyecto inválido");
+          }
 
-          // Enviar como un conjunto de archivos
-          const response = await apiRequest("POST", "/api/execute", {
-            code: JSON.stringify({ files }),
-            language: "html"
-          });
+          try {
+            // Intentar cargar la URL de la vista previa
+            const previewUrl = `/api/projects/${Number(projectId)}/preview`;
+            iframeRef.current.src = previewUrl;
+          } catch (error) {
+            console.error("Error loading preview:", error);
+            // Si hay un error, mostramos solo el contenido HTML
+            const iframe = iframeRef.current;
+            const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
 
-          const result = await response.json();
-          setResult(result);
+            if (iframeDocument) {
+              iframeDocument.open();
+              iframeDocument.write(file.content);
+              iframeDocument.close();
+            }
+          }
+        } else if (file.type === 'css') {
+          // Para archivos CSS, mostramos una vista previa con ejemplos
+          const iframe = iframeRef.current;
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+
+          if (iframeDocument) {
+            iframeDocument.open();
+            iframeDocument.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>${file.content}</style>
+              </head>
+              <body>
+                <div class="preview-container">
+                  <h1>Vista previa de CSS</h1>
+                  <p>Este es un ejemplo de cómo se verían los estilos aplicados.</p>
+                  <button>Botón de ejemplo</button>
+                  <div class="card">
+                    <h2>Tarjeta de ejemplo</h2>
+                    <p>Contenido de la tarjeta</p>
+                  </div>
+                </div>
+              </body>
+              </html>
+            `);
+            iframeDocument.close();
+          }
+        } else if (file.type === 'javascript') {
+          // Para JavaScript, mostramos el código y los resultados de la consola
+          const iframe = iframeRef.current;
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+
+          if (iframeDocument) {
+            iframeDocument.open();
+            iframeDocument.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { font-family: Arial, sans-serif; padding: 20px; }
+                  pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+                  .console { margin-top: 20px; border: 1px solid #ccc; border-radius: 5px; overflow: hidden; }
+                  .console-header { background: #f1f1f1; padding: 10px; border-bottom: 1px solid #ccc; }
+                  .console-output { padding: 10px; max-height: 200px; overflow-y: auto; }
+                  .error { color: red; }
+                </style>
+              </head>
+              <body>
+                <h2>Código JavaScript</h2>
+                <pre><code>${file.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+
+                <div class="console">
+                  <div class="console-header">Consola</div>
+                  <div class="console-output" id="consoleOutput">Ejecutando código...</div>
+                </div>
+
+                <script>
+                  // Reemplazar console.log para capturar la salida
+                  const consoleOutput = document.getElementById('consoleOutput');
+                  consoleOutput.innerHTML = '';
+
+                  const originalConsole = {
+                    log: console.log,
+                    error: console.error,
+                    warn: console.warn,
+                    info: console.info
+                  };
+
+                  console.log = function() {
+                    const output = Array.from(arguments).join(' ');
+                    consoleOutput.innerHTML += \`<div>\${output}</div>\`;
+                    originalConsole.log.apply(console, arguments);
+                  };
+
+                  console.error = function() {
+                    const output = Array.from(arguments).join(' ');
+                    consoleOutput.innerHTML += \`<div class="error">\${output}</div>\`;
+                    originalConsole.error.apply(console, arguments);
+                  };
+
+                  console.warn = function() {
+                    const output = Array.from(arguments).join(' ');
+                    consoleOutput.innerHTML += \`<div style="color: orange">\${output}</div>\`;
+                    originalConsole.warn.apply(console, arguments);
+                  };
+
+                  console.info = function() {
+                    const output = Array.from(arguments).join(' ');
+                    consoleOutput.innerHTML += \`<div style="color: blue">\${output}</div>\`;
+                    originalConsole.info.apply(console, arguments);
+                  };
+
+                  // Ejecutar el código del usuario dentro de un try-catch
+                  try {
+                    // Usar una función para evitar problemas de ámbito
+                    (function() {
+                      ${file.content}
+                    })();
+
+                    if (consoleOutput.innerHTML === '') {
+                      consoleOutput.innerHTML = '<div>El código se ejecutó sin salida en la consola.</div>';
+                    }
+                  } catch (error) {
+                    console.error('Error:', error.message);
+                  }
+                </script>
+              </body>
+              </html>
+            `);
+            iframeDocument.close();
+          }
         } else {
-          // Si no hay archivos relacionados, ejecutar solo el HTML
-          const response = await apiRequest("POST", "/api/execute", {
-            code: file.content,
-            language: file.type
-          });
+          // Para otros tipos de archivo, mostramos el contenido en un formato legible
+          const iframe = iframeRef.current;
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
 
-          const result = await response.json();
-          setResult(result);
+          if (iframeDocument) {
+            iframeDocument.open();
+            iframeDocument.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { font-family: monospace; padding: 20px; white-space: pre; }
+                </style>
+              </head>
+              <body>
+                ${file.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </body>
+              </html>
+            `);
+            iframeDocument.close();
+          }
         }
-      } else {
-        // Para archivos individuales (JavaScript, CSS, etc.)
-        const response = await apiRequest("POST", "/api/execute", {
-          code: file.content,
-          language: file.type
+      } catch (error) {
+        console.error("Error rendering preview:", error);
+        toast({
+          title: "Error al mostrar la vista previa",
+          description: error instanceof Error ? error.message : "Error desconocido",
+          variant: "destructive"
         });
 
-        const result = await response.json();
-        setResult(result);
+        // Mostrar un mensaje de error en el iframe
+        const iframe = iframeRef.current;
+        if (iframe) {
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDocument) {
+            iframeDocument.open();
+            iframeDocument.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { font-family: Arial, sans-serif; padding: 20px; }
+                  .error { color: red; background: #ffeeee; padding: 15px; border-radius: 5px; }
+                </style>
+              </head>
+              <body>
+                <div class="error">
+                  <h2>Error al mostrar la vista previa</h2>
+                  <p>${error instanceof Error ? error.message : "Error desconocido"}</p>
+                </div>
+                <div>
+                  <h3>Contenido del archivo:</h3>
+                  <pre>${file.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                </div>
+              </body>
+              </html>
+            `);
+            iframeDocument.close();
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error previewing code:", error);
-      setError("No se pudo previsualizar el código. Inténtalo de nuevo.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    renderPreview();
+  }, [file, toast]);
 
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="preview">
-              <i className="ri-eye-line mr-2"></i>
-              Vista Previa
-            </TabsTrigger>
-            <TabsTrigger value="iframe">
-              <i className="ri-window-line mr-2"></i>
-              Ventana completa
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={previewCode}
-            className="p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
-            title="Refrescar vista previa"
-          >
-            <i className="ri-refresh-line"></i>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1">
-        <TabsContent value="preview" className="h-full">
-          <div className="h-full p-4 bg-white dark:bg-slate-900 overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-              </div>
-            ) : error ? (
-              <div className="text-red-500 p-4">
-                <h3 className="font-bold mb-2">Error:</h3>
-                <pre className="bg-red-50 dark:bg-red-900/20 p-4 rounded overflow-auto">
-                  {error}
-                </pre>
-              </div>
-            ) : result ? (
-              result.visualOutput && result.htmlContent ? (
-                <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden h-full">
-                  <iframe
-                    srcDoc={result.htmlContent}
-                    className="w-full h-full"
-                    sandbox="allow-scripts allow-forms allow-same-origin"
-                    title="Preview"
-                  ></iframe>
-                </div>
-              ) : (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-md">
-                  <h3 className="font-medium mb-2">Resultado de ejecución:</h3>
-                  <pre className="whitespace-pre-wrap bg-white dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700">
-                    {result.output}
-                  </pre>
-
-                  {result.error && (
-                    <div className="mt-4">
-                      <h4 className="font-medium text-red-500 mb-2">Error:</h4>
-                      <pre className="whitespace-pre-wrap bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800">
-                        {result.error}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                <i className="ri-code-line text-5xl mb-4"></i>
-                <p>Selecciona un archivo para ver la previsualización</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="iframe" className="h-full">
-          {result?.visualOutput && result.htmlContent ? (
-            <iframe
-              srcDoc={result.htmlContent}
-              className="w-full h-full border-none"
-              sandbox="allow-scripts allow-forms allow-same-origin"
-              title="Full Preview"
-            ></iframe>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-800">
-              <div className="text-center p-4">
-                <i className="ri-file-text-line text-5xl text-slate-400 mb-4"></i>
-                <p className="text-slate-600 dark:text-slate-400">
-                  La vista previa solo está disponible para archivos HTML, CSS o JavaScript.
-                </p>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-      </div>
-    </div>
+    <iframe ref={iframeRef} className="w-full h-full border-none" title="Preview" />
   );
 };
 
