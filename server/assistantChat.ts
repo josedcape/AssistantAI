@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import { File } from "@shared/schema";
 
-const MODEL = "gpt-4o";
+import { getActiveModel } from "./openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ""
@@ -92,9 +92,12 @@ IMPORTANTE:
       { role: "user" as const, content: request.message }
     ];
 
+    // Obtener el modelo activo
+    const activeModel = getActiveModel();
+    
     // Llamar a la API de OpenAI
     const response = await openai.chat.completions.create({
-      model: MODEL,
+      model: activeModel,
       messages,
       temperature: 0.7,
     });

@@ -40,9 +40,6 @@ export function getAvailableModels() {
   return AVAILABLE_MODELS;
 }
 
-// Exportar las funciones para que estén disponibles para importación
-export { AVAILABLE_MODELS };
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ""
 });

@@ -961,15 +961,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para obtener modelos disponibles
   apiRouter.get("/models", async (req: Request, res: Response) => {
     try {
-      // Usamos las funciones importadas en la parte superior del archivo
+      // Obtener los modelos y el modelo activo
+      const models = getAvailableModels();
+      const activeModel = getActiveModel();
+      
+      // Verificar que haya datos válidos
+      if (!models || Object.keys(models).length === 0) {
+        console.warn("No se encontraron modelos disponibles");
+        // Modelos predeterminados como fallback
+        return res.json({
+          models: {
+            "gpt-4o": "GPT-4O (OpenAI)",
+            "gemini-2.5": "Gemini 2.5 (Google)",
+            "claude-3.7": "Claude 3.7 (Anthropic)"
+          },
+          activeModel: "gpt-4o"
+        });
+      }
+      
+      // Responder con los modelos
       res.json({
-        models: getAvailableModels(),
-        activeModel: getActiveModel()
+        models: models,
+        activeModel: activeModel
       });
     } catch (error) {
       console.error("Error fetching models:", error);
-      res.status(500).json({
-        message: "Error fetching models",
+      // Responder con modelos predeterminados en caso de error
+      res.json({
+        models: {
+          "gpt-4o": "GPT-4O (OpenAI)",
+          "gemini-2.5": "Gemini 2.5 (Google)",
+          "claude-3.7": "Claude 3.7 (Anthropic)"
+        },
+        activeModel: "gpt-4o",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

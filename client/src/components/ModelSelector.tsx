@@ -22,20 +22,43 @@ export function ModelSelector({ onModelChange }: ModelSelectorProps) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Modelos por defecto en caso de error
+  const defaultModels = {
+    "gpt-4o": "GPT-4O (OpenAI)",
+    "gemini-2.5": "Gemini 2.5 (Google)",
+    "claude-3.7": "Claude 3.7 (Anthropic)"
+  };
+
   useEffect(() => {
     const fetchModels = async () => {
       try {
         setLoading(true);
         const response = await apiRequest('GET', '/api/models');
+        if (!response.ok) {
+          throw new Error(`Error de servidor: ${response.status}`);
+        }
         const data = await response.json();
-        setModels(data.models);
-        setCurrentModel(data.activeModel);
+        
+        // Verificar que los datos tengan la estructura esperada
+        if (data && data.models && Object.keys(data.models).length > 0) {
+          setModels(data.models);
+          setCurrentModel(data.activeModel || Object.keys(data.models)[0]);
+        } else {
+          // Si no hay modelos, usar los predeterminados
+          console.warn('No se encontraron modelos, usando predeterminados');
+          setModels(defaultModels);
+          setCurrentModel("gpt-4o");
+        }
       } catch (error) {
         console.error('Error fetching models:', error);
+        // En caso de error, usar modelos predeterminados
+        setModels(defaultModels);
+        setCurrentModel("gpt-4o");
+        
         toast({
-          title: "Error",
-          description: "No se pudieron cargar los modelos de IA",
-          variant: "destructive",
+          title: "Aviso",
+          description: "Se están usando modelos predeterminados. Algunos pueden no estar disponibles.",
+          variant: "default",
         });
       } finally {
         setLoading(false);
