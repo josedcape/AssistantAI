@@ -6,6 +6,7 @@ import { Textarea } from "./ui/textarea";
 import { ScrollArea } from "./ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ModelSelector } from "./ModelSelector";
 
 interface Message {
   id: string;
