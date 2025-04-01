@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeContext } from "@/App";
 import NewProjectModal from "./NewProjectModal";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ThemeToggle from "./ThemeToggle";
 
 const Header = () => {
   const { isDarkMode, toggleDarkMode } = useContext(ThemeContext);
@@ -94,13 +95,7 @@ const Header = () => {
 
           {/* Account nav and buttons */}
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <button 
-              className="text-slate-600 dark:text-slate-300 rounded-full p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-700"
-              onClick={toggleDarkMode}
-              aria-label={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            >
-              <i className={`${isDarkMode ? "ri-sun-line" : "ri-moon-line"} text-lg`}></i>
-            </button>
+            <ThemeToggle />
 
             {/* New Project button - desktop */}
             <Button 
@@ -233,25 +228,7 @@ const Header = () => {
                 <img src="/attached_assets/robot-logo.jpg" alt="Robot Logo" className="w-6 h-6 mr-2 rounded-full" /> Nuevo Proyecto
               </Button>
 
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-sm text-slate-500 dark:text-slate-400">Tema</span>
-                <button
-                  onClick={toggleDarkMode}
-                  className="flex items-center text-sm px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700"
-                >
-                  {isDarkMode ? (
-                    <>
-                      <i className="ri-sun-line mr-1.5"></i>
-                      <span>Claro</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="ri-moon-line mr-1.5"></i>
-                      <span>Oscuro</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <ThemeToggle variant="full" className="mt-4" />
             </div>
           </div>
         </div>

@@ -10,4 +10,26 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+/* Transiciones suaves para cambio de tema */
+:root {
+  --transition-duration: 0.3s;
+}
+
+html {
+  transition: color var(--transition-duration) ease,
+              background-color var(--transition-duration) ease;
+}
+
+html.dark * {
+  transition: border-color var(--transition-duration) ease,
+              background-color var(--transition-duration) ease,
+              color var(--transition-duration) ease;
+}
+
+/* Estilos generales para tema claro/oscuro */
+.dark body {
+  color-scheme: dark;
+}
+
 }

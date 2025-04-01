@@ -13,6 +13,7 @@ import NotFound from "@/pages/not-found";
 interface ThemeContextType {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  setTheme: (theme: "light" | "dark") => void;
 }
 
 import { createContext } from "react";
@@ -20,6 +21,7 @@ import { createContext } from "react";
 export const ThemeContext = createContext<ThemeContextType>({
   isDarkMode: false,
   toggleDarkMode: () => {},
+  setTheme: () => {},
 });
 
 function Router() {
@@ -52,20 +54,26 @@ function App() {
     }
   }, []);
 
-  const toggleDarkMode = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove("dark");
-      localStorage.theme = "light";
-    } else {
+  const setTheme = (theme: "light" | "dark") => {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
       localStorage.theme = "dark";
+      setIsDarkMode(true);
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.theme = "light";
+      setIsDarkMode(false);
     }
-    setIsDarkMode(!isDarkMode);
+  };
+
+  const toggleDarkMode = () => {
+    const newTheme = isDarkMode ? "light" : "dark";
+    setTheme(newTheme);
   };
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode }}>
+      <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode, setTheme }}>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
           <Router />
           <Toaster />
