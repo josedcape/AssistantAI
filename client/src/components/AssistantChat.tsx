@@ -1,0 +1,291 @@
+
+import React, { useState, useRef, useEffect } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { ScrollArea } from "./ui/scroll-area";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: Date;
+  fileChanges?: {
+    file: string;
+    content: string;
+  }[];
+}
+
+interface AssistantChatProps {
+  projectId: number | null;
+  onApplyChanges?: (fileUpdates: {name: string, content: string}[]) => void;
+}
+
+const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges }) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "system",
+      content: "¡Hola! Soy tu asistente de código. Puedes pedirme que haga cambios en tu código o crear nuevos archivos. ¿En qué puedo ayudarte hoy?",
+      timestamp: new Date()
+    }
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Autoscroll al último mensaje
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const generateId = () => Math.random().toString(36).substring(2, 9);
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    const userMessage: Message = {
+      id: generateId(),
+      role: "user",
+      content: input,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
+    
+    try {
+      // Agregar mensaje de espera mientras se procesa
+      const loadingId = generateId();
+      setMessages(prev => [...prev, {
+        id: loadingId,
+        role: "assistant",
+        content: "Pensando...",
+        timestamp: new Date()
+      }]);
+
+      // Hacer la petición al servidor
+      const response = await apiRequest("POST", "/api/assistant-chat", {
+        message: input,
+        projectId,
+        history: messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
+      });
+      
+      const result = await response.json();
+      
+      // Reemplazar el mensaje de carga con la respuesta real
+      setMessages(prev => prev.map(m => 
+        m.id === loadingId ? {
+          id: generateId(),
+          role: "assistant",
+          content: result.message,
+          timestamp: new Date(),
+          fileChanges: result.fileChanges || []
+        } : m
+      ));
+      
+      // Si hay cambios de archivos, mostrar botón para aplicarlos
+      if (result.fileChanges && result.fileChanges.length > 0 && onApplyChanges) {
+        setTimeout(() => {
+          if (confirm("¿Deseas aplicar los cambios propuestos a los archivos?")) {
+            onApplyChanges(result.fileChanges);
+            toast({
+              title: "Cambios aplicados",
+              description: `Se aplicaron cambios a ${result.fileChanges.length} archivo(s)`,
+            });
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error al comunicarse con el asistente:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar tu solicitud. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+      
+      // Eliminar mensaje de carga y mostrar error
+      setMessages(prev => [...prev.filter(m => m.content !== "Pensando..."), {
+        id: generateId(),
+        role: "assistant",
+        content: "Lo siento, ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo.",
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Función para renderizar mensajes con formato code
+  const renderMessageContent = (content: string) => {
+    // Buscar bloques de código usando regex
+    const codeBlockRegex = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      // Añadir texto antes del bloque de código
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`} className="whitespace-pre-wrap">
+            {content.substring(lastIndex, match.index)}
+          </span>
+        );
+      }
+
+      const language = match[1] || 'text';
+      const code = match[2];
+
+      // Añadir bloque de código
+      parts.push(
+        <div key={`code-${match.index}`} className="my-2 rounded-md bg-slate-800 p-3 relative">
+          {language && (
+            <div className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-slate-700 text-slate-300">
+              {language}
+            </div>
+          )}
+          <pre className="text-sm text-slate-200 overflow-x-auto">
+            <code>{code}</code>
+          </pre>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="absolute bottom-2 right-2 text-xs h-6 p-1"
+            onClick={() => {
+              navigator.clipboard.writeText(code);
+              toast({ title: "Copiado", description: "Código copiado al portapapeles" });
+            }}
+          >
+            <i className="ri-clipboard-line mr-1"></i>
+            Copiar
+          </Button>
+        </div>
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Añadir texto restante después del último bloque de código
+    if (lastIndex < content.length) {
+      parts.push(
+        <span key={`text-${lastIndex}`} className="whitespace-pre-wrap">
+          {content.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{content}</span>;
+  };
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-slate-950 border rounded-lg">
+      <div className="p-3 border-b flex items-center justify-between">
+        <h3 className="font-medium flex items-center">
+          <i className="ri-robot-line mr-2 text-blue-500"></i>
+          Asistente de Código
+        </h3>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setMessages([
+            {
+              id: "welcome",
+              role: "system",
+              content: "¡Hola! Soy tu asistente de código. Puedes pedirme que haga cambios en tu código o crear nuevos archivos. ¿En qué puedo ayudarte hoy?",
+              timestamp: new Date()
+            }
+          ])}
+        >
+          <i className="ri-refresh-line mr-1"></i>
+          Nueva conversación
+        </Button>
+      </div>
+      
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-3/4 rounded-lg p-3 ${
+                  message.role === "user"
+                    ? "bg-blue-500 text-white"
+                    : message.role === "system"
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    : "bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border"
+                }`}
+              >
+                {renderMessageContent(message.content)}
+                
+                {message.fileChanges && message.fileChanges.length > 0 && (
+                  <div className="mt-3 border-t pt-2">
+                    <p className="text-sm font-medium mb-2">Cambios propuestos:</p>
+                    <div className="space-y-2">
+                      {message.fileChanges.map((change, idx) => (
+                        <div key={idx} className="text-sm bg-slate-200 dark:bg-slate-800 p-2 rounded">
+                          <div className="font-mono">{change.file}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button 
+                      className="mt-2" 
+                      size="sm"
+                      onClick={() => onApplyChanges && onApplyChanges(message.fileChanges || [])}
+                    >
+                      Aplicar cambios
+                    </Button>
+                  </div>
+                )}
+                
+                <div className="text-xs opacity-70 mt-1 text-right">
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+      
+      <div className="p-3 border-t">
+        <div className="flex">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Escribe tu mensaje aquí..."
+            className="flex-1 resize-none"
+            rows={3}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={isLoading || !input.trim()}
+            className="ml-2 self-end"
+          >
+            {isLoading ? (
+              <i className="ri-loader-4-line animate-spin"></i>
+            ) : (
+              <i className="ri-send-plane-fill"></i>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AssistantChat;

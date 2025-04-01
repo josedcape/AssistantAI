@@ -15,6 +15,8 @@ import ConsoleOutput from "@/components/ConsoleOutput";
 import StatusBar from "@/components/StatusBar";
 import DevelopmentPlan from "@/components/DevelopmentPlan";
 import { useIsMobile } from "@/hooks/use-mobile";
+import AssistantChat from "@/components/AssistantChat"; // Import the AssistantChat component
+
 
 const Workspace = () => {
   const params = useParams<{ id: string }>();
@@ -365,6 +367,7 @@ const Workspace = () => {
                       <TabsTrigger value="console">
                         Consola
                       </TabsTrigger>
+                      <TabsTrigger value="assistant-chat">Asistente</TabsTrigger> {/* Added Assistant Chat Tab */}
                       {!isMobile && (
                         <TabsTrigger value="resources">
                           Recursos
@@ -406,7 +409,7 @@ const Workspace = () => {
                         });
                         return;
                       }
-                      
+
                       // Buscar un archivo HTML para mostrar la aplicación
                       const htmlFile = files.find(f => f.type === 'html');
                       if (htmlFile) {
@@ -656,6 +659,53 @@ const Workspace = () => {
                     activeFileId={activeFile?.id}
                   />
                 )}
+
+                {/* Assistant Chat Tab */}
+                {activeTab === "assistant-chat" && (
+                  <div className="flex-1 flex flex-col">
+                    <AssistantChat
+                      projectId={projectId}
+                      onApplyChanges={(fileUpdates) => {
+                        fileUpdates.forEach(async (update) => {
+                          const existingFile = files.find(f => f.name === update.file);
+                          if (existingFile) {
+                            try {
+                              const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
+                              const updatedFile = await response.json();
+                              setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
+                              if (activeFile && activeFile.id === updatedFile.id) {
+                                setActiveFile(updatedFile);
+                              }
+                              toast({ title: "Archivo actualizado", description: `${update.file} ha sido actualizado` });
+                            } catch (error) {
+                              console.error("Error updating file:", error);
+                              toast({ title: "Error", description: "No se pudo actualizar el archivo", variant: "destructive" });
+                            }
+                          } else {
+                            try {
+                              const extension = update.file.split('.').pop()?.toLowerCase();
+                              let fileType = "text";
+                              if (extension === "js") fileType = "javascript";
+                              else if (extension === "html") fileType = "html";
+                              else if (extension === "css") fileType = "css";
+                              else if (extension === "json") fileType = "json";
+                              else if (extension === "md") fileType = "markdown";
+                              else if (extension === "ts" || extension === "tsx") fileType = "typescript";
+                              const response = await apiRequest("POST", `/api/projects/${projectId}/files`, { name: update.file, content: update.content, type: fileType });
+                              const newFile = await response.json();
+                              setFiles(prev => [...prev, newFile]);
+                              toast({ title: "Archivo creado", description: `${update.file} ha sido creado` });
+                            } catch (error) {
+                              console.error("Error creating file:", error);
+                              toast({ title: "Error", description: "No se pudo crear el archivo", variant: "destructive" });
+                            }
+                          }
+                        });
+                      }}
+                    />
+                  </div>
+                )}
+
 
                 {/* No file selected */}
                 {!activeFile && (

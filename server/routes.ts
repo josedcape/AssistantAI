@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { generateCode, correctCode } from "./openai";
 import { executeCode } from "./codeExecution";
 import { getAvailableAgents } from "./agents";
+import { processAssistantChat } from "./assistantChat";
 import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
 
@@ -379,6 +380,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ 
         message: "Error correcting code",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Endpoint para el chat con el asistente
+  apiRouter.post("/assistant-chat", async (req: Request, res: Response) => {
+    try {
+      const requestSchema = z.object({
+        message: z.string().min(1),
+        projectId: z.number().nullable(),
+        history: z.array(z.object({
+          role: z.string(),
+          content: z.string()
+        })).optional()
+      });
+
+      const validatedData = requestSchema.parse(req.body);
+
+      const result = await processAssistantChat({
+        message: validatedData.message,
+        projectId: validatedData.projectId,
+        history: validatedData.history || []
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing assistant chat:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: "Error processing assistant chat",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
