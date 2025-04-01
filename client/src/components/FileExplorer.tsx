@@ -16,7 +16,7 @@ interface FileExplorerProps {
   selectedFileId?: number;
 }
 
-export function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerProps) {
+function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -254,3 +254,5 @@ export function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileEx
     </div>
   );
 }
+
+export default FileExplorer;
