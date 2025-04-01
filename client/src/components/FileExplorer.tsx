@@ -228,7 +228,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
           <CollapsibleContent>
             <DocumentUploader 
               projectId={projectId} 
-              onDocumentUploaded={fetchDocuments} 
+              onDocumentUploaded={loadDocuments} 
             />
             {Object.keys(docFolders).length === 0 ? (
               <div className="py-2 px-1 text-sm text-slate-500 dark:text-slate-400">
