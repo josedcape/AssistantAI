@@ -14,8 +14,14 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
 
   // Función para obtener el ID del proyecto de forma segura
   const getProjectId = (): number | null => {
-    const projectId = file?.projectId;
-    return projectId && !isNaN(Number(projectId)) ? Number(projectId) : null;
+    if (!file) return null;
+    
+    // Asegurarnos de que el projectId sea un número válido
+    const projectId = typeof file.projectId === 'number' 
+      ? file.projectId 
+      : parseInt(String(file.projectId));
+      
+    return !isNaN(projectId) ? projectId : null;
   };
 
   useEffect(() => {

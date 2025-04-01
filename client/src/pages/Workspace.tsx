@@ -397,6 +397,16 @@ const Workspace = () => {
                   <button 
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
                     onClick={() => {
+                      // Verificar que el ID del proyecto sea válido
+                      if (isNaN(projectId) || projectId <= 0) {
+                        toast({
+                          title: "Error",
+                          description: "ID de proyecto inválido. No se puede mostrar la vista previa.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      
                       // Buscar un archivo HTML para mostrar la aplicación
                       const htmlFile = files.find(f => f.type === 'html');
                       if (htmlFile) {
@@ -451,12 +461,12 @@ const Workspace = () => {
                     <i className="ri-play-circle-line text-lg"></i>
                   </button>
                   <a 
-                    href={isNaN(projectId) ? "#" : `/api/projects/${Number(projectId)}/preview`}
+                    href={isNaN(projectId) || projectId <= 0 ? "#" : `/api/projects/${Number(projectId)}/preview`}
                     target="_blank"
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
                     title="Abrir en nueva pestaña"
                     onClick={(e) => {
-                      if (isNaN(projectId)) {
+                      if (isNaN(projectId) || projectId <= 0) {
                         e.preventDefault();
                         toast({
                           title: "Error",

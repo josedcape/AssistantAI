@@ -387,9 +387,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Preview endpoint for projects
   apiRouter.get("/projects/:projectId/preview", async (req: Request, res: Response) => {
     try {
-      // Parsear el ID y verificar que sea válido
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
+      // Parsear el ID y verificar que sea válido de forma estricta
+      const rawProjectId = req.params.projectId;
+      // Asegurarse de que sea un número válido y mayor a 0
+      const projectId = /^\d+$/.test(rawProjectId) ? parseInt(rawProjectId) : NaN;
+      
+      if (isNaN(projectId) || projectId <= 0) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
         // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
         return res.status(400).send(`
