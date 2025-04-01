@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { File, Document } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -65,7 +64,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
   const handleDeleteFile = async (fileId: number, event: React.MouseEvent) => {
     event.stopPropagation();
-    
+
     if (!confirm("¿Estás seguro de eliminar este archivo?")) {
       return;
     }
@@ -89,7 +88,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
   const handleDeleteDocument = async (documentId: number, event: React.MouseEvent) => {
     event.stopPropagation();
-    
+
     if (!confirm("¿Estás seguro de eliminar este documento?")) {
       return;
     }
@@ -126,7 +125,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       const newFile = await response.json();
       setFiles([...files, newFile]);
       onFileSelect(newFile);
-      
+
       toast({
         title: "Éxito",
         description: "Archivo creado correctamente",
@@ -149,6 +148,15 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       description: "Lista de archivos actualizada",
     });
   };
+
+  // Organize documents by folder
+  const docFolders = documents.reduce((acc, doc) => {
+    const folderName = doc.path ? doc.path.split('/').slice(0, -1).join('/') || 'raíz' : 'raíz';
+    acc[folderName] = acc[folderName] || [];
+    acc[folderName].push(doc);
+    return acc;
+  }, {} as { [folderName: string]: Document[] });
+
 
   return (
     <div className="h-full flex flex-col">
@@ -217,74 +225,97 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
             <FolderIcon className="h-4 w-4 mr-1" />
             <span className="text-sm font-medium">Documentos</span>
           </CollapsibleTrigger>
-          <CollapsibleContent className="pl-2 pt-1">
-            <DocumentUploader 
-              projectId={projectId} 
-              onDocumentUploaded={() => loadDocuments()} 
-            />
-            
-            {documents.length === 0 ? (
-              <p className="text-xs text-slate-500 p-1 mt-2">No hay documentos</p>
+          <CollapsibleContent>
+            {Object.keys(docFolders).length === 0 ? (
+              <div className="py-2 px-1 text-sm text-slate-500 dark:text-slate-400">
+                No hay documentos cargados
+              </div>
             ) : (
-              <ul className="space-y-1 mt-2">
-                {documents.map((doc) => (
-                  <li 
-                    key={doc.id} 
-                    className="flex justify-between items-center p-1 rounded text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                    onClick={async () => {
-                      try {
-                        const response = await apiRequest("GET", `/api/documents/${doc.id}/content`);
-                        if (!response.ok) {
-                          throw new Error(`Error al obtener el contenido: ${response.statusText}`);
-                        }
-                        const content = await response.text();
-                        
-                        // Crear un archivo virtual para visualizar el documento
-                        const virtualFile: File = {
-                          id: -doc.id!, // ID negativo para indicar que es un documento virtual
-                          projectId: projectId,
-                          name: doc.name,
-                          content: content,
-                          type: doc.name.endsWith('.py') ? 'python' : 
-                                doc.name.endsWith('.js') ? 'javascript' :
-                                doc.name.endsWith('.html') ? 'html' :
-                                doc.name.endsWith('.css') ? 'css' : 'text',
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        };
-                        
-                        // Notificar al componente padre para mostrar el contenido
-                        onFileSelect(virtualFile);
-                        
-                        toast({
-                          title: "Documento cargado",
-                          description: `${doc.name} se ha cargado para visualización (solo lectura)`,
-                        });
-                      } catch (error) {
-                        console.error("Error cargando documento:", error);
-                        toast({
-                          title: "Error",
-                          description: error instanceof Error ? error.message : "No se pudo cargar el documento",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    <div className="flex items-center">
-                      <FileIcon className="h-3 w-3 mr-1" />
-                      <span className="truncate max-w-[150px]">{doc.name}</span>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 opacity-0 hover:opacity-100 group-hover:opacity-100"
-                      onClick={(e) => handleDeleteDocument(doc.id!, e)}
-                    >
-                      <TrashIcon className="h-3 w-3" />
-                    </Button>
-                  </li>
+              <div className="space-y-1 py-1">
+                {Object.entries(docFolders).map(([folderName, docs]) => (
+                  <Collapsible key={folderName} defaultOpen={folderName === 'raíz'}>
+                    <CollapsibleTrigger className="flex w-full items-center py-1 px-2 rounded text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+                      <FolderIcon className="h-3 w-3 mr-1" />
+                      <span className="truncate flex-1 text-left">{folderName}</span>
+                      <span className="text-xs text-slate-500">{docs.length}</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <ul className="space-y-1 pl-4 mt-1">
+                        {docs.map(doc => (
+                          <li 
+                            key={doc.id} 
+                            className="flex justify-between items-center py-1 px-2 rounded text-sm hover:bg-slate-100 dark:hover:bg-slate-700 group cursor-pointer"
+                            onClick={async () => {
+                              try {
+                                if (!doc.id) {
+                                  throw new Error("El documento no tiene un ID válido");
+                                }
+
+                                // Obtener contenido del documento
+                                const response = await apiRequest("GET", `/api/documents/${doc.id}/content`);
+                                if (!response.ok) {
+                                  const errorData = await response.json();
+                                  throw new Error(errorData.error || "Error al cargar el documento");
+                                }
+
+                                const content = await response.text();
+
+                                // Detectar el tipo de archivo basado en la extensión
+                                const fileExt = doc.name ? doc.name.split('.').pop()?.toLowerCase() : '';
+                                let fileType = 'text';
+
+                                if (fileExt === 'js') fileType = 'javascript';
+                                else if (fileExt === 'ts') fileType = 'typescript';
+                                else if (fileExt === 'html') fileType = 'html';
+                                else if (fileExt === 'css') fileType = 'css';
+                                else if (fileExt === 'json') fileType = 'json';
+                                else if (fileExt === 'py') fileType = 'python';
+
+                                // Crear un archivo temporal para visualizar
+                                const tempFile: File = {
+                                  id: -doc.id, // ID negativo para diferenciar
+                                  projectId: projectId,
+                                  name: doc.name,
+                                  content: content,
+                                  type: fileType,
+                                  createdAt: doc.createdAt,
+                                  lastModified: doc.createdAt,
+                                };
+
+                                // Seleccionar el archivo para visualización
+                                onFileSelect(tempFile);
+                              } catch (error) {
+                                console.error("Error cargando documento:", error);
+                                toast({
+                                  title: "Error",
+                                  description: error instanceof Error ? error.message : "No se pudo cargar el documento",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            <div className="flex items-center">
+                              <FileIcon className="h-3 w-3 mr-1" />
+                              <span className="truncate max-w-[150px]">
+                                {/* Mostrar solo el nombre de archivo, sin la ruta */}
+                                {doc.name.includes('/') ? doc.name.split('/').pop() : doc.name}
+                              </span>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 opacity-0 hover:opacity-100 group-hover:opacity-100"
+                              onClick={(e) => handleDeleteDocument(doc.id!, e)}
+                            >
+                              <TrashIcon className="h-3 w-3" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
                 ))}
-              </ul>
+              </div>
             )}
           </CollapsibleContent>
         </Collapsible>
