@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnpackIcon, FolderIcon } from "lucide-react";
 
 interface DocumentUploaderProps {
   projectId: number;
@@ -13,6 +14,7 @@ interface DocumentUploaderProps {
 
 export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [urlToFetch, setUrlToFetch] = useState("");
   const { toast } = useToast();
 
@@ -27,6 +29,7 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
       formData.append("files", files[i]);
     }
     formData.append("projectId", projectId.toString());
+    formData.append("extractFiles", "false"); // Por defecto, no extraer archivos
 
     try {
       const response = await fetch(`/api/projects/${projectId}/documents/upload`, {
@@ -58,7 +61,7 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
     }
   };
 
-  const handleUrlFetch = async () => {
+  const handleUrlFetch = async (extractFiles = false) => {
     if (!urlToFetch.trim()) {
       toast({
         title: "Error",
@@ -73,13 +76,16 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
     try {
       const response = await apiRequest("POST", `/api/projects/${projectId}/documents/url`, {
         url: urlToFetch,
+        extractFiles: extractFiles
       });
 
       const result = await response.json();
       
       toast({
         title: "Documentos procesados",
-        description: `Se procesaron los archivos desde la URL correctamente`,
+        description: extractFiles 
+          ? `Se descomprimieron ${result.processed || 0} archivos correctamente` 
+          : `Se procesaron los archivos desde la URL correctamente`,
       });
       
       onDocumentUploaded();
@@ -93,6 +99,42 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
       });
     } finally {
       setIsUploading(false);
+    }
+  };
+  
+  // Función para extraer archivos de un repositorio ya cargado
+  const handleExtractRepo = async (documentId: number) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      const response = await apiRequest("POST", `/api/documents/${documentId}/extract`, {
+        projectId: projectId
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al extraer archivos");
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Repositorio extraído",
+        description: `Se extrajeron ${result.processed || 0} archivos correctamente`,
+      });
+      
+      onDocumentUploaded();
+    } catch (error) {
+      console.error("Error extrayendo repositorio:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al extraer los archivos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -125,7 +167,7 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
         </TabsContent>
         
         <TabsContent value="url" className="space-y-4 pt-2">
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-3">
             <label className="text-sm text-slate-500 dark:text-slate-400">
               Ingresa la URL de un repositorio o archivo
             </label>
@@ -138,16 +180,46 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
                 disabled={isUploading}
               />
               <Button 
-                onClick={handleUrlFetch} 
+                onClick={() => handleUrlFetch(false)} 
                 disabled={isUploading || !urlToFetch.trim()}
                 size="sm"
+                variant="outline"
+                title="Cargar como archivo único"
               >
                 {isUploading ? "Procesando..." : "Importar"}
               </Button>
+              <Button 
+                onClick={() => handleUrlFetch(true)} 
+                disabled={isUploading || !urlToFetch.trim()}
+                size="sm"
+                title="Descomprimir archivos individualmente"
+              >
+                <UnpackIcon className="h-4 w-4 mr-1" />
+                Extraer
+              </Button>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Soporta repositorios Git, archivos ZIP y recursos individuales
+            <div className="flex items-center">
+              <div className="flex-grow h-px bg-slate-200 dark:bg-slate-700"></div>
+              <span className="px-2 text-xs text-slate-500 dark:text-slate-400">o</span>
+              <div className="flex-grow h-px bg-slate-200 dark:bg-slate-700"></div>
+            </div>
+            <p className="text-sm font-medium">
+              Para extraer archivos de un repositorio ya cargado:
             </p>
+            <div className="flex gap-2 items-center">
+              <Button
+                onClick={() => document.dispatchEvent(new CustomEvent('extract-repository'))}
+                size="sm"
+                variant="secondary"
+                disabled={isProcessing}
+              >
+                <FolderIcon className="h-4 w-4 mr-1" />
+                {isProcessing ? "Procesando..." : "Extraer repositorio"}
+              </Button>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Selecciona un repositorio en el explorador y usa este botón
+              </p>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

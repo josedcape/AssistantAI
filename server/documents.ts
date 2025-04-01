@@ -45,7 +45,7 @@ export const upload = multer({
 });
 
 // Función para procesar un archivo ZIP
-async function processZipFile(filePath: string, projectId: number): Promise<number> {
+async function processZipFile(filePath: string, projectId: number, extractFiles: boolean = false): Promise<number> {
   try {
     const zip = new AdmZip(filePath);
     const zipEntries = zip.getEntries();
@@ -59,23 +59,42 @@ async function processZipFile(filePath: string, projectId: number): Promise<numb
     zip.extractAllTo(extractPath, true);
     
     let processedCount = 0;
-    for (const entry of zipEntries) {
-      if (!entry.isDirectory) {
-        // Crear una ruta relativa que incluya la estructura completa del directorio
-        const relativePath = path.join('extracted_' + zipBaseName, entry.entryName);
-        
-        // Estructurar nombre para mostrar la ruta dentro del repositorio
-        const displayName = entry.entryName;
-        
-        await storage.createDocument({
-          projectId,
-          name: displayName,
-          path: relativePath,
-          type: 'file',
-          size: entry.header.size,
-        });
-        processedCount++;
+    
+    if (extractFiles) {
+      // Extraer cada archivo como un documento individual
+      for (const entry of zipEntries) {
+        if (!entry.isDirectory) {
+          // Crear una ruta relativa que incluya la estructura completa del directorio
+          const relativePath = path.join('extracted_' + zipBaseName, entry.entryName);
+          
+          // Estructurar nombre para mostrar la ruta dentro del repositorio
+          const displayName = entry.entryName;
+          
+          await storage.createDocument({
+            projectId,
+            name: displayName,
+            path: relativePath,
+            type: getFileTypeFromExtension(path.extname(displayName)),
+            size: entry.header.size,
+          });
+          processedCount++;
+        }
       }
+    } else {
+      // Guardar el zip como un único documento
+      await storage.createDocument({
+        projectId,
+        name: zipBaseName + ' (Repositorio)',
+        path: path.relative(DOCUMENTS_DIR, filePath),
+        type: 'repository',
+        size: fs.statSync(filePath).size,
+        metadata: {
+          isRepository: true,
+          extractPath: extractPath,
+          entryCount: zipEntries.length
+        }
+      });
+      processedCount = 1;
     }
     
     return processedCount;
@@ -85,8 +104,44 @@ async function processZipFile(filePath: string, projectId: number): Promise<numb
   }
 }
 
+// Función para extraer archivos de un repositorio ya cargado
+export async function extractRepositoryFiles(documentId: number, projectId: number): Promise<number> {
+  try {
+    // Obtener información del documento
+    const document = await storage.getDocumentById(documentId);
+    
+    if (!document) {
+      throw new Error(`Documento con ID ${documentId} no encontrado`);
+    }
+    
+    if (!document.path) {
+      throw new Error(`El documento con ID ${documentId} no tiene una ruta definida`);
+    }
+    
+    // Construir la ruta al archivo
+    const docDir = path.join(DOCUMENTS_DIR, document.projectId.toString());
+    const filePath = path.join(docDir, document.path);
+    
+    // Verificar si el archivo existe
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Archivo no encontrado en ruta: ${filePath}`);
+    }
+    
+    // Extraer archivos del repositorio
+    const isZip = document.path.endsWith('.zip') || document.type === 'repository';
+    if (isZip) {
+      return await processZipFile(filePath, projectId, true);
+    } else {
+      throw new Error('El documento no es un archivo comprimido o repositorio');
+    }
+  } catch (error) {
+    console.error('Error extrayendo archivos de repositorio:', error);
+    throw error;
+  }
+}
+
 // Función para descargar archivo desde URL
-export async function downloadFromUrl(url: string, projectId: number): Promise<number> {
+export async function downloadFromUrl(url: string, projectId: number, extractFiles: boolean = false): Promise<number> {
   try {
     const response = await fetch(url);
     
@@ -110,9 +165,9 @@ export async function downloadFromUrl(url: string, projectId: number): Promise<n
     
     const stats = fs.statSync(filePath);
     
-    // Verificar si es un archivo ZIP
-    if (originalFileName.endsWith('.zip')) {
-      const processedCount = await processZipFile(filePath, projectId);
+    // Verificar si es un archivo ZIP o repositorio
+    if (originalFileName.endsWith('.zip') || url.includes('github.com') || url.includes('gitlab.com')) {
+      const processedCount = await processZipFile(filePath, projectId, extractFiles);
       return processedCount;
     }
     

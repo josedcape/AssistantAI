@@ -531,22 +531,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  apiRouter.delete("/documents/:id", async (req: Request, res: Response) => {
+  apiRouter.delete("/documents/:documentId", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const documentId = parseInt(req.params.documentId);
+      if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
 
-      const deleted = await storage.deleteDocument(id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
+      await storage.deleteDocument(documentId);
       res.status(204).end();
     } catch (error) {
-      console.error("Error deleting document:", error);
-      res.status(500).json({ message: "Error deleting document" });
+      console.error("Error eliminando documento:", error);
+      res.status(500).json({ 
+        message: "Error eliminando documento",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Endpoint para extraer archivos de un repositorio
+  apiRouter.post("/documents/:documentId/extract", async (req: Request, res: Response) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const { projectId } = req.body;
+
+      if (isNaN(documentId) || isNaN(projectId)) {
+        return res.status(400).json({ error: "ID de documento o proyecto inválido" });
+      }
+
+      // Verificar que el documento existe
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Documento no encontrado" });
+      }
+
+      // Extraer archivos si es un zip o repositorio
+      const processedCount = await extractRepositoryFiles(documentId, parseInt(projectId));
+
+      res.json({
+        message: `Se extrajeron ${processedCount} archivos correctamente`,
+        processed: processedCount
+      });
+    } catch (error) {
+      console.error("Error extrayendo repositorio:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Error desconocido al extraer archivos"
+      });
     }
   });
 
@@ -850,7 +880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Establecer encabezados para evitar problemas de caché
-      res.setHeader('Content-Type', 'text/html');
+      res.setHeader('ContentType', 'text/html');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
@@ -880,9 +910,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Register API routes
-  app.use("/api", apiRouter);
-
   // Endpoint para obtener el contenido de un documento
   apiRouter.get("/documents/:documentId/content", async (req: Request, res: Response) => {
     try {
@@ -897,7 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ error: "Documento no encontrado" });
       }
-      
+
       if (!document.path) {
         return res.status(404).json({ error: "El documento no tiene una ruta de archivo válida" });
       }
@@ -930,6 +957,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Error al obtener el contenido del documento" });
     }
   });
+
+  // Register API routes
+  app.use("/api", apiRouter);
 
   const httpServer = createServer(app);
   return httpServer;

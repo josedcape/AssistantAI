@@ -7,7 +7,7 @@ import { getLanguageIcon } from "@/lib/types";
 import { DocumentUploader } from "./DocumentUploader";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { FileIcon, FolderIcon, TrashIcon, RefreshCwIcon, PlusIcon } from "lucide-react";
+import { FileIcon, FolderIcon, TrashIcon, RefreshCwIcon, PlusIcon, UnpackIcon } from "lucide-react";
 
 interface FileExplorerProps {
   projectId: number;
@@ -60,7 +60,33 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       loadFiles();
       loadDocuments();
     }
-  }, [projectId]);
+    
+    // Agregar listener para el evento de extraer repositorio
+    const handleExtractRepoEvent = () => {
+      // Buscar un documento que podría ser un repositorio (por nombre o tipo)
+      const repoDoc = documents.find(doc => 
+        doc.type === 'repository' || 
+        doc.name.includes('Repositorio') || 
+        doc.path?.endsWith('.zip')
+      );
+      
+      if (repoDoc && repoDoc.id) {
+        handleExtractRepository(repoDoc.id, new MouseEvent('click') as any);
+      } else {
+        toast({
+          title: "Aviso",
+          description: "No se encontró ningún repositorio para extraer. Selecciona un repositorio primero.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    document.addEventListener('extract-repository', handleExtractRepoEvent);
+    
+    return () => {
+      document.removeEventListener('extract-repository', handleExtractRepoEvent);
+    };
+  }, [projectId, documents]);
 
   const handleDeleteFile = async (fileId: number, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -105,6 +131,37 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       toast({
         title: "Error",
         description: "No se pudo eliminar el documento",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleExtractRepository = async (documentId: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    try {
+      const response = await apiRequest("POST", `/api/documents/${documentId}/extract`, {
+        projectId: projectId
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al extraer archivos");
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Repositorio extraído",
+        description: `Se extrajeron ${result.processed || 0} archivos correctamente`,
+      });
+      
+      await loadDocuments();
+    } catch (error) {
+      console.error("Error extrayendo repositorio:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al extraer los archivos",
         variant: "destructive",
       });
     }
@@ -305,14 +362,28 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                                 {doc.name.includes('/') ? doc.name.split('/').pop() : doc.name}
                               </span>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 opacity-0 hover:opacity-100 group-hover:opacity-100"
-                              onClick={(e) => handleDeleteDocument(doc.id!, e)}
-                            >
-                              <TrashIcon className="h-3 w-3" />
-                            </Button>
+                            <div className="flex opacity-0 group-hover:opacity-100">
+                              {(doc.type === 'repository' || doc.name.includes('Repositorio') || doc.path?.endsWith('.zip')) && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6"
+                                  title="Extraer archivos"
+                                  onClick={(e) => handleExtractRepository(doc.id!, e)}
+                                >
+                                  <UnpackIcon className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6"
+                                title="Eliminar documento"
+                                onClick={(e) => handleDeleteDocument(doc.id!, e)}
+                              >
+                                <TrashIcon className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </li>
                         ))}
                       </ul>
