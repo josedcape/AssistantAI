@@ -230,7 +230,45 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                 {documents.map((doc) => (
                   <li 
                     key={doc.id} 
-                    className="flex justify-between items-center p-1 rounded text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="flex justify-between items-center p-1 rounded text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    onClick={async () => {
+                      try {
+                        const response = await apiRequest("GET", `/api/documents/${doc.id}/content`);
+                        if (!response.ok) {
+                          throw new Error(`Error al obtener el contenido: ${response.statusText}`);
+                        }
+                        const content = await response.text();
+                        
+                        // Crear un archivo virtual para visualizar el documento
+                        const virtualFile: File = {
+                          id: -doc.id!, // ID negativo para indicar que es un documento virtual
+                          projectId: projectId,
+                          name: doc.name,
+                          content: content,
+                          type: doc.name.endsWith('.py') ? 'python' : 
+                                doc.name.endsWith('.js') ? 'javascript' :
+                                doc.name.endsWith('.html') ? 'html' :
+                                doc.name.endsWith('.css') ? 'css' : 'text',
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                        };
+                        
+                        // Notificar al componente padre para mostrar el contenido
+                        onFileSelect(virtualFile);
+                        
+                        toast({
+                          title: "Documento cargado",
+                          description: `${doc.name} se ha cargado para visualización (solo lectura)`,
+                        });
+                      } catch (error) {
+                        console.error("Error cargando documento:", error);
+                        toast({
+                          title: "Error",
+                          description: error instanceof Error ? error.message : "No se pudo cargar el documento",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
                   >
                     <div className="flex items-center">
                       <FileIcon className="h-3 w-3 mr-1" />

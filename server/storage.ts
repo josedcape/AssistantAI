@@ -10,26 +10,27 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Project operations
   getProject(id: number): Promise<Project | undefined>;
   getProjectsByUserId(userId: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: Partial<Project>): Promise<Project | undefined>;
   deleteProject(id: number): Promise<boolean>;
-  
+
   // File operations
   getFile(id: number): Promise<File | undefined>;
   getFilesByProjectId(projectId: number): Promise<File[]>;
   createFile(file: InsertFile): Promise<File>;
   updateFile(id: number, content: string): Promise<File | undefined>;
   deleteFile(id: number): Promise<boolean>;
-  
+
   // Document operations
   getDocument(id: number): Promise<Document | undefined>;
   getDocumentsByProjectId(projectId: number): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number): Promise<boolean>;
+  getDocumentById(id: number): Promise<Document | null>; // Added function
 }
 
 export class MemStorage implements IStorage {
@@ -51,17 +52,17 @@ export class MemStorage implements IStorage {
     this.projectId = 1;
     this.fileId = 1;
     this.documentId = 1;
-    
+
     // Create a demo user
     this.createUser({ username: "demo", password: "password" });
-    
+
     // Create some initial projects
     const demoProject = this.createProject({ 
       userId: 1, 
       name: "Mi primer proyecto", 
       description: "Una aplicación web simple" 
     });
-    
+
     // Add some initial files
     this.createFile({
       projectId: demoProject.id,
@@ -84,7 +85,7 @@ export class MemStorage implements IStorage {
 </html>`,
       type: "html"
     });
-    
+
     this.createFile({
       projectId: demoProject.id,
       name: "estilos.css",
@@ -109,7 +110,7 @@ h1 {
 }`,
       type: "css"
     });
-    
+
     this.createFile({
       projectId: demoProject.id,
       name: "app.js",
@@ -119,46 +120,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const taskForm = document.getElementById('task-form');
   const taskInput = document.getElementById('task-input');
   const taskList = document.getElementById('task-list');
-  
+
   // Cargar tareas guardadas
   let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-  
+
   // Renderizar las tareas existentes
   function renderTasks() {
     taskList.innerHTML = '';
-    
+
     tasks.forEach((task, index) => {
       const li = document.createElement('li');
       li.className = 'task-item';
-      
+
       const taskText = document.createElement('span');
       taskText.textContent = task.text;
       taskText.className = task.completed ? 'completed' : '';
-      
+
       const actions = document.createElement('div');
       actions.className = 'task-actions';
-      
+
       // Crear botones de acción
       const toggleBtn = document.createElement('button');
       toggleBtn.innerHTML = '<i class="ri-check-line"></i>';
       toggleBtn.classList.add('toggle-btn');
       toggleBtn.addEventListener('click', () => toggleTask(index));
-      
+
       const deleteBtn = document.createElement('button');
       deleteBtn.innerHTML = '<i class="ri-delete-bin-line"></i>';
       deleteBtn.classList.add('delete-btn');
       deleteBtn.addEventListener('click', () => deleteTask(index));
-      
+
       actions.appendChild(toggleBtn);
       actions.appendChild(deleteBtn);
-      
+
       li.appendChild(taskText);
       li.appendChild(actions);
-      
+
       taskList.appendChild(li);
     });
   }
-  
+
   // Inicializar la aplicación
   renderTasks();
 });`,
@@ -211,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async updateProject(id: number, projectUpdate: Partial<Project>): Promise<Project | undefined> {
     const project = this.projects.get(id);
     if (!project) return undefined;
-    
+
     const updatedProject: Project = { 
       ...project, 
       ...projectUpdate,
@@ -260,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async updateFile(id: number, content: string): Promise<File | undefined> {
     const file = this.files.get(id);
     if (!file) return undefined;
-    
+
     const updatedFile: File = { 
       ...file, 
       content,
@@ -273,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async deleteFile(id: number): Promise<boolean> {
     return this.files.delete(id);
   }
-  
+
   // Document operations
   async getDocument(id: number): Promise<Document | undefined> {
     return this.documents.get(id);
@@ -299,6 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async deleteDocument(id: number): Promise<boolean> {
     return this.documents.delete(id);
+  }
+
+  async getDocumentById(id: number): Promise<Document | null> {
+    const document = this.documents.get(id);
+    return document || null;
   }
 }
 

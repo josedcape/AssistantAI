@@ -8,7 +8,7 @@ import { processAssistantChat } from "./assistantChat";
 import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
-import { downloadFromUrl, processUploadedFile, searchInDocuments } from "./documents";
+import { downloadFromUrl, processUploadedFile, searchInDocuments, getDocumentContent } from "./documents";
 
 
 const upload = multer();
@@ -873,8 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </head<body>
             <div class="error">
               <h2>Error al generar la vista previa</h2>
-              <p>${error instanceof Error ? error.message : "Error desconocido"}</p>
-            </div>
+              <p>${error instanceof Error ? error.message : "Error desconocido"}</p</div>
           </body>
         </html>
       `);
@@ -883,6 +882,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register API routes
   app.use("/api", apiRouter);
+
+  // Endpoint para obtener el contenido de un documento
+  apiRouter.get("/documents/:documentId/content", async (req: Request, res: Response) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: "ID de documento inválido" });
+      }
+
+      const content = await getDocumentContent(documentId);
+
+      if (content === null) {
+        return res.status(404).json({ error: "Documento no encontrado" });
+      }
+
+      // Determinar el tipo de contenido basado en la extensión
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Documento no encontrado" });
+      }
+
+      const fileName = document.name.toLowerCase();
+
+      if (fileName.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json');
+      } else if (fileName.endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html');
+      } else if (fileName.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (fileName.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (fileName.endsWith('.py')) {
+        res.setHeader('Content-Type', 'text/plain');
+      } else {
+        res.setHeader('Content-Type', 'text/plain');
+      }
+
+      res.send(content);
+    } catch (error) {
+      console.error("Error obteniendo contenido del documento:", error);
+      res.status(500).json({ error: "Error al obtener el contenido del documento" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -163,3 +163,32 @@ export async function searchInDocuments(projectId: number, query: string): Promi
     throw error;
   }
 }
+
+// Función para obtener el contenido de un documento
+export async function getDocumentContent(documentId: number): Promise<string | null> {
+  try {
+    // Obtener información del documento
+    const document = await storage.getDocumentById(documentId);
+    
+    if (!document) {
+      return null;
+    }
+    
+    // Construir la ruta al archivo
+    const projectDir = path.join(DOCUMENTS_DIR, document.projectId.toString());
+    let filePath = path.join(projectDir, document.path);
+    
+    // Verificar si el archivo existe
+    if (!fs.existsSync(filePath)) {
+      console.error(`Archivo no encontrado en ruta: ${filePath}`);
+      return null;
+    }
+    
+    // Leer y devolver el contenido del archivo
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error('Error obteniendo contenido del documento:', error);
+    throw error;
+  }
+}
