@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCode, correctCode } from "./openai";
+import { generateCode, correctCode, getAvailableModels, getActiveModel, setActiveModel } from "./openai";
 import { executeCode } from "./codeExecution";
 import { getAvailableAgents } from "./agents";
 import { processAssistantChat } from "./assistantChat";
@@ -961,9 +961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para obtener modelos disponibles
   apiRouter.get("/models", async (req: Request, res: Response) => {
     try {
-      // Importar las funciones de openai.ts
-      const { getAvailableModels, getActiveModel } = require("./openai");
-      
+      // Usamos las funciones importadas en la parte superior del archivo
       res.json({
         models: getAvailableModels(),
         activeModel: getActiveModel()
@@ -985,7 +983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validatedData = modelSchema.parse(req.body);
-      const { setActiveModel } = require("./openai");
+      // Usamos la función importada en la parte superior
       
       const success = setActiveModel(validatedData.modelId);
       
