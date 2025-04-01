@@ -1,0 +1,89 @@
+Para integrar un asistente en una aplicación web-ui, es importante seguir una estructura organizada y modular que facilite la implementación y el mantenimiento. Aquí tienes una guía ajustada para especificar las instrucciones necesarias:
+
+---
+
+### Instrucciones para Integrar un Asistente en una Aplicación Web-UI
+
+#### 1. Estructura Básica del Repositorio
+
+La estructura del repositorio debe ser clara y modular para facilitar la integración del asistente. Aquí tienes una estructura típica:
+
+```bash
+web-ui/
+├── src/                # Código fuente principal
+│   ├── components/     # Componentes reutilizables (ej: Button, Card)
+│   ├── pages/          # Páginas principales de la aplicación
+│   ├── styles/         # Estilos globales (CSS/SASS)
+│   ├── assets/         # Imágenes, fuentes, recursos estáticos
+│   ├── services/       # Servicios y lógica del asistente
+│   └── index.html      # Punto de entrada principal
+├── docs/               # Documentación técnica
+├── tests/              # Pruebas unitarias/integración
+├── package.json        # Dependencias y scripts de npm
+└── README.md           # Información del proyecto
+```
+
+#### 2. Componentes y Módulos
+
+Organiza los componentes de manera que sean reutilizables y fáciles de mantener:
+
+```bash
+src/components/
+├── AssistantChat/
+│   ├── AssistantChat.js       # Lógica del componente del asistente
+│   ├── AssistantChat.css      # Estilos específicos del asistente
+│   └── AssistantChat.test.js  # Pruebas del componente del asistente
+```
+
+#### 3. Estilos y Recursos
+
+Mantén los estilos organizados y separados por componente:
+
+```bash
+src/styles/
+├── globals.css        # Variables y reset globales
+├── components/        # Estilos por componente
+├── layouts/           # Grids, flexbox
+└── themes/            # Temas oscuro/claro
+```
+
+#### 4. Configuración y Herramientas
+
+Asegúrate de tener configuraciones claras para herramientas de construcción y procesamiento:
+
+```bash
+config/
+├── webpack.config.js  # Configuración de bundling
+└── postcss.config.js  # Procesamiento de CSS
+```
+
+#### 5. Servicios del Asistente
+
+Crea un directorio específico para la lógica y servicios del asistente:
+
+```bash
+src/services/
+├── assistantService.js  # Lógica de integración del asistente
+└── api.js               # Configuración de API para el asistente
+```
+
+#### 6. Documentación y Pruebas
+
+Mantén la documentación actualizada y asegúrate de tener pruebas para el asistente:
+
+```bash
+docs/
+├── assistant-integration.md  # Guía de integración del asistente
+tests/
+├── assistantService.test.js  # Pruebas para el servicio del asistente
+```
+
+#### 7. Recomendaciones Adicionales
+
+- **Sistema de Módulos:** Utiliza un sistema de módulos para mantener el código organizado.
+- **Gestión de Dependencias:** Declara todas las dependencias en `package.json` y utiliza `peerDependencies` si es necesario.
+- **Versionado y CI:** Configura `.gitignore` para excluir archivos temporales y `.github/workflows/` para pipelines de CI/CD.
+
+---
+
+Siguiendo estas instrucciones, podrás integrar un asistente en tu aplicación web-ui de manera eficiente y mantenible. Asegúrate de adaptar la estructura según las necesidades específicas de tu proyecto y el stack tecnológico que estés utilizando.
