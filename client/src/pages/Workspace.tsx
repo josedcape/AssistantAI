@@ -129,10 +129,21 @@ const Workspace = () => {
       // Get the language from the active file if any
       const language = activeFile ? getLanguageFromFileType(activeFile.type) : undefined;
       
+      // Verificar que el ID del proyecto sea válido
+      if (isNaN(projectId)) {
+        toast({
+          title: "Error",
+          description: "ID de proyecto inválido. Por favor recarga la página.",
+          variant: "destructive"
+        });
+        setIsGenerating(false);
+        return;
+      }
+      
       const requestPayload: any = {
         prompt: aiPrompt,
         language,
-        projectId
+        projectId: Number(projectId) // Convertir explícitamente a número
       };
       
       // Si hay agentes seleccionados, incluirlos en la solicitud
@@ -179,24 +190,27 @@ const Workspace = () => {
       
       // Manejar los archivos generados
       if (result.files && result.files.length > 0) {
+        // Verificar nuevamente que projectId sea un número válido
+        if (isNaN(projectId)) {
+          toast({
+            title: "Error",
+            description: "ID de proyecto inválido. No se pueden crear archivos.",
+            variant: "destructive"
+          });
+          setIsGenerating(false);
+          return;
+        }
+        
+        const validProjectId = Number(projectId);
+        
         // Crear todos los archivos uno por uno
         for (const file of result.files) {
-          // Verificar que projectId sea un número válido
-          if (!projectId || isNaN(Number(projectId))) {
-            toast({
-              title: "Error",
-              description: "ID de proyecto inválido. No se pueden crear archivos.",
-              variant: "destructive"
-            });
-            break;
-          }
-            
           // Crear un nuevo archivo para cada uno
           try {
-            await apiRequest("POST", `/api/projects/${projectId}/files`, {
+            await apiRequest("POST", `/api/projects/${validProjectId}/files`, {
               name: file.name,
               content: file.content,
-              type: file.type
+              type: file.type || getFileLanguage(file.name) // Usar el tipo o inferirlo del nombre
             });
           } catch (error) {
             console.error(`Error creating file ${file.name}:`, error);
