@@ -8,7 +8,7 @@ import { processAssistantChat } from "./assistantChat";
 import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
-import { downloadFromUrl, processUploadedFile, searchInDocuments } from "./documentProcessing";
+import { downloadFromUrl, processUploadedFile, searchInDocuments } from "./documents";
 
 
 const upload = multer();
