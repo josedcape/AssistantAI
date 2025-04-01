@@ -12,6 +12,7 @@ const openai = new OpenAI({
 interface AssistantRequest {
   message: string;
   projectId: number | null;
+  modelId?: string;
   history: Array<{
     role: string;
     content: string;
@@ -92,12 +93,12 @@ IMPORTANTE:
       { role: "user" as const, content: request.message }
     ];
 
-    // Obtener el modelo activo
-    const activeModel = getActiveModel();
+    // Usar el modelo especificado o el modelo activo como respaldo
+    const modelToUse = request.modelId || getActiveModel();
     
     // Llamar a la API de OpenAI
     const response = await openai.chat.completions.create({
-      model: activeModel,
+      model: modelToUse,
       messages,
       temperature: 0.7,
     });

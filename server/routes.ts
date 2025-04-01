@@ -396,6 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestSchema = z.object({
         message: z.string().min(1),
         projectId: z.number().nullable(),
+        modelId: z.string().optional(),
         history: z.array(z.object({
           role: z.string(),
           content: z.string()
@@ -407,6 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await processAssistantChat({
         message: validatedData.message,
         projectId: validatedData.projectId,
+        modelId: validatedData.modelId,
         history: validatedData.history || []
       });
 

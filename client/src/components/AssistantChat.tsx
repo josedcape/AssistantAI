@@ -34,8 +34,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [modelId, setModelId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Cargar el modelo activo al inicio
+  useEffect(() => {
+    const fetchActiveModel = async () => {
+      try {
+        const response = await apiRequest("GET", "/api/models");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.activeModel) {
+            setModelId(data.activeModel);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching active model:", error);
+      }
+    };
+    
+    fetchActiveModel();
+  }, []);
 
   // Autoscroll al último mensaje
   useEffect(() => {
@@ -72,6 +92,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
       const response = await apiRequest("POST", "/api/assistant-chat", {
         message: input,
         projectId,
+        modelId: modelId, // Incluir el modelo seleccionado
         history: messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
       });
       
@@ -283,7 +304,16 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
             )}
           </Button>
         </div>
+      {/* Selector de modelo */}
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-slate-500 dark:text-slate-400">Modelo de IA:</div>
+          <ModelSelector 
+            onModelChange={(newModelId) => setModelId(newModelId)} 
+          />
+        </div>
       </div>
+    </div>
     </div>
   );
 };
