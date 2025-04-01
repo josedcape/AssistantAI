@@ -5,6 +5,7 @@ import { ThemeContext } from "@/App";
 import NewProjectModal from "./NewProjectModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "./ThemeToggle";
+import { ModelSelector } from "@/components/ModelSelector"; // Added import for ModelSelector
 
 const Header = () => {
   const { isDarkMode, toggleDarkMode } = useContext(ThemeContext);
@@ -95,6 +96,7 @@ const Header = () => {
 
           {/* Account nav and buttons */}
           <div className="flex items-center space-x-1 sm:space-x-2">
+            <ModelSelector /> {/* Added ModelSelector */}
             <ThemeToggle />
 
             {/* New Project button - desktop */}

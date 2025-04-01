@@ -958,6 +958,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para obtener modelos disponibles
+  apiRouter.get("/models", async (req: Request, res: Response) => {
+    try {
+      // Importar las funciones de openai.ts
+      const { getAvailableModels, getActiveModel } = require("./openai");
+      
+      res.json({
+        models: getAvailableModels(),
+        activeModel: getActiveModel()
+      });
+    } catch (error) {
+      console.error("Error fetching models:", error);
+      res.status(500).json({
+        message: "Error fetching models",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Endpoint para cambiar el modelo activo
+  apiRouter.post("/models/set", async (req: Request, res: Response) => {
+    try {
+      const modelSchema = z.object({
+        modelId: z.string().min(1)
+      });
+
+      const validatedData = modelSchema.parse(req.body);
+      const { setActiveModel } = require("./openai");
+      
+      const success = setActiveModel(validatedData.modelId);
+      
+      if (success) {
+        res.json({ success: true, message: "Model changed successfully" });
+      } else {
+        res.status(400).json({ success: false, message: "Invalid model ID" });
+      }
+    } catch (error) {
+      console.error("Error setting model:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid model data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({
+        message: "Error setting model",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Register API routes
   app.use("/api", apiRouter);
 

@@ -3,16 +3,42 @@ import { CodeGenerationRequest, CodeGenerationResponse, CodeCorrectionRequest, C
 import { executeAgent, orchestrateAgents, getAvailableAgents } from "./agents";
 
 const AVAILABLE_MODELS = {
-  "gpt-4o": "GPT-4O (Latest)",
-  "gpt-4o-mini": "GPT-4O Mini",
-  "gpt-o3": "GPT-O3",
-  "gpt-o3-mini": "GPT-O3 Mini",
-  "gemini-2.0-flash": "Gemini 2.0 Flash",
-  "gemini-2.0-flash-thinking-exp": "Gemini 2.0 Flash Thinking",
-  "claude-3.5-sonnet-v2": "Claude 3.5 Sonnet V2"
+  // OpenAI models
+  "gpt-4o": "GPT-4O - Modelo multimodal y multilingüe para texto, imágenes y audio (Mayo 2024)",
+  "gpt-o3-mini": "GPT-O3 Mini - Optimizado para tareas de programación (Febrero 2025)",
+  
+  // Google models
+  "gemini-2.5": "Gemini 2.5 - Modelo avanzado para texto, audio, imágenes, video y código (Marzo 2025)",
+  "gemini-2.0-flash": "Gemini 2.0 Flash - Modelo equilibrado entre velocidad y precisión",
+  
+  // Anthropic models
+  "claude-3.7": "Claude 3.7 - Modelo híbrido para codificación y resolución de problemas complejos (Febrero 2025)",
+  "claude-3.5-sonnet-v2": "Claude 3.5 Sonnet V2 - Equilibrio entre rendimiento y velocidad",
+  
+  // Alibaba models
+  "qwen2.5-omni-7B": "Qwen2.5-Omni-7B - Modelo multimodal para texto, imagen, audio y video (Marzo 2025)"
 };
 
 let MODEL = "gpt-4o"; // default model
+
+// Función para cambiar el modelo activo
+export function setActiveModel(modelId: string) {
+  if (AVAILABLE_MODELS[modelId]) {
+    MODEL = modelId;
+    return true;
+  }
+  return false;
+}
+
+// Función para obtener el modelo activo
+export function getActiveModel() {
+  return MODEL;
+}
+
+// Función para obtener todos los modelos disponibles
+export function getAvailableModels() {
+  return AVAILABLE_MODELS;
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ""

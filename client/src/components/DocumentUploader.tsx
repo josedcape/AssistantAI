@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UnpackIcon, FolderIcon } from "lucide-react";
+import { PackageOpenIcon, FolderIcon } from "lucide-react";
 
 interface DocumentUploaderProps {
   projectId: number;
@@ -194,7 +194,7 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
                 size="sm"
                 title="Descomprimir archivos individualmente"
               >
-                <UnpackIcon className="h-4 w-4 mr-1" />
+                <PackageOpenIcon className="h-4 w-4 mr-1" />
                 Extraer
               </Button>
             </div>

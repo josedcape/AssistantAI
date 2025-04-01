@@ -7,7 +7,7 @@ import { getLanguageIcon } from "@/lib/types";
 import { DocumentUploader } from "./DocumentUploader";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { FileIcon, FolderIcon, TrashIcon, RefreshCwIcon, PlusIcon, UnpackIcon } from "lucide-react";
+import { FileIcon, FolderIcon, TrashIcon, RefreshCwIcon, PlusIcon, PackageOpenIcon, PackageIcon } from "lucide-react";
 
 interface FileExplorerProps {
   projectId: number;
@@ -371,7 +371,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                                   title="Extraer archivos"
                                   onClick={(e) => handleExtractRepository(doc.id!, e)}
                                 >
-                                  <UnpackIcon className="h-3 w-3" />
+                                  <PackageOpenIcon className="h-3 w-3" />
                                 </Button>
                               )}
                               <Button 
