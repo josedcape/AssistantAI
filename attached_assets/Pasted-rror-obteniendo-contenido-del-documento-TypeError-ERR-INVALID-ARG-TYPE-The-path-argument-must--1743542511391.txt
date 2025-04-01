@@ -1,0 +1,30 @@
+rror obteniendo contenido del documento: TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+    at Object.join (node:path:1251:7)
+    at getDocumentContent (/home/runner/workspace/server/documents.ts:179:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:895:23) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+Error obteniendo contenido del documento: TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+    at Object.join (node:path:1251:7)
+    at getDocumentContent (/home/runner/workspace/server/documents.ts:179:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:895:23) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+9:21:28 PM [express] GET /api/documents/1/content 500 in 9ms :: {"error":"Error al obtener el conten…
+Error obteniendo contenido del documento: TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+    at Object.join (node:path:1251:7)
+    at getDocumentContent (/home/runner/workspace/server/documents.ts:179:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:895:23) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+Error obteniendo contenido del documento: TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+    at Object.join (node:path:1251:7)
+    at getDocumentContent (/home/runner/workspace/server/documents.ts:179:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:895:23) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+9:21:37 PM [express] GET /api/documents/1/content 500 in 2ms :: {"error":"Error al obtener el conten…
