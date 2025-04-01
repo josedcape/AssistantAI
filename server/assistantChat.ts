@@ -134,6 +134,11 @@ IMPORTANTE:
         throw error; // Re-lanzar el error original si ya estábamos usando el modelo de respaldo
       }
     }
+  } catch (error) {
+    console.error("Error en processAssistantChat:", error);
+    throw new Error(`Error al procesar el chat: ${error instanceof Error ? error.message : "Error desconocido"}`);
+  }
+}
 </old_str>
 
     // El código de retorno ahora está dentro del try/catch
