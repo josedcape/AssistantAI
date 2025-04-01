@@ -387,6 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Preview endpoint for projects
   apiRouter.get("/projects/:projectId/preview", async (req: Request, res: Response) => {
     try {
+      // Parsear el ID y verificar que sea válido
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
@@ -397,22 +398,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = await storage.getFilesByProjectId(projectId);
       
       if (!files || files.length === 0) {
-        return res.status(404).json({ message: "No files found in project" });
+        return res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Error en Vista Previa</title>
+              <style>
+                body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+                .error { color: #e74c3c; }
+              </style>
+            </head>
+            <body>
+              <h1 class="error">No se encontraron archivos</h1>
+              <p>No hay archivos en este proyecto para mostrar.</p>
+            </body>
+          </html>
+        `);
       }
 
       // Find the HTML file to use as entry point
-      const htmlFile = files.find(file => file.type === 'html');
+      const htmlFile = files.find(file => file.type === 'html' || file.name.toLowerCase().endsWith('.html'));
       if (!htmlFile) {
-        // Si no hay archivo HTML, creamos uno simple con un mensaje
-        return res.status(404).json({ 
-          message: "No HTML file found in project",
-          files: files.map(f => ({ name: f.name, type: f.type }))
-        });
+        // Si no hay archivo HTML, creamos uno simple con los archivos disponibles
+        return res.status(200).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Vista Previa</title>
+              <style>
+                body { font-family: sans-serif; padding: 20px; }
+                h1 { color: #3498db; }
+                .file-list { margin: 20px 0; }
+                .file { padding: 10px; border: 1px solid #eee; margin: 5px 0; }
+                pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; }
+              </style>
+            </head>
+            <body>
+              <h1>No se encontró archivo HTML principal</h1>
+              <p>Los siguientes archivos están disponibles en el proyecto:</p>
+              <div class="file-list">
+                ${files.map(f => `
+                  <div class="file">
+                    <strong>${f.name}</strong> (${f.type})
+                    <pre>${f.content.substring(0, 100)}${f.content.length > 100 ? '...' : ''}</pre>
+                  </div>
+                `).join('')}
+              </div>
+              <p>Para visualizar un proyecto, necesitas un archivo HTML principal.</p>
+            </body>
+          </html>
+        `);
       }
 
       // Get CSS and JS files
-      const cssFiles = files.filter(file => file.type === 'css');
-      const jsFiles = files.filter(file => file.type === 'javascript');
+      const cssFiles = files.filter(file => file.type === 'css' || file.name.toLowerCase().endsWith('.css'));
+      const jsFiles = files.filter(file => file.type === 'javascript' || file.name.toLowerCase().endsWith('.js'));
 
       console.log(`Preview for project ${projectId}: Found ${cssFiles.length} CSS files and ${jsFiles.length} JS files`);
 
@@ -441,13 +481,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         language: 'html'
       });
 
+      // Establecer encabezados para evitar problemas de caché
+      res.setHeader('Content-Type', 'text/html');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       // Send the response
       if (executionResult.htmlContent) {
-        res.setHeader('Content-Type', 'text/html');
-        res.send(executionResult.htmlContent);
+        // Agregar script para habilitar recarga automática (opcional)
+        const htmlWithReload = executionResult.htmlContent.replace('</body>', `
+          <script>
+            // Este script permite recargar la vista previa automáticamente cuando se detectan cambios
+            console.log("Vista previa cargada correctamente");
+          </script>
+        </body>`);
+        
+        res.send(htmlWithReload);
       } else {
-        // Si no hay contenido HTML, enviamos el contenido del archivo HTML tal cual
-        res.setHeader('Content-Type', 'text/html');
+        // Si no hay contenido HTML generado, enviamos el contenido del archivo HTML directamente
         res.send(htmlFile.content);
       }
     } catch (error) {

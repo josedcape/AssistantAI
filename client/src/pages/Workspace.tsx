@@ -22,7 +22,7 @@ const Workspace = () => {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  
+
   const [activeTab, setActiveTab] = useState("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -32,7 +32,7 @@ const Workspace = () => {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  
+
   // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
     plan?: string[];
@@ -40,13 +40,13 @@ const Workspace = () => {
     components?: string[];
     requirements?: string[];
   } | null>(null);
-  
+
   // Fetch project details
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
     enabled: !isNaN(projectId),
   });
-  
+
   // Fetch project files
   const { 
     data: filesData, 
@@ -57,7 +57,7 @@ const Workspace = () => {
     queryKey: [`/api/projects/${projectId}/files`],
     enabled: !isNaN(projectId),
   });
-  
+
   // Fetch available agents
   const {
     data: agentsData,
@@ -66,52 +66,52 @@ const Workspace = () => {
   } = useQuery<Agent[]>({
     queryKey: ['/api/agents'],
   });
-  
+
   // Set up agents array once data is loaded
   useEffect(() => {
     if (agentsData) {
       setAvailableAgents(agentsData);
     }
   }, [agentsData]);
-  
+
   // Set up files array once data is loaded
   useEffect(() => {
     if (filesData) {
       setFiles(filesData);
-      
+
       // Set the first file as active if none is selected
       if (!activeFile && filesData.length > 0) {
         setActiveFile(filesData[0]);
       }
     }
   }, [filesData, activeFile]);
-  
+
   // Efecto para ocultar automáticamente el mensaje de éxito después de 10 segundos
   useEffect(() => {
     if (showSuccessMessage) {
       const timer = setTimeout(() => {
         setShowSuccessMessage(false);
       }, 10000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [showSuccessMessage]);
-  
+
   // Handle back to home button
   const handleBackToHome = () => {
     navigate("/");
   };
-  
+
   // Handle file selection
   const handleFileSelect = (file: File) => {
     setActiveFile(file);
-    
+
     // On mobile, switch to development tab
     if (isMobile) {
       setActiveTab("development");
     }
   };
-  
+
   // Generate code using AI
   const generateCode = async () => {
     if (!aiPrompt.trim()) {
@@ -122,13 +122,13 @@ const Workspace = () => {
       });
       return;
     }
-    
+
     try {
       setIsGenerating(true);
-      
+
       // Get the language from the active file if any
       const language = activeFile ? getLanguageFromFileType(activeFile.type) : undefined;
-      
+
       // Verificar que el ID del proyecto sea válido
       if (isNaN(projectId)) {
         toast({
@@ -139,22 +139,22 @@ const Workspace = () => {
         setIsGenerating(false);
         return;
       }
-      
+
       const requestPayload: any = {
         prompt: aiPrompt,
         language,
         projectId: Number(projectId) // Convertir explícitamente a número
       };
-      
+
       // Si hay agentes seleccionados, incluirlos en la solicitud
       if (selectedAgents.length > 0) {
         requestPayload.agents = selectedAgents;
       }
-      
+
       const response = await apiRequest("POST", "/api/generate", requestPayload);
-      
+
       const result: CodeGenerationResponse = await response.json();
-      
+
       // Guardar el plan de desarrollo si existe
       if (result.plan || result.architecture || result.components || result.requirements) {
         const newPlan = {
@@ -163,9 +163,9 @@ const Workspace = () => {
           components: result.components || [],
           requirements: result.requirements || []
         };
-        
+
         setDevelopmentPlan(newPlan);
-        
+
         // También guardamos el plan en el servidor si tenemos un ID de proyecto válido
         if (projectId && !isNaN(Number(projectId))) {
           try {
@@ -179,7 +179,7 @@ const Workspace = () => {
             console.error("Error al guardar el plan de desarrollo:", error);
           }
         }
-        
+
         // Mostrar un toast con el plan de desarrollo
         toast({
           title: "Plan de desarrollo creado",
@@ -187,7 +187,7 @@ const Workspace = () => {
           duration: 5000
         });
       }
-      
+
       // Manejar los archivos generados
       if (result.files && result.files.length > 0) {
         // Verificar nuevamente que projectId sea un número válido
@@ -200,9 +200,9 @@ const Workspace = () => {
           setIsGenerating(false);
           return;
         }
-        
+
         const validProjectId = Number(projectId);
-        
+
         // Crear todos los archivos uno por uno
         for (const file of result.files) {
           // Crear un nuevo archivo para cada uno
@@ -221,15 +221,15 @@ const Workspace = () => {
             });
           }
         }
-        
+
         // Actualizar la lista de archivos y seleccionar el primero HTML como activo
         const filesResult = await refetchFiles();
         const updatedFiles = filesResult.data || [];
-        
+
         // Intentar seleccionar un archivo HTML primero, luego JS, luego cualquiera
         const htmlFile = updatedFiles.find((f: File) => f.type === 'html');
         const jsFile = updatedFiles.find((f: File) => f.type === 'javascript');
-        
+
         if (htmlFile) {
           setActiveFile(htmlFile);
         } else if (jsFile) {
@@ -240,49 +240,49 @@ const Workspace = () => {
       } else if (activeFile && result.code) {
         // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
         // y tenemos un archivo activo, actualizarlo
-        
+
         const updateResponse = await apiRequest("PUT", `/api/files/${activeFile.id}`, {
           content: result.code
         });
-        
+
         const updatedFile = await updateResponse.json();
-        
+
         // Update the files array
         setFiles(files.map(file => file.id === activeFile.id ? updatedFile : file));
         setActiveFile(updatedFile);
       } else if (result.code) {
         // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
         // y no tenemos un archivo activo, crear uno nuevo
-        
+
         const fileType = result.language === "html" ? "html" : 
                         result.language === "css" ? "css" : 
                         "javascript";
-        
+
         const fileExtension = result.language === "html" ? ".html" : 
                               result.language === "css" ? ".css" : 
                               ".js";
-        
+
         const fileName = `generado${fileExtension}`;
-        
+
         const createResponse = await apiRequest("POST", `/api/projects/${projectId}/files`, {
           name: fileName,
           content: result.code,
           type: fileType
         });
-        
+
         const newFile = await createResponse.json();
-        
+
         // Update files and set as active
         await refetchFiles();
         setActiveFile(newFile);
       }
-      
+
       // Mostrar mensaje de éxito con opción para ver el plan
       setShowSuccessMessage(true);
-      
+
       // Clear the prompt
       setAiPrompt("");
-      
+
     } catch (error) {
       console.error("Error generating code:", error);
       toast({
@@ -294,12 +294,12 @@ const Workspace = () => {
       setIsGenerating(false);
     }
   };
-  
+
   // Handle quick prompt selection
   const selectQuickPrompt = (prompt: string) => {
     setAiPrompt(prompt);
   };
-  
+
   if (isLoadingProject || isLoadingFiles) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -307,7 +307,7 @@ const Workspace = () => {
       </div>
     );
   }
-  
+
   if (projectError || filesError) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -322,11 +322,11 @@ const Workspace = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1 flex">
         <div className="flex-1 flex flex-col">
           {/* Mobile toolbar with back button */}
@@ -348,7 +348,7 @@ const Workspace = () => {
               </div>
             </div>
           )}
-          
+
           {/* Workspace Tabs */}
           <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -373,7 +373,7 @@ const Workspace = () => {
                     </TabsList>
                   </Tabs>
                 </div>
-                
+
                 <div className="flex">
                   {developmentPlan && (
                     <div className="flex items-center">
@@ -488,7 +488,7 @@ const Workspace = () => {
                       ) : "Generar"}
                     </Button>
                   </div>
-                  
+
                   <div className="mt-2">
                     <div className="flex justify-between">
                       <div className="flex flex-wrap gap-2 text-xs">
@@ -511,7 +511,7 @@ const Workspace = () => {
                           Calculadora
                         </button>
                       </div>
-                      
+
                       <button
                         className="px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 flex items-center text-xs"
                         onClick={() => setShowAgentsSelector(!showAgentsSelector)}
@@ -521,7 +521,7 @@ const Workspace = () => {
                         <i className={`ri-arrow-${showAgentsSelector ? 'up' : 'down'}-s-line ml-1`}></i>
                       </button>
                     </div>
-                    
+
                     {/* Selector de agentes */}
                     {showAgentsSelector && (
                       <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
@@ -529,7 +529,7 @@ const Workspace = () => {
                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                           Los agentes se encargarán de generar componentes específicos de tu aplicación.
                         </p>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                           {availableAgents.map((agent) => (
                             <div 
@@ -563,7 +563,7 @@ const Workspace = () => {
                             </div>
                           ))}
                         </div>
-                        
+
                         {selectedAgents.length > 0 && (
                           <div className="mt-3 flex justify-end">
                             <button
@@ -579,7 +579,7 @@ const Workspace = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Tab Content */}
               <div className="flex-1 flex">
                 {/* Development Tab - Code Editor */}
@@ -592,7 +592,7 @@ const Workspace = () => {
                     }} 
                   />
                 )}
-                
+
                 {/* Preview Tab */}
                 {activeTab === "preview" && activeFile && (
                   <CodePreview 
@@ -600,7 +600,7 @@ const Workspace = () => {
                     allFiles={files}
                   />
                 )}
-                
+
                 {/* Console Tab */}
                 {activeTab === "console" && (
                   <ConsoleOutput 
@@ -608,7 +608,7 @@ const Workspace = () => {
                     activeFileId={activeFile?.id}
                   />
                 )}
-                
+
                 {/* No file selected */}
                 {!activeFile && (
                   <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -681,7 +681,7 @@ const Workspace = () => {
           onClose={() => setDevelopmentPlan(null)}
         />
       )}
-      
+
       {/* Mobile actions */}
       {isMobile && (
         <div className="md:hidden fixed bottom-5 right-5 z-10">

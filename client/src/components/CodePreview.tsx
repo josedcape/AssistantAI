@@ -26,26 +26,102 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
           // Obtenemos la URL de la API para la vista previa del proyecto
           const projectId = file.projectId;
 
+
+  // Función para renderizar HTML directamente en el iframe
+  const renderDirectHTML = () => {
+    if (!iframeRef.current) return;
+    
+    const iframe = iframeRef.current;
+    const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+
+    if (iframeDocument) {
+      try {
+        iframeDocument.open();
+        
+        // Si hay archivos CSS o JS en el proyecto, los incorporamos
+        let htmlContent = file.content;
+        
+        // Buscar archivos CSS y JS relacionados si tenemos allFiles
+        if (allFiles && allFiles.length > 0) {
+          const cssFiles = allFiles.filter(f => f.type === 'css');
+          const jsFiles = allFiles.filter(f => f.type === 'javascript');
+          
+          // Asegurarse de que el HTML tenga estructura básica
+          if (!htmlContent.includes('<!DOCTYPE html>')) {
+            htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vista Previa</title>
+  ${cssFiles.map(css => `<style>${css.content}</style>`).join('\n')}
+</head>
+<body>
+  ${htmlContent}
+  ${jsFiles.map(js => `<script>${js.content}</script>`).join('\n')}
+</body>
+</html>`;
+          } else {
+            // Si ya tiene estructura, insertar CSS en head y JS antes de cerrar body
+            if (cssFiles.length > 0 && htmlContent.includes('</head>')) {
+              htmlContent = htmlContent.replace('</head>', 
+                `${cssFiles.map(css => `<style>${css.content}</style>`).join('\n')}\n</head>`);
+            }
+            
+            if (jsFiles.length > 0 && htmlContent.includes('</body>')) {
+              htmlContent = htmlContent.replace('</body>', 
+                `${jsFiles.map(js => `<script>${js.content}</script>`).join('\n')}\n</body>`);
+            }
+          }
+        }
+        
+        iframeDocument.write(htmlContent);
+        iframeDocument.close();
+      } catch (e) {
+        console.error("Error rendering HTML directly:", e);
+        iframeDocument.write(`
+          <html>
+            <body>
+              <h2>Error al renderizar HTML</h2>
+              <pre>${e instanceof Error ? e.message : String(e)}</pre>
+            </body>
+          </html>
+        `);
+        iframeDocument.close();
+      }
+    }
+  };
+
           // Verificar que el ID del proyecto sea válido
           if (!projectId || isNaN(Number(projectId))) {
             throw new Error("ID de proyecto inválido");
           }
 
           try {
-            // Intentar cargar la URL de la vista previa
-            const previewUrl = `/api/projects/${Number(projectId)}/preview`;
-            iframeRef.current.src = previewUrl;
+            // Agregar un parámetro de tiempo para evitar caché
+            const timestamp = new Date().getTime();
+            const previewUrl = `/api/projects/${Number(projectId)}/preview?t=${timestamp}`;
+            
+            // Registrar el evento de carga del iframe
+            const iframe = iframeRef.current;
+            
+            // Configurar un manejador de eventos para detectar cuándo se carga el iframe
+            iframe.onload = () => {
+              console.log("Vista previa cargada correctamente");
+              setLoading(false);
+            };
+            
+            iframe.onerror = (e) => {
+              console.error("Error al cargar la vista previa:", e);
+              // Fallback a renderización directa
+              renderDirectHTML();
+            };
+            
+            // Cargar la URL de vista previa
+            iframe.src = previewUrl;
           } catch (error) {
             console.error("Error loading preview:", error);
             // Si hay un error, mostramos solo el contenido HTML
-            const iframe = iframeRef.current;
-            const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-
-            if (iframeDocument) {
-              iframeDocument.open();
-              iframeDocument.write(file.content);
-              iframeDocument.close();
-            }
+            renderDirectHTML();
           }
         } else if (file.type === 'css') {
           // Para archivos CSS, mostramos una vista previa con ejemplos
