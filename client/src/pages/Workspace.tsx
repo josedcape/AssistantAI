@@ -531,7 +531,7 @@ const Workspace = () => {
                     </div>
                     <Button
                       onClick={generateCode}
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-2 px-4 rounded-r-lg transition-all duration-300 hover:shadow-lg"={isGenerating || !aiPrompt.trim()}
+                      disabled={isGenerating || !aiPrompt.trim()}
                       className="rounded-l-none bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all duration-300"
                     >
                       {isGenerating ? (
