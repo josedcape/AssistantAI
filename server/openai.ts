@@ -6,15 +6,15 @@ const AVAILABLE_MODELS = {
   // OpenAI models
   "gpt-4o": "GPT-4O - Modelo multimodal y multilingüe para texto, imágenes y audio (Mayo 2024)",
   "gpt-o3-mini": "GPT-O3 Mini - Optimizado para tareas de programación (Febrero 2025)",
-  
+
   // Google models
   "gemini-2.5": "Gemini 2.5 - Modelo avanzado para texto, audio, imágenes, video y código (Marzo 2025)",
   "gemini-2.0-flash": "Gemini 2.0 Flash - Modelo equilibrado entre velocidad y precisión",
-  
+
   // Anthropic models
   "claude-3.7": "Claude 3.7 - Modelo híbrido para codificación y resolución de problemas complejos (Febrero 2025)",
   "claude-3.5-sonnet-v2": "Claude 3.5 Sonnet V2 - Equilibrio entre rendimiento y velocidad",
-  
+
   // Alibaba models
   "qwen2.5-omni-7B": "Qwen2.5-Omni-7B - Modelo multimodal para texto, imagen, audio y video (Marzo 2025)"
 };
@@ -69,7 +69,7 @@ export async function createDevelopmentPlan(description: string, language: strin
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
-    
+
     // Mensaje para el sistema que guía la creación del plan
     const systemMessage = `Eres un experto arquitecto de software encargado de crear planes de desarrollo detallados.
     - Tu tarea es analizar la solicitud del usuario y crear un plan paso a paso para desarrollar la solución.
@@ -106,9 +106,9 @@ export async function createDevelopmentPlan(description: string, language: strin
     if (!content) {
       throw new Error("No se recibió respuesta del modelo de IA para el plan");
     }
-    
+
     const parsedResponse = JSON.parse(content);
-    
+
     // Asegurarse de que la respuesta tiene la estructura esperada
     if (!parsedResponse.plan || !parsedResponse.language) {
       throw new Error("La respuesta del plan no tiene el formato esperado");
@@ -134,12 +134,12 @@ export async function createDevelopmentPlan(description: string, language: strin
  */
 export async function correctCode(request: CodeCorrectionRequest): Promise<CodeCorrectionResponse> {
   const { content, instructions, language = "javascript" } = request;
-  
+
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
-    
+
     // Detectar el tipo de lenguaje basado en el contenido o usar el proporcionado
     const detectedLanguage = language || (
       content.includes('<html') ? 'html' : 
@@ -147,7 +147,7 @@ export async function correctCode(request: CodeCorrectionRequest): Promise<CodeC
       content.includes('{') && content.includes(':') && !content.includes('function') ? 'css' : 
       'javascript'
     );
-    
+
     // Crear un mensaje del sistema que guía la corrección de código
     const systemMessage = `Eres un experto programador especializado en revisar y mejorar código.
     - Tu tarea es corregir, optimizar y mejorar el código proporcionado según las instrucciones específicas.
@@ -172,10 +172,10 @@ export async function correctCode(request: CodeCorrectionRequest): Promise<CodeC
     \`\`\`${detectedLanguage}
     ${content}
     \`\`\`
-    
+
     # Instrucciones para la corrección:
     ${instructions}
-    
+
     Por favor, corrige y mejora este código siguiendo las instrucciones proporcionadas.`;
 
     const response = await openai.chat.completions.create({
@@ -192,9 +192,9 @@ export async function correctCode(request: CodeCorrectionRequest): Promise<CodeC
     if (!responseContent) {
       throw new Error("No se recibió respuesta del modelo de IA");
     }
-    
+
     const parsedResponse = JSON.parse(responseContent);
-    
+
     // Verificar que la respuesta tiene la estructura esperada
     if (!parsedResponse.correctedCode) {
       throw new Error("La respuesta no contiene el código corregido");
@@ -213,21 +213,21 @@ export async function correctCode(request: CodeCorrectionRequest): Promise<CodeC
 
 export async function generateCode(request: CodeGenerationRequest): Promise<CodeGenerationResponse> {
   const { prompt, language = "javascript", agents } = request;
-  
+
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
-    
+
     // Si se solicitan agentes específicos, usar el orquestador de agentes
     if (agents && agents.length > 0) {
       console.log(`Orquestando agentes: ${agents.join(", ")}`);
       const agentResults = await orchestrateAgents(request, agents);
-      
+
       // Para simplicidad, devolvemos el primer resultado y guardamos información del agente
       if (agentResults.length > 0) {
         const mainResult = agentResults[0];
-        
+
         // Si hay más de un resultado, agregar sugerencias sobre otros archivos generados
         if (agentResults.length > 1) {
           const suggestions = agentResults.slice(1).map((result, index) => {
@@ -236,26 +236,26 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
               "No content available";
             return `Archivo adicional generado por agente ${result.agentName || `#${index+2}`}: ${filePreview}...`;
           });
-          
+
           return {
             ...mainResult,
             suggestions: [...(mainResult.suggestions || []), ...suggestions]
           };
         }
-        
+
         return mainResult;
       }
     }
-    
+
     // Método estándar: Primero, crear un plan de desarrollo
     const developmentPlan = await createDevelopmentPlan(prompt, language);
-    
+
     // Determinar el lenguaje a utilizar
     const targetLanguage = language || developmentPlan.language || "javascript";
-    
+
     // Lista de lenguajes soportados para ejecución
     const supportedLanguages = ["javascript", "js", "html", "css"];
-    
+
     // Crear un mensaje del sistema que guía al AI para generar código
     const systemMessage = `Eres un experto programador que genera código de alta calidad basado en descripciones y planes de desarrollo.
     - Genera MÚLTIPLES ARCHIVOS necesarios para resolver la solicitud, siguiendo el plan proporcionado.
@@ -295,7 +295,7 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
     // Preparar el mensaje con la solicitud y el plan de desarrollo
     let userMessage = `
 Descripción: ${prompt}
-    
+
 Plan de desarrollo:
 ${developmentPlan.plan?.map((step, index) => `${index + 1}. ${step}`).join('\n') || 'No disponible'}
 
@@ -327,14 +327,14 @@ Ahora, genera el código basado en este plan de desarrollo.`;
     if (!content) {
       throw new Error("No se recibió respuesta del modelo de IA");
     }
-    
+
     const parsedResponse = JSON.parse(content);
 
     // Ensure the response has the expected structure
     if (!parsedResponse.files || !Array.isArray(parsedResponse.files) || parsedResponse.files.length === 0) {
       throw new Error("La respuesta del modelo de IA no tiene el formato esperado. Debe incluir un array de 'files'");
     }
-    
+
     // Verificar que cada archivo tenga la estructura correcta
     parsedResponse.files.forEach((file: any, index: number) => {
       if (!file.name || !file.content || !file.language || !file.type) {
