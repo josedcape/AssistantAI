@@ -17,6 +17,7 @@ import DevelopmentPlan from "@/components/DevelopmentPlan";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AssistantChat from "@/components/AssistantChat"; // Import the AssistantChat component
 import { DocumentUploader } from "@/components/DocumentUploader"; // Added import
+import ProjectDeployment from "@/components/ProjectDeployment"; // Importar componente de despliegue
 
 
 const Workspace = () => {
@@ -384,9 +385,12 @@ const Workspace = () => {
                       <TabsTrigger value="console" className="flex items-center gap-1.5">
                         <i className="ri-terminal-box-line text-purple-500"></i>Consola
                       </TabsTrigger>
+                      <TabsTrigger value="deployment" className="flex items-center gap-1.5">
+                        <i className="ri-rocket-line text-red-500"></i>Despliegue
+                      </TabsTrigger>
                       <TabsTrigger value="assistant-chat" className="flex items-center gap-1.5">
                         <i className="ri-robot-line text-amber-500"></i>Asistente
-                      </TabsTrigger> {/* Added Assistant Chat Tab */}
+                      </TabsTrigger>
                       {!isMobile && (
                         <TabsTrigger value="resources" className="flex items-center gap-1.5">
                           <i className="ri-stack-line text-teal-500"></i>Recursos
@@ -677,6 +681,17 @@ const Workspace = () => {
                     projectId={projectId}
                     activeFileId={activeFile?.id}
                   />
+                )}
+
+                {/* Deployment Tab */}
+                {activeTab === "deployment" && (
+                  <div className="flex-1 flex flex-col">
+                    <ProjectDeployment 
+                      projectId={projectId} 
+                      files={files} 
+                      refreshFiles={refetchFiles}
+                    />
+                  </div>
                 )}
 
                 {/* Assistant Chat Tab */}

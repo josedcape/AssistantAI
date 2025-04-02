@@ -4,6 +4,8 @@ import {
   files, type File, type InsertFile,
   type Document, type InsertDocument
 } from "@shared/schema";
+import path from 'path';
+import fs from 'fs';
 
 export interface IStorage {
   // User operations
@@ -31,6 +33,18 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number): Promise<boolean>;
   getDocumentById(id: number): Promise<Document | null>; // Added function
+
+  // Deployment operations
+  updateProjectDeployment(projectId: number, deploymentInfo: {
+    status: 'idle' | 'deploying' | 'deployed' | 'error';
+    lastDeployedAt?: string;
+    buildLogs?: string[];
+  }): Promise<boolean>;
+  getProjectDeploymentStatus(projectId: number): Promise<{
+    status: 'idle' | 'deploying' | 'deployed' | 'error';
+    lastDeployedAt?: string;
+    buildLogs?: string[];
+  } | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -306,6 +320,69 @@ document.addEventListener('DOMContentLoaded', () => {
   async getDocumentById(id: number): Promise<Document | null> {
     const document = this.documents.get(id);
     return document || null;
+  }
+
+  async updateProjectDeployment(projectId: number, deploymentInfo: {
+    status: 'idle' | 'deploying' | 'deployed' | 'error';
+    lastDeployedAt?: string;
+    buildLogs?: string[];
+  }): Promise<boolean> {
+    try {
+      const deploymentStatusFile = path.join(__dirname, '..', 'data', 'deployments.json');
+
+      // Crear directorio si no existe
+      if (!fs.existsSync(path.join(__dirname, '..', 'data'))) {
+        fs.mkdirSync(path.join(__dirname, '..', 'data'), { recursive: true });
+      }
+
+      // Leer el archivo existente o crear uno nuevo
+      let deployments: Record<string, any> = {};
+      if (fs.existsSync(deploymentStatusFile)) {
+        try {
+          const fileContent = fs.readFileSync(deploymentStatusFile, 'utf-8');
+          deployments = JSON.parse(fileContent);
+        } catch (e) {
+          console.warn("Error reading deployments file, creating new one:", e);
+        }
+      }
+
+      // Actualizar información de despliegue
+      deployments[projectId.toString()] = {
+        ...deployments[projectId.toString()],
+        ...deploymentInfo,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Guardar el archivo
+      fs.writeFileSync(deploymentStatusFile, JSON.stringify(deployments, null, 2));
+
+      return true;
+    } catch (error) {
+      console.error("Error updating project deployment:", error);
+      return false;
+    }
+  }
+
+  async getProjectDeploymentStatus(projectId: number): Promise<{
+    status: 'idle' | 'deploying' | 'deployed' | 'error';
+    lastDeployedAt?: string;
+    buildLogs?: string[];
+  } | null> {
+    try {
+      const deploymentStatusFile = path.join(__dirname, '..', 'data', 'deployments.json');
+
+      if (!fs.existsSync(deploymentStatusFile)) {
+        return null;
+      }
+
+      const fileContent = fs.readFileSync(deploymentStatusFile, 'utf-8');
+      const deployments = JSON.parse(fileContent);
+
+      return deployments[projectId.toString()] || null;
+    } catch (error) {
+      console.error("Error getting project deployment status:", error);
+      return null;
+    }
   }
 }
 
