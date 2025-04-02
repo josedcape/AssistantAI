@@ -7,6 +7,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ModelSelector } from "./ModelSelector";
+import CodeBlock from "./CodeBlock";
 
 interface Message {
   id: string;
@@ -154,8 +155,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
   };
 
   // Función para aplicar syntax highlighting a un bloque de código
-  import CodeBlock from './CodeBlock';
-
   const applySyntaxHighlighting = (code: string, language: string) => {
     // Esta función aún se usará para procesar partes del texto que no vayan en el componente CodeBlock
     // Definir patrones para diferentes elementos de la sintaxis
