@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { File } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import CodeBlock from "./CodeBlock";
 
 interface CodePreviewProps {
   file: File;
@@ -167,9 +168,11 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
-          <pre className="whitespace-pre-wrap text-sm">
-            {file.content}
-          </pre>
+          <CodeBlock 
+            code={file.content} 
+            language={file.type === 'javascript' ? 'js' : file.type} 
+            showLineNumbers={true}
+          />
         </div>
       </div>
     );

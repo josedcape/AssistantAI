@@ -154,7 +154,10 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
   };
 
   // Función para aplicar syntax highlighting a un bloque de código
+  import CodeBlock from './CodeBlock';
+
   const applySyntaxHighlighting = (code: string, language: string) => {
+    // Esta función aún se usará para procesar partes del texto que no vayan en el componente CodeBlock
     // Definir patrones para diferentes elementos de la sintaxis
     const keywords = /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|try|catch|async|await|new|this|extends|implements|interface|type|public|private|protected|static|get|set|super|null|undefined|true|false)\b/g;
     const types = /\b(string|number|boolean|any|void|never|object|symbol|bigint|null|undefined|Array|Promise|Map|Set|Record|Partial|Required|Pick|Omit|Exclude|Extract|ReturnType)\b/g;
@@ -279,13 +282,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
               </Button>
             </div>
           </div>
-          <div className="p-3 overflow-x-auto bg-[#1e1e2e]">
-            <pre className="text-sm font-mono leading-relaxed">
-              <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-            </pre>
+          <div className="overflow-x-auto">
+            <CodeBlock
+              code={code}
+              language={language}
+              showLineNumbers={true}
+            />
           </div>
-          <div className="border-t border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-400">
-            <p>Código {language} - {code.split('\n').length} líneas</p>
           </div>
         </div>
       );

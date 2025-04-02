@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import 'highlight.js/styles/github-dark.css'
 
 // Cargar fuente JetBrains Mono para código
 const fontLink = document.createElement('link');
@@ -14,27 +15,27 @@ style.textContent = `
   .code-font {
     font-family: 'JetBrains Mono', monospace;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .gradient-bg {
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
   }
-  
+
   /* Mejoras para el resaltado de sintaxis */
   pre code {
     font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     line-height: 1.6;
   }
-  
+
   /* Mejora visual para los bloques de código - estilo similar a la imagen */
   .code-block {
     border-radius: 6px;
@@ -43,7 +44,7 @@ style.textContent = `
     overflow: hidden;
     font-size: 14px;
   }
-  
+
   .code-block-header {
     background-color: #181825;
     border-bottom: 1px solid #313244;
@@ -52,14 +53,14 @@ style.textContent = `
     justify-content: space-between;
     align-items: center;
   }
-  
+
   .code-block-content {
     padding: 12px;
     overflow-x: auto;
     background-color: #1e1e2e;
     color: #d4d4d4;
   }
-  
+
   .code-block-footer {
     background-color: #181825;
     border-top: 1px solid #313244;
@@ -67,7 +68,7 @@ style.textContent = `
     font-size: 12px;
     color: #6c7086;
   }
-  
+
   /* Estilos para destacar elementos específicos en el código como en la imagen */
   .accordion-tag { color: #3c9dd0; }
   .component-name { color: #4ec9b0; }
