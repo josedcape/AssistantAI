@@ -205,3 +205,35 @@ export const DocumentSchema = z.object({
 
 export type Document = z.infer<typeof DocumentSchema>;
 export type InsertDocument = Omit<Document, "id" | "createdAt">;
+
+export interface AssistantChatResponse {
+  response: string;
+  success: boolean;
+}
+
+export interface PackageInstallRequest {
+  packageName: string;
+  version?: string;
+  isDev?: boolean;
+  manager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  global?: boolean;
+}
+
+export interface PackageUninstallRequest {
+  packageName: string;
+  isDev?: boolean;
+  manager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  global?: boolean;
+}
+
+export interface PackageScriptRunRequest {
+  scriptName: string;
+  manager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+}
+
+export interface PackageManagerResponse {
+  success: boolean;
+  message: string;
+  output?: string;
+  error?: string;
+}

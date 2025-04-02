@@ -1,7 +1,7 @@
-
 import OpenAI from "openai";
 import { storage } from "./storage";
-import { File } from "@shared/schema";
+import { openai } from "./openai";
+import { installPackage, uninstallPackage, runScript, getPackageInfo } from "./packageManager";
 
 import { getActiveModel } from "./openai";
 
@@ -28,9 +28,72 @@ interface AssistantResponse {
 }
 
 /**
- * Procesa mensajes del asistente de código y devuelve una respuesta
- * con posibles cambios a archivos
+ * Tipos para acciones del asistente relacionadas con paquetes
  */
+interface PackageAction {
+  type: 'install' | 'uninstall' | 'run-script' | 'info';
+  packageName?: string;
+  version?: string; 
+  isDev?: boolean;
+  scriptName?: string;
+  manager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+}
+
+/**
+ * Detecta si el mensaje contiene un comando para el gestor de paquetes
+ */
+function detectPackageCommand(message: string): PackageAction | null {
+  // Patrones para comandos de paquetes
+  const installPattern = /instalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)(\s+versión\s+([0-9.^~><= ]+))?(\s+como dev(eloper)?)?/i;
+  const uninstallPattern = /desinstalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i;
+  const runScriptPattern = /ejecutar? (script|comando)\s+([a-zA-Z0-9\-_]+)/i;
+  const infoPattern = /información (sobre|de) (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i;
+
+  // Verificar instalación
+  const installMatch = message.match(installPattern);
+  if (installMatch) {
+    return {
+      type: 'install',
+      packageName: installMatch[2],
+      version: installMatch[4],
+      isDev: !!installMatch[5],
+      manager: 'npm'
+    };
+  }
+
+  // Verificar desinstalación
+  const uninstallMatch = message.match(uninstallPattern);
+  if (uninstallMatch) {
+    return {
+      type: 'uninstall',
+      packageName: uninstallMatch[2],
+      manager: 'npm'
+    };
+  }
+
+  // Verificar ejecución de script
+  const runScriptMatch = message.match(runScriptPattern);
+  if (runScriptMatch) {
+    return {
+      type: 'run-script',
+      scriptName: runScriptMatch[2],
+      manager: 'npm'
+    };
+  }
+
+  // Verificar información de paquete
+  const infoMatch = message.match(infoPattern);
+  if (infoMatch) {
+    return {
+      type: 'info',
+      packageName: infoMatch[3],
+      manager: 'npm'
+    };
+  }
+
+  return null;
+}
+
 export async function processAssistantChat(request: AssistantRequest): Promise<AssistantResponse> {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -50,7 +113,7 @@ export async function processAssistantChat(request: AssistantRequest): Promise<A
 
     // Preparar mensaje del sistema
     const systemMessage = `Eres un asistente de programación experto que ayuda a modificar y crear código.
-    
+
 Tu tarea principal es ayudar al usuario a realizar cambios en su código cuando te lo solicite.
 
 Cuando el usuario quiera modificar un archivo existente o crear uno nuevo, deberás responder con:
@@ -95,7 +158,7 @@ IMPORTANTE:
 
     // Usar el modelo especificado o el modelo activo como respaldo
     let modelToUse = request.modelId || getActiveModel();
-    
+
     // Validar que el modelo sea válido, en caso contrario usar el modelo por defecto
     try {
       // Llamar a la API de OpenAI
@@ -104,14 +167,112 @@ IMPORTANTE:
         messages,
         temperature: 0.7,
       });
-      
+
+      // Detectar si es un comando para el gestor de paquetes
+      const packageCommand = detectPackageCommand(request.message);
+
+      if (packageCommand) {
+        let result;
+        try {
+          switch (packageCommand.type) {
+            case 'install':
+              if (!packageCommand.packageName) {
+                return {
+                  message: "No se especificó un nombre de paquete válido para instalar.",
+                  fileChanges: undefined
+                };
+              }
+
+              result = await installPackage({
+                packageName: packageCommand.packageName,
+                version: packageCommand.version,
+                isDev: packageCommand.isDev,
+                manager: packageCommand.manager
+              });
+
+              return {
+                message: result.success 
+                  ? `✅ Paquete **${packageCommand.packageName}** instalado correctamente.\n\n${result.output || ''}` 
+                  : `❌ Error al instalar **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+                fileChanges: undefined
+              };
+
+            case 'uninstall':
+              if (!packageCommand.packageName) {
+                return {
+                  message: "No se especificó un nombre de paquete válido para desinstalar.",
+                  fileChanges: undefined
+                };
+              }
+
+              result = await uninstallPackage({
+                packageName: packageCommand.packageName,
+                manager: packageCommand.manager
+              });
+
+              return {
+                message: result.success 
+                  ? `✅ Paquete **${packageCommand.packageName}** desinstalado correctamente.` 
+                  : `❌ Error al desinstalar **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+                fileChanges: undefined
+              };
+
+            case 'run-script':
+              if (!packageCommand.scriptName) {
+                return {
+                  message: "No se especificó un nombre de script válido para ejecutar.",
+                  fileChanges: undefined
+                };
+              }
+
+              result = await runScript(
+                packageCommand.scriptName,
+                packageCommand.manager
+              );
+
+              return {
+                message: result.success 
+                  ? `✅ Script **${packageCommand.scriptName}** ejecutado correctamente.\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
+                  : `❌ Error al ejecutar script **${packageCommand.scriptName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+                fileChanges: undefined
+              };
+
+            case 'info':
+              if (!packageCommand.packageName) {
+                return {
+                  message: "No se especificó un nombre de paquete válido para obtener información.",
+                  fileChanges: undefined
+                };
+              }
+
+              result = await getPackageInfo(
+                packageCommand.packageName,
+                packageCommand.manager
+              );
+
+              return {
+                message: result.success 
+                  ? `📦 Información de **${packageCommand.packageName}**:\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
+                  : `❌ Error al obtener información de **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+                fileChanges: undefined
+              };
+          }
+        } catch (error) {
+          return {
+            message: `❌ Error al procesar comando de paquete: ${error instanceof Error ? error.message : String(error)}`,
+            fileChanges: undefined
+          };
+        }
+      }
+
+
       return {
         message: response.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.",
         fileChanges: extractFileChanges(response.choices[0].message.content || "")
       };
     } catch (error) {
       console.error(`Error con el modelo ${modelToUse}:`, error);
-      
+
       // Si hay error con el modelo seleccionado, intentar con gpt-4o como respaldo
       if (modelToUse !== "gpt-4o") {
         try {
@@ -121,7 +282,7 @@ IMPORTANTE:
             messages,
             temperature: 0.7,
           });
-          
+
           return {
             message: fallbackResponse.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.",
             fileChanges: extractFileChanges(fallbackResponse.choices[0].message.content || "")
@@ -148,13 +309,13 @@ function extractFileChanges(text: string): Array<{file: string, content: string}
     // Buscar bloque JSON con los cambios propuestos
     const jsonMatch = text.match(/```json\s*({[\s\S]*?})\s*```/);
     if (!jsonMatch) return undefined;
-    
+
     const jsonData = JSON.parse(jsonMatch[1]);
-    
+
     if (jsonData.fileChanges && Array.isArray(jsonData.fileChanges)) {
       return jsonData.fileChanges;
     }
-    
+
     return undefined;
   } catch (error) {
     console.error("Error extracting file changes:", error);

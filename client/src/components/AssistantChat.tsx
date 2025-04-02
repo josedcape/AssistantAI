@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -39,7 +38,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
   const [modelId, setModelId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  
+
   // Cargar el modelo activo al inicio
   useEffect(() => {
     const fetchActiveModel = async () => {
@@ -66,7 +65,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
         setModelId("gpt-4o");
       }
     };
-    
+
     fetchActiveModel();
   }, []);
 
@@ -79,50 +78,68 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
-    
+
     const userMessage: Message = {
       id: generateId(),
       role: "user",
       content: input,
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    
-    try {
-      // Agregar mensaje de espera mientras se procesa
-      const loadingId = generateId();
-      setMessages(prev => [...prev, {
-        id: loadingId,
-        role: "assistant",
-        content: "Pensando...",
-        timestamp: new Date()
-      }]);
 
-      // Hacer la petición al servidor
+    // Detectar si es un comando de paquete
+    const isPackageCommand = /^(instalar|desinstalar|ejecutar|información)\s+(paquete|librería|biblioteca|dependencia|módulo|script|comando|sobre|de)/i.test(input);
+
+    try {
+      // Agregar mensaje de espera mientras se procesa (solo para comandos de paquete)
+      const loadingMessage = isPackageCommand ? {
+        id: generateId(),
+        role: "assistant",
+        content: "⏳ Procesando comando de gestión de paquetes...",
+        timestamp: new Date()
+      } : null;
+
+      if (loadingMessage) {
+        setMessages(prev => [...prev, loadingMessage]);
+      }
+
       const response = await apiRequest("POST", "/api/assistant-chat", {
         message: input,
         projectId,
-        modelId: modelId, // Incluir el modelo seleccionado
+        modelId: modelId, 
         history: messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
       });
-      
+
       const result = await response.json();
-      
-      // Reemplazar el mensaje de carga con la respuesta real
-      setMessages(prev => prev.map(m => 
-        m.id === loadingId ? {
+
+      if (isPackageCommand) {
+        // Reemplazar el mensaje de carga con la respuesta real
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const loadingIndex = newMessages.findIndex(msg => msg.content === "⏳ Procesando comando de gestión de paquetes...");
+          if (loadingIndex !== -1) {
+            newMessages[loadingIndex] = {
+              ...newMessages[loadingIndex],
+              content: result.message,
+            };
+          }
+          return newMessages;
+        });
+      } else {
+        //Respuesta normal
+        setMessages(prev => [...prev, {
           id: generateId(),
           role: "assistant",
           content: result.message,
           timestamp: new Date(),
           fileChanges: result.fileChanges || []
-        } : m
-      ));
-      
-      // Si hay cambios de archivos, mostrar botón para aplicarlos
+        }]);
+      }
+
+      // Manejo de cambios de archivo (igual que antes)
       if (result.fileChanges && result.fileChanges.length > 0 && onApplyChanges) {
         setTimeout(() => {
           if (confirm("¿Deseas aplicar los cambios propuestos a los archivos?")) {
@@ -141,9 +158,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
         description: "No se pudo procesar tu solicitud. Inténtalo de nuevo.",
         variant: "destructive"
       });
-      
+
       // Eliminar mensaje de carga y mostrar error
-      setMessages(prev => [...prev.filter(m => m.content !== "Pensando..."), {
+      setMessages(prev => [...prev.filter(m => m.content !== "⏳ Procesando comando de gestión de paquetes..."), {
         id: generateId(),
         role: "assistant",
         content: "Lo siento, ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo.",
@@ -168,12 +185,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
     const functions = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\(/g;
     const brackets = /(\{|\}|\(|\)|\[|\])/g;
     const components = /(<)([A-Z][a-zA-Z0-9]*)(\s|>|\/>)/g;
-    
+
     // Escapar caracteres HTML
     let highlightedCode = code.replace(/&/g, "&amp;")
                              .replace(/</g, "&lt;")
                              .replace(/>/g, "&gt;");
-    
+
     // Aplicar resaltado según el lenguaje
     if (language === 'js' || language === 'javascript' || language === 'ts' || language === 'typescript' || language === 'jsx' || language === 'tsx') {
       // Aplicar resaltado para JavaScript/TypeScript/JSX/TSX
@@ -185,7 +202,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
         .replace(numbers, '<span class="text-orange-300">$&</span>')
         .replace(functions, '<span class="text-blue-400">$1</span>(')
         .replace(brackets, '<span class="text-slate-400">$&</span>');
-        
+
       if (language === 'jsx' || language === 'tsx') {
         highlightedCode = highlightedCode
           .replace(components, '$1<span class="text-green-400">$2</span>$3')
@@ -340,7 +357,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
           </Button>
         </div>
       </div>
-      
+
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.map((message) => (
@@ -373,9 +390,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
                     <i className="ri-clipboard-line"></i>
                   </Button>
                 )}
-                
+
                 {renderMessageContent(message.content)}
-                
+
                 {message.fileChanges && message.fileChanges.length > 0 && (
                   <div className="mt-3 border-t pt-2">
                     <p className="text-sm font-medium mb-2">Cambios propuestos:</p>
@@ -403,7 +420,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
                     </div>
                   </div>
                 )}
-                
+
                 <div className="text-xs opacity-70 mt-1 text-right">
                   {new Date(message.timestamp).toLocaleTimeString()}
                 </div>
@@ -413,7 +430,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      
+
       <div className="p-3 border-t">
         <div className="flex">
           <Textarea

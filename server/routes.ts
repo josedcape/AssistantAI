@@ -9,6 +9,7 @@ import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } fr
 import { z } from "zod";
 import multer from "multer";
 import { downloadFromUrl, processUploadedFile, searchInDocuments, getDocumentContent } from "./documents";
+import { installPackage, uninstallPackage, listPackages, runScript, getPackageInfo } from "./packageManager";
 
 
 const upload = multer();
@@ -578,6 +579,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error extrayendo repositorio:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Error desconocido al extraer archivos"
+      });
+    }
+  });
+
+  // Endpoints para el gestor de paquetes
+  apiRouter.post("/packages/install", async (req: Request, res: Response) => {
+    try {
+      const packageSchema = z.object({
+        packageName: z.string().min(1),
+        version: z.string().optional(),
+        isDev: z.boolean().optional(),
+        manager: z.enum(['npm', 'yarn', 'pnpm', 'bun']).optional(),
+        global: z.boolean().optional()
+      });
+
+      const validatedData = packageSchema.parse(req.body);
+      const result = await installPackage(validatedData);
+      
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error instalando paquete:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Datos inválidos para la instalación", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: "Error al instalar paquete",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
+  apiRouter.post("/packages/uninstall", async (req: Request, res: Response) => {
+    try {
+      const packageSchema = z.object({
+        packageName: z.string().min(1),
+        isDev: z.boolean().optional(),
+        manager: z.enum(['npm', 'yarn', 'pnpm', 'bun']).optional(),
+        global: z.boolean().optional()
+      });
+
+      const validatedData = packageSchema.parse(req.body);
+      const result = await uninstallPackage(validatedData);
+      
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error desinstalando paquete:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Datos inválidos para la desinstalación", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: "Error al desinstalar paquete",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
+  apiRouter.get("/packages/list", async (req: Request, res: Response) => {
+    try {
+      const manager = req.query.manager as 'npm' | 'yarn' | 'pnpm' | 'bun' || 'npm';
+      const result = await listPackages(manager);
+      
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error listando paquetes:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error al listar paquetes",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
+  apiRouter.post("/packages/run-script", async (req: Request, res: Response) => {
+    try {
+      const scriptSchema = z.object({
+        scriptName: z.string().min(1),
+        manager: z.enum(['npm', 'yarn', 'pnpm', 'bun']).optional()
+      });
+
+      const validatedData = scriptSchema.parse(req.body);
+      const result = await runScript(validatedData.scriptName, validatedData.manager);
+      
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error ejecutando script:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Datos inválidos para ejecutar script", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: "Error al ejecutar script",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
+  apiRouter.get("/packages/info/:packageName", async (req: Request, res: Response) => {
+    try {
+      const packageName = req.params.packageName;
+      const manager = req.query.manager as 'npm' | 'yarn' | 'pnpm' | 'bun' || 'npm';
+      
+      if (!packageName) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Nombre de paquete requerido"
+        });
+      }
+      
+      const result = await getPackageInfo(packageName, manager);
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error obteniendo información del paquete:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error al obtener información del paquete",
+        error: error instanceof Error ? error.message : "Error desconocido"
       });
     }
   });
