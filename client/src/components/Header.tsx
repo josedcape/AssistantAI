@@ -1,243 +1,137 @@
-import { useContext, useState, useEffect } from "react";
-import { useLocation, Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { ThemeContext } from "@/App";
-import NewProjectModal from "./NewProjectModal";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Link } from "wouter";
 import ThemeToggle from "./ThemeToggle";
-import { ModelSelector } from "@/components/ModelSelector"; // Added import for ModelSelector
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { AlignJustify, Volume2, VolumeX } from "lucide-react";
+import { useState, useEffect } from "react";
+import { sounds } from "@/lib/sounds";
 
 const Header = () => {
-  const { isDarkMode, toggleDarkMode } = useContext(ThemeContext);
-  const [location] = useLocation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [soundEnabled, setSoundEnabled] = useState(sounds.isEnabled());
+  const [animationClass, setAnimationClass] = useState('');
 
-  // Close mobile menu when route changes
+  // Efecto para manejar animación al cargar
   useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location]);
+    setAnimationClass('animate-fade-slide-down');
 
-  // Close mobile menu when clicking outside of it
-  useEffect(() => {
-    if (!isMenuOpen) return;
+    // Reproducir sonido de inicio al cargar el header
+    if (soundEnabled) {
+      setTimeout(() => sounds.play('notification', 0.2), 500);
+    }
 
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('#mobile-menu') && !target.closest('#mobile-menu-button')) {
-        setIsMenuOpen(false);
-      }
+    return () => {
+      setAnimationClass('');
     };
+  }, []);
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [isMenuOpen]);
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const handleLinkHover = () => {
+    if (soundEnabled) sounds.play('hover', 0.1);
   };
 
-  const isHome = location === "/";
+  const handleLinkClick = () => {
+    if (soundEnabled) sounds.play('click', 0.3);
+  };
+
+  const toggleSound = () => {
+    const isEnabled = sounds.toggle();
+    setSoundEnabled(isEnabled);
+    sounds.play(isEnabled ? 'success' : 'error', 0.3);
+  };
 
   return (
-    <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14 sm:h-16">
-          {/* Logo and main nav */}
-          <div className="flex items-center">
-            <Link href="/">
-              <a className="flex-shrink-0 flex items-center">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg gradient-bg flex items-center justify-center mr-2">
-                  <i className="ri-code-box-line text-white text-base sm:text-xl"></i>
-                </div>
-                <span className="text-lg sm:text-xl font-bold golden-text">CODESTORM</span>
-              </a>
-            </Link>
+    <header className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border ${animationClass}`}>
+      <div className="flex items-center justify-between h-16 px-4">
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center" onClick={handleLinkClick}>
+            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center mr-2 animate-pulse-glow">
+              <i className="ri-code-box-line text-white text-sm"></i>
+            </div>
+            <span className="font-bold text-lg hidden sm:block animate-typewriter">
+              <span className="golden-text">CODESTORM AI</span>
+            </span>
+          </Link>
+        </div>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:ml-6 md:flex md:space-x-4">
-              <Link href="/">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
-                  isHome 
-                    ? "bg-slate-100 dark:bg-slate-700" 
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}>
-                  <i className="ri-home-6-line mr-1.5 text-primary-500"></i>
-                  Inicio
-                </a>
+        {isMobile ? (
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSound} 
+              className="mr-2 hover-lift"
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hover-lift" onClick={() => sounds.play('click', 0.2)}>
+                  <AlignJustify className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="animate-fade-slide-up futuristic-border">
+                <DropdownMenuItem onMouseEnter={handleLinkHover}>
+                  <Link href="/" onClick={handleLinkClick}>Inicio</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onMouseEnter={handleLinkHover}>
+                  <Link href="/workspace" onClick={handleLinkClick}>Workspace</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onMouseEnter={handleLinkHover}>
+                  <Link href="/tutorials" onClick={handleLinkClick}>Tutoriales</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : (
+          <div className="flex space-x-4 items-center">
+            <nav className="flex items-center space-x-4 lg:space-x-6 mr-4">
+              <Link 
+                href="/" 
+                className="text-sm font-medium transition-colors hover:text-primary hover-lift"
+                onMouseEnter={handleLinkHover}
+                onClick={handleLinkClick}
+              >
+                Inicio
               </Link>
-              <Link href="/projects">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                  <i className="ri-code-box-line mr-1.5 text-blue-500"></i>
-                  Mis Proyectos
-                </a>
+              <Link 
+                href="/workspace" 
+                className="text-sm font-medium transition-colors hover:text-primary hover-lift"
+                onMouseEnter={handleLinkHover}
+                onClick={handleLinkClick}
+              >
+                Workspace
               </Link>
-              <Link href="/tutorials">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                  <i className="ri-book-2-line mr-1.5 text-purple-500"></i>
-                  Tutoriales
-                </a>
-              </Link>
-              <Link href="/docs">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                  <i className="ri-file-code-line mr-1.5 text-teal-500"></i>
-                  Documentación
-                </a>
-              </Link>
-              <Link href="/development-plan">
-                <a className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                  <i className="ri-rocket-2-line mr-1.5 text-amber-500"></i>
-                  Plan de Desarrollo
-                </a>
+              <Link 
+                href="/tutorials" 
+                className="text-sm font-medium transition-colors hover:text-primary hover-lift"
+                onMouseEnter={handleLinkHover}
+                onClick={handleLinkClick}
+              >
+                Tutoriales
               </Link>
             </nav>
-          </div>
 
-          {/* Account nav and buttons */}
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <ModelSelector /> {/* Added ModelSelector */}
-            <ThemeToggle />
-
-            {/* New Project button - desktop */}
             <Button 
-              onClick={() => setIsModalOpen(true)}
-              className="hidden sm:flex items-center text-sm"
-              size={isMobile ? "sm" : "default"}
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSound} 
+              className="mr-2 hover-lift"
+              onMouseEnter={handleLinkHover}
             >
-              <i className="ri-add-line mr-1"></i> Nuevo
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
 
-            {/* New Project button - mobile */}
-            <Button 
-              onClick={() => setIsModalOpen(true)}
-              className="sm:hidden flex items-center" 
-              size="icon"
-              variant="ghost"
-            >
-              <i className="ri-add-line text-lg"></i>
-            </Button>
-
-            <div className="relative">
-              <button className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                <img 
-                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-full" 
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                  alt="User profile"
-                />
-              </button>
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="flex items-center md:hidden">
-              <button 
-                id="mobile-menu-button"
-                type="button" 
-                className="p-1.5 inline-flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
-                onClick={toggleMenu}
-                aria-expanded={isMenuOpen}
-                aria-label="Menú principal"
-              >
-                <i className={`${isMenuOpen ? 'ri-close-line' : 'ri-menu-line'} text-xl`}></i>
-              </button>
-            </div>
+            <ThemeToggle onHover={handleLinkHover} onClick={handleLinkClick} />
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Mobile menu - with slide animation */}
-      <div
-        id="mobile-menu"
-        className={`fixed inset-0 z-50 bg-slate-900/50 md:hidden transform transition-transform duration-300 ease-in-out ${
-          isMenuOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setIsMenuOpen(false);
-        }}
-      >
-        <div className="absolute right-0 top-0 h-full w-64 bg-white dark:bg-slate-800 shadow-xl transform transition-transform duration-300 ease-in-out">
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center mr-2">
-                  <i className="ri-code-box-line text-white text-base"></i>
-                </div>
-                <span className="font-bold">CodeCraft AI</span>
-              </div>
-              <button 
-                className="p-1.5 text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <i className="ri-close-line text-xl"></i>
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <Link href="/">
-                <a className={`block px-3 py-2.5 rounded-md text-base font-medium ${
-                  isHome 
-                    ? "bg-slate-100 dark:bg-slate-700" 
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}>
-                  <div className="flex items-center">
-                    <i className="ri-home-6-line mr-3 text-primary-500"></i>
-                    <span>Inicio</span>
-                  </div>
-                </a>
-              </Link>
-              <Link href="/projects">
-                <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
-                  <div className="flex items-center">
-                    <i className="ri-code-box-line mr-3 text-blue-500"></i>
-                    <span>Mis Proyectos</span>
-                  </div>
-                </a>
-              </Link>
-              <Link href="/tutorials">
-                <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
-                  <div className="flex items-center">
-                    <i className="ri-book-2-line mr-3 text-purple-500"></i>
-                    <span>Tutoriales</span>
-                  </div>
-                </a>
-              </Link>
-              <Link href="/docs">
-                <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
-                  <div className="flex items-center">
-                    <i className="ri-file-code-line mr-3 text-teal-500"></i>
-                    <span>Documentación</span>
-                  </div>
-                </a>
-              </Link>
-              <Link href="/development-plan">
-                <a className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block px-3 py-2.5 rounded-md text-base font-medium">
-                  <div className="flex items-center">
-                    <i className="ri-rocket-2-line mr-3 text-amber-500"></i>
-                    <span>Plan de Desarrollo</span>
-                  </div>
-                </a>
-              </Link>
-            </div>
-
-            <div className="pt-5 mt-5 border-t border-slate-200 dark:border-slate-700">
-              <Button
-                onClick={() => {
-                  setIsModalOpen(true);
-                  setIsMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-center"
-              >
-                <img src="/attached_assets/robot-logo.jpg" alt="Robot Logo" className="w-6 h-6 mr-2 rounded-full" /> Nuevo Proyecto
-              </Button>
-
-              <ThemeToggle variant="full" className="mt-4" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* New Project Modal */}
-      {isModalOpen && <NewProjectModal onClose={() => setIsModalOpen(false)} />}
     </header>
   );
 };

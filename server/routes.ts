@@ -10,6 +10,7 @@ import { z } from "zod";
 import multer from "multer";
 import { downloadFromUrl, processUploadedFile, searchInDocuments, getDocumentContent } from "./documents";
 import { installPackage, uninstallPackage, listPackages, runScript, getPackageInfo } from "./packageManager";
+import { setupSoundsRoutes } from "./sounds"; // Added import for sound routes
 
 
 const upload = multer();
@@ -596,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = packageSchema.parse(req.body);
       const result = await installPackage(validatedData);
-      
+
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
       console.error("Error instalando paquete:", error);
@@ -626,7 +627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = packageSchema.parse(req.body);
       const result = await uninstallPackage(validatedData);
-      
+
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
       console.error("Error desinstalando paquete:", error);
@@ -649,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const manager = req.query.manager as 'npm' | 'yarn' | 'pnpm' | 'bun' || 'npm';
       const result = await listPackages(manager);
-      
+
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
       console.error("Error listando paquetes:", error);
@@ -670,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = scriptSchema.parse(req.body);
       const result = await runScript(validatedData.scriptName, validatedData.manager);
-      
+
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
       console.error("Error ejecutando script:", error);
@@ -693,14 +694,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const packageName = req.params.packageName;
       const manager = req.query.manager as 'npm' | 'yarn' | 'pnpm' | 'bun' || 'npm';
-      
+
       if (!packageName) {
         return res.status(400).json({ 
           success: false,
           message: "Nombre de paquete requerido"
         });
       }
-      
+
       const result = await getPackageInfo(packageName, manager);
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
@@ -848,6 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (!styleEl) {
               // Crear nuevo elemento style si no existe
+              styleEl =              // Crear nuevo elemento style si no existe
               styleEl = document.createElement('style');
               styleEl.id = styleId;
               document.head.appendChild(styleEl);
@@ -1148,7 +1150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.status === 'true') {
         // Obtener el estado de despliegue del proyecto
         const deploymentStatus = await storage.getProjectDeploymentStatus(projectId);
-        
+
         return res.json({
           success: true,
           deployed: deploymentStatus?.status === 'deployed',
@@ -1288,8 +1290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let styleEl = document.getElementById(styleId);
 
             if (!styleEl) {
-              // Crear nuevo elemento style si no existe
-              styleEl = document.createElement('style');
+document.createElement('style');
               styleEl.id = styleId;
               document.head.appendChild(styleEl);
             }
@@ -1490,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obtener los modelos y el modelo activo
       const models = getAvailableModels();
       const activeModel = getActiveModel();
-      
+
       // Verificar que haya datos válidos
       if (!models || Object.keys(models).length === 0) {
         console.warn("No se encontraron modelos disponibles");
@@ -1504,7 +1505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           activeModel: "gpt-4o"
         });
       }
-      
+
       // Responder con los modelos
       res.status(200).json({
         models: models,
@@ -1537,10 +1538,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = modelSchema.parse(req.body);
       const requestedModel = validatedData.modelId;
-      
+
       // Intentar cambiar el modelo
       const success = setActiveModel(requestedModel);
-      
+
       if (success) {
         // Modelo cambiado exitosamente
         console.log(`Modelo cambiado correctamente a: ${requestedModel}`);
@@ -1576,6 +1577,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Configurar rutas para los efectos de sonido
+  setupSoundsRoutes(apiRouter); // Added sound routes setup
 
   // Register API routes
   app.use("/api", apiRouter);

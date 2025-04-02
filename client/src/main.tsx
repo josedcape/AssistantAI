@@ -1,13 +1,32 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./animations.css";
 import 'highlight.js/styles/github-dark.css'
 
-// Cargar fuente JetBrains Mono para código
+// Cargar fuentes
 const fontLink = document.createElement('link');
 fontLink.rel = 'stylesheet';
-fontLink.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap';
+fontLink.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap';
 document.head.appendChild(fontLink);
+
+// Crear directorio de sonidos si es necesario
+const createAudioDirectoryIfNeeded = async () => {
+  try {
+    // Esta función se ejecutará cuando el usuario interactúe con la página
+    const setupSounds = () => {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Esto inicializa el contexto de audio que usarán los efectos de sonido
+      document.removeEventListener('click', setupSounds);
+    };
+    document.addEventListener('click', setupSounds);
+  } catch (e) {
+    console.warn('Audio context not supported in this browser');
+  }
+};
+
+// Inicializar sistema de audio cuando se cargue el documento
+document.addEventListener('DOMContentLoaded', createAudioDirectoryIfNeeded);
 
 // Add custom CSS for code styling and other specific styles
 const style = document.createElement('style');

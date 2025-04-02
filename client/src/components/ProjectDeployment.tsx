@@ -1,302 +1,309 @@
+// sounds.js
+export const sounds = {
+  deploy: new Audio('/sounds/deploy.mp3'), // Replace with actual sound file paths
+  success: new Audio('/sounds/success.mp3'),
+  error: new Audio('/sounds/error.mp3'),
+  click: new Audio('/sounds/click.mp3'),
+  hover: new Audio('/sounds/hover.mp3'),
+  play: (soundName, volume) => {
+    const sound = sounds[soundName];
+    if (sound) {
+      sound.volume = volume;
+      sound.play();
+    }
+  }
+};
 
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { apiRequest } from "@/lib/queryClient";
-import { Project } from "@shared/schema";
 
-interface ProjectDeploymentProps {
-  projectId: number;
-  files: any[];
-  refreshFiles: () => void;
+// styles.css
+.futuristic-border {
+  border: 2px solid rgba(0, 255, 255, 0.2); /* Example futuristic border */
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
-export function ProjectDeployment({ projectId, files, refreshFiles }: ProjectDeploymentProps) {
-  const { toast } = useToast();
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.5s ease-in-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
+.scanline-effect {
+  background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 2px 100%;
+}
+
+.hover-lift {
+  transition: transform 0.2s ease-in-out;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0);
+  }
+}
+
+
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Rocket, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { sounds } from "@/lib/sounds";
+
+interface ProjectDeploymentProps {
+  projectId: string;
+  projectName: string;
+}
+
+const ProjectDeployment = ({ projectId, projectName }: ProjectDeploymentProps) => {
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'deployed' | 'error'>('idle');
   const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("preview");
-  
-  // Verificar si hay un despliegue activo al cargar el componente
+  const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "deployed" | "failed">("idle");
+  const [deploymentProgress, setDeploymentProgress] = useState(0);
+  const [animationClass, setAnimationClass] = useState('');
+
   useEffect(() => {
-    checkDeploymentStatus();
-  }, [projectId]);
+    // Añadir animación cuando el componente se monta
+    setAnimationClass('animate-fade-slide-up');
 
-  // Función para verificar el estado del despliegue
-  const checkDeploymentStatus = async () => {
-    try {
-      const response = await apiRequest("GET", `/api/projects/${projectId}/preview?status=true`);
-      const data = await response.json();
-      
-      if (data.deployed) {
-        setDeploymentStatus('deployed');
-        setDeploymentUrl(`/api/projects/${projectId}/preview`);
-      }
-    } catch (error) {
-      console.error("Error checking deployment status:", error);
-    }
-  };
+    return () => {
+      setAnimationClass('');
+    };
+  }, []);
 
-  // Función para desplegar el proyecto
-  const deployProject = async () => {
-    if (!files || files.length === 0) {
-      toast({
-        title: "Error",
-        description: "El proyecto no tiene archivos para desplegar",
-        variant: "destructive"
-      });
-      return;
-    }
+  useEffect(() => {
+    // Simular progreso de despliegue
+    let interval: ReturnType<typeof setInterval>;
 
-    try {
-      setIsDeploying(true);
-      setDeploymentStatus('deploying');
-      setLogs(prev => [...prev, "Iniciando despliegue del proyecto..."]);
-
-      // Verificar si hay archivos HTML en el proyecto
-      const hasHtmlFile = files.some(file => file.type === 'html' || file.name.toLowerCase().endsWith('.html'));
-      
-      if (!hasHtmlFile) {
-        setLogs(prev => [...prev, "⚠️ Advertencia: No se encontraron archivos HTML en el proyecto"]);
-      }
-
-      // Solicitar el despliegue al servidor
-      const response = await apiRequest("POST", `/api/projects/${projectId}/deploy`, {
-        forceRebuild: true
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setDeploymentStatus('deployed');
-        setDeploymentUrl(`/api/projects/${projectId}/preview`);
-        setLogs(prev => [...prev, "✅ Proyecto desplegado correctamente"]);
-        
-        toast({
-          title: "Despliegue exitoso",
-          description: "El proyecto ha sido desplegado y está listo para visualizarse",
+    if (isDeploying) {
+      interval = setInterval(() => {
+        setDeploymentProgress(prev => {
+          const newProgress = prev + (Math.random() * 15);
+          return newProgress > 95 ? 95 : newProgress;
         });
-      } else {
-        throw new Error(result.message || "Error en el despliegue");
+      }, 500);
+    } else if (deploymentStatus === "deployed") {
+      setDeploymentProgress(100);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isDeploying, deploymentStatus]);
+
+  const deployProject = async () => {
+    setIsDeploying(true);
+    setDeploymentStatus("deploying");
+    setDeploymentProgress(0);
+
+    // Reproducir sonido al iniciar despliegue
+    sounds.play('deploy', 0.4);
+
+    try {
+      // Simular tiempo de despliegue
+      await new Promise(resolve => setTimeout(resolve, 3500));
+
+      const response = await fetch(`/api/projects/${projectId}/deploy`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al desplegar el proyecto");
       }
-    } catch (error) {
-      console.error("Error deploying project:", error);
-      setDeploymentStatus('error');
-      setLogs(prev => [...prev, `❌ Error: ${error instanceof Error ? error.message : "Error desconocido"}`]);
-      
+
+      const data = await response.json();
+      setDeploymentUrl(data.deploymentUrl || `https://${projectName.toLowerCase().replace(/\s+/g, '-')}.codestorm-app.com`);
+      setDeploymentStatus("deployed");
+
+      // Reproducir sonido de éxito
+      sounds.play('success', 0.4);
+
       toast({
-        title: "Error de despliegue",
-        description: "No se pudo desplegar el proyecto. Intente nuevamente.",
-        variant: "destructive"
+        title: "¡Proyecto desplegado!",
+        description: "Tu proyecto ha sido desplegado exitosamente.",
+      });
+    } catch (error) {
+      console.error("Error desplegando el proyecto:", error);
+      setDeploymentStatus("failed");
+
+      // Reproducir sonido de error
+      sounds.play('error', 0.4);
+
+      toast({
+        title: "Error al desplegar",
+        description: "No se pudo desplegar el proyecto. Inténtalo de nuevo.",
+        variant: "destructive",
       });
     } finally {
       setIsDeploying(false);
     }
   };
 
+  const copyToClipboard = () => {
+    if (deploymentUrl) {
+      navigator.clipboard.writeText(deploymentUrl);
+
+      // Reproducir sonido al copiar
+      sounds.play('click', 0.3);
+
+      toast({
+        title: "¡URL copiada!",
+        description: "URL de despliegue copiada al portapapeles.",
+      });
+    }
+  };
+
+  const handleButtonHover = () => {
+    sounds.play('hover', 0.1);
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-slate-200 dark:border-slate-700 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium">Despliegue del Proyecto</h2>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${
-              deploymentStatus === 'idle' ? 'bg-slate-400' : 
-              deploymentStatus === 'deploying' ? 'bg-yellow-400 animate-pulse' : 
-              deploymentStatus === 'deployed' ? 'bg-green-500' : 
-              'bg-red-500'
-            }`}></div>
-            <span className="text-sm">
-              {deploymentStatus === 'idle' ? 'No desplegado' : 
-               deploymentStatus === 'deploying' ? 'Desplegando...' : 
-               deploymentStatus === 'deployed' ? 'Desplegado' : 
-               'Error'}
-            </span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={deployProject}
-            disabled={isDeploying}
-            className="flex items-center gap-2"
-          >
-            {isDeploying ? (
-              <>
-                <i className="ri-loader-4-line animate-spin"></i>
-                Desplegando...
-              </>
-            ) : (
-              <>
-                <i className="ri-rocket-line"></i>
-                Desplegar Proyecto
-              </>
-            )}
-          </Button>
-          {deploymentUrl && (
-            <Button 
-              variant="outline"
-              onClick={() => window.open(deploymentUrl, '_blank')}
-              className="flex items-center gap-2"
-            >
-              <i className="ri-external-link-line"></i>
-              Abrir en Nueva Pestaña
-            </Button>
-          )}
-          <Button 
-            variant="outline"
-            onClick={refreshFiles}
-            className="flex items-center gap-2"
-          >
-            <i className="ri-refresh-line"></i>
-            Actualizar Archivos
-          </Button>
-        </div>
-      </div>
+    <Card className={`w-full futuristic-border ${animationClass}`}>
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold flex items-center">
+          <Rocket className="mr-2 h-5 w-5 animate-float" /> Despliegue de Proyecto
+        </CardTitle>
+        <CardDescription>
+          Despliega tu proyecto para compartirlo con otros
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {deploymentStatus === "deployed" ? (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center space-x-2">
+                <Check className="h-5 w-5 text-green-500 animate-pulse-glow" />
+                <span className="text-sm font-medium">Proyecto desplegado exitosamente</span>
+              </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b border-slate-200 dark:border-slate-700">
-          <TabsList className="px-4">
-            <TabsTrigger value="preview" className="flex items-center gap-1.5">
-              <i className="ri-eye-line text-green-500"></i>Vista Previa
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="flex items-center gap-1.5">
-              <i className="ri-terminal-line text-purple-500"></i>Logs
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-1.5">
-              <i className="ri-settings-line text-blue-500"></i>Configuración
-            </TabsTrigger>
-          </TabsList>
-        </div>
+              {/* Barra de progreso completa */}
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
+                <div 
+                  className="bg-green-500 h-2.5 rounded-full transition-all duration-500 ease-out animate-pulse-glow" 
+                  style={{ width: '100%' }}
+                ></div>
+              </div>
 
-        <TabsContent value="preview" className="flex-1 p-0 m-0">
-          {deploymentUrl ? (
-            <iframe 
-              src={deploymentUrl}
-              className="w-full h-full border-0"
-              title="Vista previa del proyecto"
-              sandbox="allow-scripts allow-same-origin allow-forms"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
-              <div className="text-center max-w-md p-6">
-                <div className="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="ri-rocket-line text-2xl text-slate-500 dark:text-slate-400"></i>
-                </div>
-                <h3 className="text-lg font-medium mb-2">No hay despliegue activo</h3>
-                <p className="text-slate-600 dark:text-slate-400 mb-4">
-                  Haz clic en "Desplegar Proyecto" para ver una vista previa en tiempo real de tu proyecto.
-                </p>
-                <Button onClick={deployProject} disabled={isDeploying}>
-                  {isDeploying ? 'Desplegando...' : 'Desplegar Ahora'}
+              <div className="flex items-center mt-4">
+                <Input 
+                  value={deploymentUrl || ""} 
+                  readOnly 
+                  className="flex-1 mr-2 animate-fade-slide-up"
+                />
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={copyToClipboard} 
+                  title="Copiar URL"
+                  className="hover-lift"
+                  onMouseEnter={handleButtonHover}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="ml-2 hover-lift" 
+                  onClick={() => {
+                    if (deploymentUrl) {
+                      sounds.play('click', 0.3);
+                      window.open(deploymentUrl, '_blank');
+                    }
+                  }}
+                  title="Abrir en nueva pestaña"
+                  onMouseEnter={handleButtonHover}
+                >
+                  <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="logs" className="flex-1 p-0 m-0">
-          <div className="bg-slate-900 text-slate-100 p-4 h-full overflow-auto font-mono text-sm">
-            {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <div key={index} className="mb-1">
-                  <span className="text-slate-500">[{new Date().toLocaleTimeString()}]</span> {log}
-                </div>
-              ))
-            ) : (
-              <div className="text-slate-500 italic">No hay logs disponibles</div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="config" className="flex-1 p-4 m-0 overflow-auto">
-          <Card className="p-6">
-            <h3 className="text-lg font-medium mb-4">Configuración de Despliegue</h3>
-            
+          ) : (
             <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Tipo de Proyecto</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                  El sistema detecta automáticamente el tipo de proyecto basado en los archivos disponibles.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                    <div className="flex items-start gap-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                        <i className="ri-html5-line text-blue-600 dark:text-blue-400"></i>
-                      </div>
-                      <div>
-                        <h5 className="font-medium">HTML/CSS/JS</h5>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          Aplicaciones web estáticas
-                        </p>
-                      </div>
-                    </div>
+              {isDeploying && (
+                <>
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span>Desplegando...</span>
+                    <span>{Math.round(deploymentProgress)}%</span>
                   </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden mb-4">
+                    <div 
+                      className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out scanline-effect" 
+                      style={{ width: `${deploymentProgress}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
 
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                    <div className="flex items-start gap-2">
-                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
-                        <i className="ri-nodejs-line text-green-600 dark:text-green-400"></i>
-                      </div>
-                      <div>
-                        <h5 className="font-medium">Node.js/Express</h5>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          Aplicaciones web dinámicas
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Opciones de Despliegue</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      id="auto-deploy" 
-                      className="mr-2" 
-                      checked={true}
-                      onChange={() => {}}
-                    />
-                    <label htmlFor="auto-deploy" className="text-sm">
-                      Desplegar automáticamente al guardar cambios
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      id="enable-logs" 
-                      className="mr-2" 
-                      checked={true}
-                      onChange={() => {}}
-                    />
-                    <label htmlFor="enable-logs" className="text-sm">
-                      Habilitar logs detallados
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Información sobre el Despliegue</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  El proyecto se despliega en un entorno aislado dentro de la plataforma, permitiendo
-                  la ejecución del código en un entorno controlado. Los cambios en los archivos se 
-                  reflejarán automáticamente en la vista previa después de cada despliegue.
-                </p>
-              </div>
+              <Button 
+                onClick={deployProject} 
+                disabled={isDeploying} 
+                className="w-full hover-lift animate-pulse-glow"
+                onMouseEnter={handleButtonHover}
+              >
+                {isDeploying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Desplegando proyecto...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="mr-2 h-4 w-4" /> Desplegar Proyecto
+                  </>
+                )}
+              </Button>
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
-}
+};
 
 export default ProjectDeployment;
