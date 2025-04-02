@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
@@ -25,11 +24,11 @@ export const upload = multer({
     destination: function (req, file, cb) {
       const projectId = req.params.projectId;
       const projectDir = path.join(DOCUMENTS_DIR, projectId);
-      
+
       if (!fs.existsSync(projectDir)) {
         fs.mkdirSync(projectDir, { recursive: true });
       }
-      
+
       cb(null, projectDir);
     },
     filename: function (req, file, cb) {
@@ -49,27 +48,27 @@ async function processZipFile(filePath: string, projectId: number, extractFiles:
   try {
     const zip = new AdmZip(filePath);
     const zipEntries = zip.getEntries();
-    
+
     const zipBaseName = path.basename(filePath, '.zip');
     const extractPath = path.join(DOCUMENTS_DIR, projectId.toString(), 'extracted_' + zipBaseName);
     if (!fs.existsSync(extractPath)) {
       fs.mkdirSync(extractPath, { recursive: true });
     }
-    
+
     zip.extractAllTo(extractPath, true);
-    
+
     let processedCount = 0;
-    
+
     if (extractFiles) {
       // Extraer cada archivo como un documento individual
       for (const entry of zipEntries) {
         if (!entry.isDirectory) {
           // Crear una ruta relativa que incluya la estructura completa del directorio
           const relativePath = path.join('extracted_' + zipBaseName, entry.entryName);
-          
+
           // Estructurar nombre para mostrar la ruta dentro del repositorio
           const displayName = entry.entryName;
-          
+
           await storage.createDocument({
             projectId,
             name: displayName,
@@ -96,7 +95,7 @@ async function processZipFile(filePath: string, projectId: number, extractFiles:
       });
       processedCount = 1;
     }
-    
+
     return processedCount;
   } catch (error) {
     console.error('Error procesando archivo ZIP:', error);
@@ -109,24 +108,24 @@ export async function extractRepositoryFiles(documentId: number, projectId: numb
   try {
     // Obtener información del documento
     const document = await storage.getDocumentById(documentId);
-    
+
     if (!document) {
       throw new Error(`Documento con ID ${documentId} no encontrado`);
     }
-    
+
     if (!document.path) {
       throw new Error(`El documento con ID ${documentId} no tiene una ruta definida`);
     }
-    
+
     // Construir la ruta al archivo
     const docDir = path.join(DOCUMENTS_DIR, document.projectId.toString());
     const filePath = path.join(docDir, document.path);
-    
+
     // Verificar si el archivo existe
     if (!fs.existsSync(filePath)) {
       throw new Error(`Archivo no encontrado en ruta: ${filePath}`);
     }
-    
+
     // Extraer archivos del repositorio
     const isZip = document.path.endsWith('.zip') || document.type === 'repository';
     if (isZip) {
@@ -144,37 +143,37 @@ export async function extractRepositoryFiles(documentId: number, projectId: numb
 export async function downloadFromUrl(url: string, projectId: number, extractFiles: boolean = false): Promise<number> {
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Error al descargar desde URL: ${response.statusText}`);
     }
-    
+
     const projectDir = path.join(DOCUMENTS_DIR, projectId.toString());
     if (!fs.existsSync(projectDir)) {
       fs.mkdirSync(projectDir, { recursive: true });
     }
-    
+
     const urlObj = new URL(url);
     // Generar un nombre de archivo único
     const originalFileName = path.basename(urlObj.pathname) || 'downloaded_file';
     const uniqueFileName = Date.now() + '-' + originalFileName;
     const filePath = path.join(projectDir, uniqueFileName);
-    
+
     const fileStream = fs.createWriteStream(filePath);
     await streamPipeline(response.body, fileStream);
-    
+
     const stats = fs.statSync(filePath);
-    
+
     // Verificar si es un archivo ZIP o repositorio
     if (originalFileName.endsWith('.zip') || url.includes('github.com') || url.includes('gitlab.com')) {
       const processedCount = await processZipFile(filePath, projectId, extractFiles);
       return processedCount;
     }
-    
+
     // Determinar el tipo basado en la extensión
     const fileExt = path.extname(originalFileName).toLowerCase();
     const fileType = getFileTypeFromExtension(fileExt);
-    
+
     // Registrar el documento con una ruta relativa
     await storage.createDocument({
       projectId,
@@ -183,7 +182,7 @@ export async function downloadFromUrl(url: string, projectId: number, extractFil
       type: fileType || 'url',
       size: stats.size,
     });
-    
+
     return 1;
   } catch (error) {
     console.error('Error descargando desde URL:', error);
@@ -211,28 +210,77 @@ function getFileTypeFromExtension(extension: string): string {
     '.cpp': 'cpp',
     '.go': 'go',
   };
-  
+
   return typeMap[extension] || 'file';
 }
 
 // Función para procesar archivo cargado
 export async function processUploadedFile(file: Express.Multer.File, projectId: number): Promise<boolean> {
   try {
-    // Verificar si es un archivo ZIP
+    // Si es un archivo ZIP, descomprimirlo
     if (file.originalname.endsWith('.zip')) {
-      await processZipFile(file.path, projectId);
-      return true;
+      const zip = new AdmZip(file.buffer);
+      const zipEntries = zip.getEntries();
+
+      // Crear directorio temporal para extraer
+      const extractDir = path.join(process.cwd(), 'temp', `extract-${Date.now()}`);
+      fs.mkdirSync(extractDir, { recursive: true });
+
+      console.log(`Extrayendo ZIP en: ${extractDir}`);
+
+      try {
+        // Extraer archivos con manejo de errores
+        zip.extractAllTo(extractDir, true);
+
+        let filesImported = 0;
+
+        // Procesar archivos extraídos
+        for (const entry of zipEntries) {
+          if (!entry.isDirectory) {
+            try {
+              const filePath = path.join(extractDir, entry.entryName);
+
+              // Verificar si el archivo existe
+              if (fs.existsSync(filePath)) {
+                const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+                // Guardar como documento
+                await saveDocument(projectId, entry.entryName, fileContent);
+                filesImported++;
+              } else {
+                console.error(`Archivo no encontrado: ${filePath}`);
+              }
+            } catch (entryError) {
+              console.error(`Error procesando archivo ${entry.entryName}:`, entryError);
+            }
+          }
+        }
+
+        console.log(`Procesados ${filesImported} de ${zipEntries.length} archivos`);
+
+        // Limpiar directorio temporal
+        try {
+          fs.rmSync(extractDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          console.error('Error al limpiar directorio temporal:', cleanupError);
+        }
+
+        return { success: true, message: `Repositorio ZIP procesado: ${filesImported} archivos importados` };
+      } catch (extractError) {
+        console.error('Error al extraer archivos ZIP:', extractError);
+        return { success: false, message: `Error al descomprimir archivo: ${extractError.message}` };
+      }
     }
-    
+
     // Si el archivo viene de multer memory storage, podría no tener filename
     const filename = file.filename || path.basename(file.originalname);
-    
+
     // Asegurarse de que el archivo exista en el sistema de archivos
     const projectDir = path.join(DOCUMENTS_DIR, projectId.toString());
     if (!fs.existsSync(projectDir)) {
       fs.mkdirSync(projectDir, { recursive: true });
     }
-    
+
     // Si el archivo no tiene una ruta en el sistema, copiarlo
     let filePath = file.path;
     if (!fs.existsSync(filePath) || !path.isAbsolute(filePath)) {
@@ -243,7 +291,7 @@ export async function processUploadedFile(file: Express.Multer.File, projectId: 
       // Si ya tiene ruta absoluta, convertirla a relativa para almacenar
       filePath = filename;
     }
-    
+
     // Registrar el documento con una ruta válida
     await storage.createDocument({
       projectId,
@@ -252,7 +300,7 @@ export async function processUploadedFile(file: Express.Multer.File, projectId: 
       type: 'file',
       size: file.size,
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error procesando archivo cargado:', error);
@@ -280,26 +328,26 @@ export async function getDocumentContent(documentId: number): Promise<string | n
   try {
     // Obtener información del documento
     const document = await storage.getDocumentById(documentId);
-    
+
     if (!document) {
       return null;
     }
-    
+
     if (!document.path) {
       console.error(`El documento con ID ${documentId} no tiene una ruta definida`);
       return null;
     }
-    
+
     // Construir la ruta al archivo
     const projectDir = path.join(DOCUMENTS_DIR, document.projectId.toString());
     let filePath = path.join(projectDir, document.path);
-    
+
     // Verificar si el archivo existe
     if (!fs.existsSync(filePath)) {
       console.error(`Archivo no encontrado en ruta: ${filePath}`);
       return null;
     }
-    
+
     // Leer y devolver el contenido del archivo
     const content = fs.readFileSync(filePath, 'utf-8');
     return content;
@@ -307,4 +355,10 @@ export async function getDocumentContent(documentId: number): Promise<string | n
     console.error('Error obteniendo contenido del documento:', error);
     throw error;
   }
+}
+
+async function saveDocument(projectId: number, name: string, content: string) {
+  // Placeholder for actual document saving logic.  Replace with your actual implementation.
+  console.log(`Saving document: projectId=${projectId}, name=${name}, content=${content.substring(0, 50)}...`);
+  // await storage.createDocument(...)  // Replace with your database interaction
 }

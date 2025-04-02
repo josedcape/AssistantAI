@@ -222,21 +222,32 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
           <i className="ri-robot-line mr-2 text-blue-500"></i>
           Asistente de Código
         </h3>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setMessages([
-            {
-              id: "welcome",
-              role: "system",
-              content: "¡Hola! Soy tu asistente de código. Puedes pedirme que haga cambios en tu código o crear nuevos archivos. ¿En qué puedo ayudarte hoy?",
-              timestamp: new Date()
-            }
-          ])}
-        >
-          <i className="ri-refresh-line mr-1"></i>
-          Nueva conversación
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={() => window.history.back()}
+            title="Volver al área de desarrollo"
+          >
+            <i className="ri-arrow-left-line mr-1"></i>
+            Volver
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setMessages([
+              {
+                id: "welcome",
+                role: "system",
+                content: "¡Hola! Soy tu asistente de código. Puedes pedirme que haga cambios en tu código o crear nuevos archivos. ¿En qué puedo ayudarte hoy?",
+                timestamp: new Date()
+              }
+            ])}
+          >
+            <i className="ri-refresh-line mr-1"></i>
+            Nueva conversación
+          </Button>
+        </div>
       </div>
       
       <ScrollArea className="flex-1 p-4">
@@ -249,7 +260,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
               }`}
             >
               <div
-                className={`max-w-3/4 rounded-lg p-3 ${
+                className={`max-w-3/4 rounded-lg p-3 relative ${
                   message.role === "user"
                     ? "bg-blue-500 text-white"
                     : message.role === "system"
@@ -257,6 +268,21 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
                     : "bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border"
                 }`}
               >
+                {message.role !== "user" && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="absolute top-2 right-2 h-6 w-6 p-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(message.content);
+                      toast({ title: "Copiado", description: "Mensaje copiado al portapapeles" });
+                    }}
+                    title="Copiar mensaje"
+                  >
+                    <i className="ri-clipboard-line"></i>
+                  </Button>
+                )}
+                
                 {renderMessageContent(message.content)}
                 
                 {message.fileChanges && message.fileChanges.length > 0 && (
@@ -269,13 +295,21 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
                         </div>
                       ))}
                     </div>
-                    <Button 
-                      className="mt-2" 
-                      size="sm"
-                      onClick={() => onApplyChanges && onApplyChanges(message.fileChanges || [])}
-                    >
-                      Aplicar cambios
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        size="sm"
+                        onClick={() => onApplyChanges && onApplyChanges(message.fileChanges || [])}
+                      >
+                        Aplicar cambios
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.history.back()}
+                      >
+                        Volver al editor
+                      </Button>
+                    </div>
                   </div>
                 )}
                 
