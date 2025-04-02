@@ -221,7 +221,9 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
               whiteSpace: 'pre',
               fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               caretColor: '#fff',
-              lineHeight: '1.6'
+              lineHeight: '1.6',
+              color: '#d4d4d4',
+              backgroundColor: '#1e1e2e'
             }}
             spellCheck="false"
             autoComplete="off"

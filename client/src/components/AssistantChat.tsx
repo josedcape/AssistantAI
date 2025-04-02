@@ -279,7 +279,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
               </Button>
             </div>
           </div>
-          <div className="p-3 overflow-x-auto">
+          <div className="p-3 overflow-x-auto bg-[#1e1e2e]">
             <pre className="text-sm font-mono leading-relaxed">
               <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
             </pre>

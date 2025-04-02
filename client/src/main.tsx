@@ -35,12 +35,13 @@ style.textContent = `
     line-height: 1.6;
   }
   
-  /* Mejora visual para los bloques de código */
+  /* Mejora visual para los bloques de código - estilo similar a la imagen */
   .code-block {
     border-radius: 6px;
     background-color: #1e1e2e;
     border: 1px solid #313244;
     overflow: hidden;
+    font-size: 14px;
   }
   
   .code-block-header {
@@ -55,6 +56,8 @@ style.textContent = `
   .code-block-content {
     padding: 12px;
     overflow-x: auto;
+    background-color: #1e1e2e;
+    color: #d4d4d4;
   }
   
   .code-block-footer {
@@ -64,6 +67,16 @@ style.textContent = `
     font-size: 12px;
     color: #6c7086;
   }
+  
+  /* Estilos para destacar elementos específicos en el código como en la imagen */
+  .accordion-tag { color: #3c9dd0; }
+  .component-name { color: #4ec9b0; }
+  .jsx-brackets { color: #d4d4d4; }
+  .px-class { color: #9cdcfe; }
+  .list-class { color: #9cdcfe; }
+  .string-value { color: #ce9178; }
+  .key-value { color: #9cdcfe; }
+  .red-text { color: #f14c4c; }
 `;
 document.head.appendChild(style);
 

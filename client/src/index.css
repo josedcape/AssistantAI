@@ -92,17 +92,26 @@ html.dark * {
     opacity: 0.5;
   }
 
-  /* Algunos colores adicionales para mejorar la legibilidad del código */
-  .code-keyword { color: #c792ea; }
-  .code-function { color: #82aaff; }
-  .code-string { color: #ecc48d; }
-  .code-number { color: #f78c6c; }
-  .code-comment { color: #676e95; }
-  .code-tag { color: #ff5874; }
-  .code-attr-name { color: #c5e478; }
-  .code-attr-value { color: #8dc891; }
-  .code-operator { color: #89ddff; }
-  .code-punctuation { color: #89ddff; }
-  .code-class-name { color: #ffcb6b; }
-  .code-property { color: #80cbc4; }
+  /* Colores mejorados para destacar mejor el código como en la imagen */
+  .code-keyword { color: #569cd6; } /* azul para keywords */
+  .code-function { color: #4ec9b0; } /* verde azulado */
+  .code-string { color: #ce9178; } /* naranja suave */
+  .code-number { color: #b5cea8; } /* verde claro */
+  .code-comment { color: #6a9955; } /* verde para comentarios */
+  .code-tag { color: #3c9dd0; } /* azul para tags HTML/JSX */
+  .code-attr-name { color: #9cdcfe; } /* azul claro */
+  .code-attr-value { color: #d69d85; } /* naranja */
+  .code-operator { color: #d4d4d4; } /* blanco para operadores */
+  .code-punctuation { color: #d4d4d4; } /* blanco para puntuación */
+  .code-class-name { color: #4ec9b0; } /* verde azulado */
+  .code-property { color: #9cdcfe; } /* azul claro */
+  
+  /* Estilos específicos para JSX/React como en la imagen */
+  span[class*="-tag"], .jsx-tag, .html-tag { color: #3c9dd0; } /* azul para tags */
+  span[class*="-attr-name"], .jsx-attr-name { color: #9cdcfe; } /* azul claro para atributos */
+  span[class*="-attr-value"], .jsx-attr-value { color: #ce9178; } /* naranja para valores */
+  
+  /* Clases específicas para componentes React */
+  .react-component { color: #4ec9b0; }
+  .react-hook { color: #569cd6; }
 }
