@@ -206,3 +206,75 @@
   background-image: radial-gradient(rgba(64, 176, 255, 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
 }
+/* Futuristic UI styles and animations */
+.futuristic-border {
+  border: 2px solid rgba(0, 255, 255, 0.2); /* Example futuristic border */
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.5s ease-in-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
+.scanline-effect {
+  background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 2px 100%;
+}
+
+.hover-lift {
+  transition: transform 0.2s ease-in-out;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0);
+  }
+}
+
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}

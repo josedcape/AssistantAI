@@ -1,6 +1,13 @@
-// sounds.js
-export const sounds = {
-  deploy: new Audio('/sounds/deploy.mp3'), // Replace with actual sound file paths
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Rocket, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+// Import sounds as a separate module
+const sounds = {
+  deploy: new Audio('/sounds/deploy.mp3'),
   success: new Audio('/sounds/success.mp3'),
   error: new Audio('/sounds/error.mp3'),
   click: new Audio('/sounds/click.mp3'),
@@ -13,89 +20,6 @@ export const sounds = {
     }
   }
 };
-
-
-// styles.css
-.futuristic-border {
-  border: 2px solid rgba(0, 255, 255, 0.2); /* Example futuristic border */
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.animate-fade-slide-up {
-  animation: fade-slide-up 0.5s ease-in-out;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease-in-out;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 1s ease-in-out infinite;
-}
-
-.scanline-effect {
-  background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px);
-  background-size: 2px 100%;
-}
-
-.hover-lift {
-  transition: transform 0.2s ease-in-out;
-}
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-@keyframes fade-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.5);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(0, 255, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0);
-  }
-}
-
-
-.animate-float {
-  animation: float 2s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Rocket, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { sounds } from "@/lib/sounds";
 
 interface ProjectDeploymentProps {
   projectId: string;
