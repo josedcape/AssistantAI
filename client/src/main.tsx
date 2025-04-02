@@ -15,9 +15,13 @@ const createAudioDirectoryIfNeeded = async () => {
   try {
     // Esta función se ejecutará cuando el usuario interactúe con la página
     const setupSounds = () => {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      // Esto inicializa el contexto de audio que usarán los efectos de sonido
-      document.removeEventListener('click', setupSounds);
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        // Esto inicializa el contexto de audio que usarán los efectos de sonido
+        document.removeEventListener('click', setupSounds);
+      } catch (err) {
+        console.warn('Audio context could not be initialized:', err);
+      }
     };
     document.addEventListener('click', setupSounds);
   } catch (e) {

@@ -12,11 +12,17 @@ const sounds = {
   error: new Audio('/sounds/error.mp3'),
   click: new Audio('/sounds/click.mp3'),
   hover: new Audio('/sounds/hover.mp3'),
-  play: (soundName, volume) => {
-    const sound = sounds[soundName];
-    if (sound) {
-      sound.volume = volume;
-      sound.play();
+  play: (soundName, volume = 0.5) => {
+    try {
+      const sound = sounds[soundName];
+      if (sound) {
+        sound.volume = volume;
+        sound.play().catch(err => {
+          console.error(`Error reproduciendo sonido ${soundName}:`, err);
+        });
+      }
+    } catch (err) {
+      console.error(`Error reproduciendo sonido ${soundName}:`, err);
     }
   }
 };
