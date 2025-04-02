@@ -64,9 +64,9 @@ export async function setupVite(app: Express, server: Server) {
       
       // Ensure module scripts are served with the correct MIME type
       if (url.endsWith('.js') || url.endsWith('.mjs')) {
-        res.set('Content-Type', 'application/javascript');
+        res.set('Content-Type', 'application/javascript; charset=utf-8');
       } else if (url.endsWith('.ts') || url.endsWith('.tsx')) {
-        res.set('Content-Type', 'application/javascript');
+        res.set('Content-Type', 'application/javascript; charset=utf-8');
       }
       
       const page = await vite.transformIndexHtml(url, template);
