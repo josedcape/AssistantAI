@@ -2,6 +2,12 @@
 import path from 'path';
 import fs from 'fs';
 import { Request, Response } from 'express';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Obtener __dirname equivalente en módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Ruta para servir los archivos de sonido estáticos
 export const setupSoundsRoutes = (app: any) => {
