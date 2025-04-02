@@ -216,11 +216,12 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
             ref={textareaRef}
             value={content}
             onChange={handleChange}
-            className="code-font text-sm flex-1 w-full h-full p-3 sm:p-4 resize-none bg-black text-slate-200 font-mono border-0 focus:ring-0 focus:outline-none [&]:selection:bg-slate-700 [&]:selection:text-slate-100"
+            className="code-font text-sm flex-1 w-full h-full p-3 sm:p-4 resize-none bg-slate-900 text-slate-200 font-mono border-0 focus:ring-0 focus:outline-none [&]:selection:bg-slate-700 [&]:selection:text-slate-100"
             style={{
               whiteSpace: 'pre',
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              caretColor: '#fff'
+              fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              caretColor: '#fff',
+              lineHeight: '1.6'
             }}
             spellCheck="false"
             autoComplete="off"

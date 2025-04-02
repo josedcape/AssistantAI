@@ -153,6 +153,70 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
     }
   };
 
+  // Función para aplicar syntax highlighting a un bloque de código
+  const applySyntaxHighlighting = (code: string, language: string) => {
+    // Definir patrones para diferentes elementos de la sintaxis
+    const keywords = /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|try|catch|async|await|new|this|extends|implements|interface|type|public|private|protected|static|get|set|super|null|undefined|true|false)\b/g;
+    const types = /\b(string|number|boolean|any|void|never|object|symbol|bigint|null|undefined|Array|Promise|Map|Set|Record|Partial|Required|Pick|Omit|Exclude|Extract|ReturnType)\b/g;
+    const strings = /(["'`])(.*?)\1/g;
+    const comments = /(\/\/.*?$)|(\/\*[\s\S]*?\*\/)/gm;
+    const htmlTags = /(&lt;[^&]*&gt;)|(<[^>]*>)/g;
+    const jsxAttrs = /\b([a-zA-Z][-a-zA-Z0-9]*)(=["'].*?["'])/g;
+    const numbers = /\b(\d+(\.\d+)?)\b/g;
+    const functions = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\(/g;
+    const brackets = /(\{|\}|\(|\)|\[|\])/g;
+    const components = /(<)([A-Z][a-zA-Z0-9]*)(\s|>|\/>)/g;
+    
+    // Escapar caracteres HTML
+    let highlightedCode = code.replace(/&/g, "&amp;")
+                             .replace(/</g, "&lt;")
+                             .replace(/>/g, "&gt;");
+    
+    // Aplicar resaltado según el lenguaje
+    if (language === 'js' || language === 'javascript' || language === 'ts' || language === 'typescript' || language === 'jsx' || language === 'tsx') {
+      // Aplicar resaltado para JavaScript/TypeScript/JSX/TSX
+      highlightedCode = highlightedCode
+        .replace(comments, '<span class="text-slate-500">$&</span>')
+        .replace(strings, '<span class="text-amber-300">$&</span>')
+        .replace(keywords, '<span class="text-purple-400">$&</span>')
+        .replace(types, '<span class="text-cyan-300">$&</span>')
+        .replace(numbers, '<span class="text-orange-300">$&</span>')
+        .replace(functions, '<span class="text-blue-400">$1</span>(')
+        .replace(brackets, '<span class="text-slate-400">$&</span>');
+        
+      if (language === 'jsx' || language === 'tsx') {
+        highlightedCode = highlightedCode
+          .replace(components, '$1<span class="text-green-400">$2</span>$3')
+          .replace(jsxAttrs, '<span class="text-yellow-300">$1</span><span class="text-slate-300">$2</span>');
+      }
+    } else if (language === 'html' || language === 'xml') {
+      // Aplicar resaltado para HTML
+      highlightedCode = highlightedCode
+        .replace(/(<!DOCTYPE[^>]*>)/g, '<span class="text-slate-500">$1</span>')
+        .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="text-slate-500">$1</span>')
+        .replace(/(&lt;\/?)([-a-zA-Z0-9]+)/g, '$1<span class="text-orange-400">$2</span>')
+        .replace(/\s([-a-zA-Z0-9:]+)=(&quot;|')(.*?)(\2)/g, ' <span class="text-yellow-300">$1</span>=<span class="text-green-300">$2$3$4</span>');
+    } else if (language === 'css') {
+      // Aplicar resaltado para CSS
+      highlightedCode = highlightedCode
+        .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="text-slate-500">$1</span>')
+        .replace(/([a-zA-Z-]+):/g, '<span class="text-cyan-300">$1</span>:')
+        .replace(/(#[a-fA-F0-9]{3,6})/g, '<span class="text-orange-300">$1</span>')
+        .replace(/(\.[a-zA-Z-_]+)/g, '<span class="text-yellow-300">$1</span>')
+        .replace(/@([a-zA-Z-]+)/g, '@<span class="text-pink-400">$1</span>');
+    } else if (language === 'python' || language === 'py') {
+      // Aplicar resaltado para Python
+      highlightedCode = highlightedCode
+        .replace(/(#.*?$)/gm, '<span class="text-slate-500">$1</span>')
+        .replace(/\b(def|class|import|from|as|if|elif|else|for|while|try|except|finally|with|return|yield|raise|break|continue|pass|True|False|None|lambda|global|nonlocal|in|is|not|and|or)\b/g, '<span class="text-purple-400">$1</span>')
+        .replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\(/g, '<span class="text-blue-400">$1</span>(')
+        .replace(/(".*?"|'.*?')/g, '<span class="text-amber-300">$1</span>')
+        .replace(/\b(\d+(\.\d+)?)\b/g, '<span class="text-orange-300">$1</span>');
+    }
+
+    return highlightedCode;
+  };
+
   // Función para renderizar mensajes con formato code
   const renderMessageContent = (content: string) => {
     // Buscar bloques de código usando regex
@@ -174,29 +238,55 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
       const language = match[1] || 'text';
       const code = match[2];
 
-      // Añadir bloque de código
+      // Aplicar syntax highlighting
+      const highlightedCode = applySyntaxHighlighting(code, language);
+
+      // Añadir bloque de código con mejor styling
       parts.push(
-        <div key={`code-${match.index}`} className="my-2 rounded-md bg-slate-800 p-3 relative">
-          {language && (
-            <div className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-slate-700 text-slate-300">
-              {language}
+        <div key={`code-${match.index}`} className="my-3 rounded-md overflow-hidden border border-slate-700 bg-slate-900 shadow-lg">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+            <div className="flex items-center">
+              {language && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                  {language}
+                </span>
+              )}
             </div>
-          )}
-          <pre className="text-sm text-slate-200 overflow-x-auto">
-            <code>{code}</code>
-          </pre>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="absolute bottom-2 right-2 text-xs h-6 p-1"
-            onClick={() => {
-              navigator.clipboard.writeText(code);
-              toast({ title: "Copiado", description: "Código copiado al portapapeles" });
-            }}
-          >
-            <i className="ri-clipboard-line mr-1"></i>
-            Copiar
-          </Button>
+            <div className="flex space-x-1">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-xs h-6 px-2 hover:bg-slate-700"
+                onClick={() => {
+                  navigator.clipboard.writeText(code);
+                  toast({ title: "Copiado", description: "Código copiado al portapapeles" });
+                }}
+              >
+                <i className="ri-clipboard-line mr-1"></i>
+                Copiar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs h-6 px-2 hover:bg-slate-700"
+                onClick={() => {
+                  // Implementación futura: podría abrir el código en el editor
+                  toast({ title: "Acción", description: "Función para abrir en editor" });
+                }}
+              >
+                <i className="ri-code-line mr-1"></i>
+                Editar
+              </Button>
+            </div>
+          </div>
+          <div className="p-3 overflow-x-auto">
+            <pre className="text-sm font-mono leading-relaxed">
+              <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+            </pre>
+          </div>
+          <div className="border-t border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-400">
+            <p>Código {language} - {code.split('\n').length} líneas</p>
+          </div>
         </div>
       );
 
