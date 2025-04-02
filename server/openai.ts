@@ -289,7 +289,14 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
           "type": "javascript"
         }
       ],
-      "suggestions": ["sugerencia 1", "sugerencia 2"]
+      "suggestions": [
+        "Sugerencia 1: Considera usar una librería de componentes UI para mejorar la apariencia.",
+        "Sugerencia 2: Asegúrate de que tu CSS esté bien organizado y utilice un preprocesador como Sass o Less."
+      ],
+      "plan": ["paso 1", "paso 2"],
+      "architecture": "descripción de la arquitectura",
+      "components": ["componente 1", "componente 2"],
+      "requirements": ["requisito 1", "requisito 2"]
     }`;
 
     // Preparar el mensaje con la solicitud y el plan de desarrollo

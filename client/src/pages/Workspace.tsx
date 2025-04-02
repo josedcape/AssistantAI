@@ -532,7 +532,7 @@ const Workspace = () => {
                     <Button
                       onClick={generateCode}
                       disabled={isGenerating || !aiPrompt.trim()}
-                      className="rounded-l-none"
+                      className="rounded-l-none bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all duration-300"
                     >
                       {isGenerating ? (
                         <>

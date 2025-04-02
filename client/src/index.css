@@ -47,7 +47,30 @@ html.dark * {
   }
 
   .gradient-bg {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    background-size: 200% 200%;
+    animation: gradientAnimation 5s ease infinite;
+  }
+  
+  @keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  /* Estilos mejorados para botones y elementos interactivos */
+  button, .button {
+    transition: all 0.3s ease;
+  }
+  
+  button:hover, .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Animación para el botón de generar */
+  button:active, .button:active {
+    transform: translateY(1px);
   }
 
   /* Estilos para syntax highlighting */
