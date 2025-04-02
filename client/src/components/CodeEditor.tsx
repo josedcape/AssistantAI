@@ -7,6 +7,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import CodeCorrectionModal from "./CodeCorrectionModal";
 
+// Local storage utility
+const projectStorage = {
+  saveFileContent: (fileId: string, content: string) => {
+    localStorage.setItem(fileId, content);
+  },
+  loadFileContent: (fileId: string) => {
+    return localStorage.getItem(fileId);
+  }
+};
+
 interface CodeEditorProps {
   file: File;
   onUpdate?: (updatedFile: File) => void;
@@ -61,7 +71,12 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   };
 
   useEffect(() => {
-    setContent(file.content);
+    const loadedContent = projectStorage.loadFileContent(file.id);
+    if (loadedContent) {
+      setContent(loadedContent);
+    } else {
+      setContent(file.content);
+    }
     setIsDirty(false);
   }, [file]);
 
@@ -115,6 +130,10 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     setIsDirty(true);
+    // Auto-save content to localStorage
+    if (file?.id) {
+      projectStorage.saveFileContent(file.id, e.target.value);
+    }
   };
 
   const saveFile = async () => {

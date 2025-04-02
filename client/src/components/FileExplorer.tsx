@@ -15,6 +15,8 @@ interface FileExplorerProps {
   selectedFileId?: number;
 }
 
+import { projectStorage } from "@/lib/storage";
+
 function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -25,9 +27,25 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   const loadFiles = async () => {
     try {
       setLoading(true);
+      
+      // Check if we have cached files first
+      const cachedFiles = projectStorage.getProject<File[]>(projectId, []);
+      if (cachedFiles && cachedFiles.length > 0) {
+        console.log("Loading files from local storage", cachedFiles.length);
+        setFiles(cachedFiles);
+        setLoading(false);
+      }
+
+      // Always fetch fresh data from server
       const response = await apiRequest("GET", `/api/projects/${projectId}/files`);
       const data = await response.json();
+      
+      // Update state and cache
       setFiles(data);
+      projectStorage.saveProject(projectId, data);
+      
+      // Save project ID as last used
+      projectStorage.saveLastProjectId(projectId);
     } catch (error) {
       console.error("Error loading files:", error);
       toast({
@@ -42,9 +60,19 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
   const loadDocuments = async () => {
     try {
+      // Check cache first
+      const cachedDocs = projectStorage.getProject<Document[]>(`${projectId}_docs`, []);
+      if (cachedDocs && cachedDocs.length > 0) {
+        setDocuments(cachedDocs);
+      }
+      
+      // Fetch fresh data
       const response = await apiRequest("GET", `/api/projects/${projectId}/documents`);
       const data = await response.json();
+      
+      // Update state and cache
       setDocuments(data);
+      projectStorage.saveProject(`${projectId}_docs`, data);
     } catch (error) {
       console.error("Error loading documents:", error);
       toast({

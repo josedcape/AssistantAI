@@ -18,7 +18,7 @@ localPort = 5001
 externalPort = 3000
 
 [workflows]
-runButton = "Start application fixed"
+runButton = "Run Server"
 
 [[workflows.workflow]]
 name = "Project"
@@ -48,6 +48,19 @@ waitForPort = 5000
 name = "Start application fixed"
 author = 41056532
 mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Run Server"
+author = 41090659
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install tsx"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

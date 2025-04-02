@@ -348,6 +348,22 @@ const Workspace = () => {
                 <h1 className="text-sm font-medium truncate">
                   {project?.name || "Proyecto"}
                 </h1>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (project && activeFile) {
+                      toast({
+                        title: "Proyecto guardado",
+                        description: "Los cambios se han guardado localmente",
+                      });
+                    }
+                  }}
+                  className="ml-auto"
+                >
+                  <i className="ri-save-line mr-1"></i>
+                  Guardar
+                </Button>
               </div>
             </div>
           )}
