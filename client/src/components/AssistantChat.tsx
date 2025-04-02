@@ -288,7 +288,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
               showLineNumbers={true}
             />
           </div>
-          </div>
         </div>
       );
 
