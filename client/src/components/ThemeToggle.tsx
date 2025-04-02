@@ -12,7 +12,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
   variant = "icon",
   className = "" 
 }) => {
-  const { isDarkMode, toggleDarkMode } = useContext(ThemeContext);
+  const { isDarkMode, toggleDarkMode, setTheme } = useContext(ThemeContext);
 
   if (variant === "full") {
     return (

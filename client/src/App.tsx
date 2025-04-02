@@ -38,19 +38,20 @@ function Router() {
 
 function App() {
   // Dark mode implementation
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Initialize dark mode from localStorage or system preference
+  // Initialize dark mode from localStorage or use dark theme by default
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    if (storedTheme === "dark" || (!storedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    } else {
+    
+    if (storedTheme === "light") {
       setIsDarkMode(false);
       document.documentElement.classList.remove("dark");
+    } else {
+      // Default to dark theme or respect stored dark preference
+      setIsDarkMode(true);
+      document.documentElement.classList.add("dark");
+      if (!storedTheme) localStorage.theme = "dark";
     }
   }, []);
 
