@@ -216,7 +216,22 @@ export async function generateCode(request: CodeGenerationRequest): Promise<Code
 
   try {
     if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
+      console.error("OpenAI API key no configurada. Usando respuesta de ejemplo.");
+      // Proporcionar una respuesta de ejemplo cuando no hay clave API
+      return {
+        files: [
+          {
+            name: "ejemplo.js",
+            content: "// Este es un código de ejemplo\n// Para usar la generación de código real, configura OPENAI_API_KEY\n\nconsole.log('Hola mundo');\n\n// Configura la variable de entorno OPENAI_API_KEY en la herramienta Secrets de Replit",
+            language: "javascript",
+            type: "javascript"
+          }
+        ],
+        suggestions: [
+          "Configura la variable de entorno OPENAI_API_KEY para habilitar la generación de código con IA",
+          "Puedes obtener una clave API en https://platform.openai.com/api-keys"
+        ]
+      };
     }
 
     // Si se solicitan agentes específicos, usar el orquestador de agentes
