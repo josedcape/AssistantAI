@@ -223,4 +223,4 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
   );
 };
 
-export default CodeCorrectionModal;t CodeCorrectionModal;
+export default CodeCorrectionModal;
