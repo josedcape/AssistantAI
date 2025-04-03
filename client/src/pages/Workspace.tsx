@@ -36,6 +36,7 @@ const Workspace = () => {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showFileExplorer, setShowFileExplorer] = useState(false); // Added state for file explorer visibility
 
   // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
@@ -517,7 +518,7 @@ const Workspace = () => {
           {/* Workspace Content */}
           <div className="flex-1 flex overflow-hidden">
             {/* Sidebar - hidden on mobile */}
-            <div className="hidden md:block bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
+            <div className={`hidden md:block bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto ${showFileExplorer ? 'block' : 'hidden'}`}> {/* Added conditional rendering */}
               <FileExplorer
                 projectId={projectId}
                 files={files}
@@ -817,7 +818,7 @@ const Workspace = () => {
       {/* Mobile actions */}
       {isMobile && (
         <div className="md:hidden fixed bottom-5 right-5 z-10">
-          <div className="flex flex-col items-end space-y-2">
+          <div className="flex flexcol items-end space-y-2">
             {developmentPlan && (
               <button
                 className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
@@ -828,17 +829,11 @@ const Workspace = () => {
               </button>
             )}
             <button
-              className="w-14 h-14 rounded-full shadow-lg gradient-bg text-white flex items-center justify-center focus:outline-none"
-              onClick={() => {
-                // Toggle between editor and file explorer
-                if (activeTab === "development") {
-                  setActiveTab("preview");
-                } else {
-                  setActiveTab("development");
-                }
-              }}
+              className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
+              onClick={() => setShowFileExplorer(!showFileExplorer)}
+              title="Mostrar/Ocultar explorador de archivos"
             >
-              <i className={`ri-${activeTab === "development" ? "eye-line" : "edit-line"} text-xl`}></i>
+              <i className="ri-file-list-3-line text-xl"></i>
             </button>
           </div>
         </div>
