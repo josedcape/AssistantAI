@@ -26,7 +26,7 @@ export const CodeBlock = ({
   }, [code, language]);
 
   return (
-    <div className={cn("rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-lg", className)}>
+    <div className={cn("rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-lg animate-magic-reveal", className)}>
       <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
         <div className="flex items-center">
           {language && (

@@ -238,6 +238,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
 
   // Función para renderizar mensajes con formato code
   const renderMessageContent = (content: string) => {
+    // Play magic sound effect for assistant messages
+    if (content && content.length > 0) {
+      sounds.play('typing', 0.2);
+      setTimeout(() => sounds.play('success', 0.3), 600);
+    }
+    
     // Buscar bloques de código usando regex
     const codeBlockRegex = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
     const parts = [];
@@ -368,7 +374,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
               }`}
             >
               <div
-                className={`max-w-3/4 rounded-lg p-3 relative ${
+                className={`max-w-3/4 rounded-lg p-3 relative animate-magic-text ${
                   message.role === "user"
                     ? "bg-blue-500 text-white"
                     : message.role === "system"

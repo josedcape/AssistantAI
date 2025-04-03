@@ -62,9 +62,55 @@
   50% { border-right-color: currentColor; }
 }
 
+@keyframes magicReveal {
+  0% { 
+    opacity: 0;
+    transform: translateY(10px);
+    box-shadow: 0 0 0 rgba(64, 176, 255, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow: 0 0 30px rgba(64, 176, 255, 0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow: 0 0 5px rgba(64, 176, 255, 0.3);
+  }
+}
+
+@keyframes magicText {
+  0% { opacity: 0; filter: blur(4px); }
+  25% { opacity: 0.7; filter: blur(2px); }
+  100% { opacity: 1; filter: blur(0); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
 @keyframes rotate3D {
   0% { transform: perspective(1000px) rotateY(0deg); }
   100% { transform: perspective(1000px) rotateY(360deg); }
+}
+
+.animate-magic-reveal {
+  animation: magicReveal 0.6s ease-out forwards;
+}
+
+.animate-magic-text {
+  animation: magicText 0.4s ease-out forwards;
+}
+
+.chat-bubble.assistant::before {
+  content: '✨';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
 }
 
 @keyframes glitchText {
