@@ -50,6 +50,7 @@ const Header = () => {
       <div className="flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
           <Link href="/" className="flex items-center" onClick={handleLinkClick}>
+            <img src="https://img.freepik.com/premium-vector/futuristic-cute-running-robot-illustration_1057087-3034.jpg?w=2000" alt="BOTIDINAMIX AI" className="w-8 h-8 object-contain rounded-lg mr-2" style={{display: 'block'}} />
             <span className="font-bold text-lg hidden sm:block animate-typewriter">
               <span style={{background: 'radial-gradient(circle, rgba(162,160,226,1) 9%, rgba(32,35,217,1) 78%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>BOTIDINAMIX AI</span>
               <span className="text-slate-400 mx-2">|</span>
