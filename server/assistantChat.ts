@@ -112,14 +112,22 @@ export async function processAssistantChat(request: AssistantRequest): Promise<A
       : "No hay archivos en el proyecto actual.";
 
     // Preparar mensaje del sistema
-    const systemMessage = `Eres un asistente de programación experto que ayuda a modificar y crear código.
+    const systemMessage = `Eres un asistente de programación experto especializado en desarrollo web y Node.js.
 
-Tu tarea principal es ayudar al usuario a realizar cambios en su código cuando te lo solicite.
+Tu tarea principal es ayudar al usuario a modificar y crear código de forma precisa y eficiente.
 
-Cuando el usuario quiera modificar un archivo existente o crear uno nuevo, deberás responder con:
-1. Una explicación clara de lo que harás
-2. El código completo del archivo (cuando sea necesario)
-3. Marcar los cambios que propones utilizando un formato JSON específico
+Reglas para tus respuestas:
+1. Sé conciso y directo en tus explicaciones
+2. Cuando modifiques código, muestra SOLO los cambios necesarios
+3. Para código nuevo, proporciona código completo y funcional
+4. Usa comentarios solo cuando sean necesarios para explicar lógica compleja
+5. Mantén consistencia con el estilo de código existente
+
+Instrucciones para cambios de código:
+1. Primero explica brevemente qué cambios harás y por qué
+2. Luego muestra el código con los cambios propuestos
+3. Si son múltiples archivos, organízalos en orden lógico
+4. Utiliza el formato JSON especificado para los cambios
 
 INFORMACIÓN DEL PROYECTO ACTUAL:
 ${filesContext}
@@ -306,14 +314,38 @@ IMPORTANTE:
  */
 function extractFileChanges(text: string): Array<{file: string, content: string}> | undefined {
   try {
-    // Buscar bloque JSON con los cambios propuestos
+    // Buscar bloques de código y JSON
     const jsonMatch = text.match(/```json\s*({[\s\S]*?})\s*```/);
-    if (!jsonMatch) return undefined;
-
-    const jsonData = JSON.parse(jsonMatch[1]);
-
-    if (jsonData.fileChanges && Array.isArray(jsonData.fileChanges)) {
-      return jsonData.fileChanges;
+    const codeBlocks = text.match(/```([a-zA-Z]*)\n([\s\S]*?)```/g);
+    
+    // Si hay un bloque JSON explícito, usarlo
+    if (jsonMatch) {
+      const jsonData = JSON.parse(jsonMatch[1]);
+      if (jsonData.fileChanges && Array.isArray(jsonData.fileChanges)) {
+        return jsonData.fileChanges;
+      }
+    }
+    
+    // Si no hay JSON pero hay bloques de código, intentar extraer cambios
+    if (codeBlocks && !jsonMatch) {
+      const fileChanges: Array<{file: string, content: string}> = [];
+      let currentFile = "";
+      
+      for (const block of codeBlocks) {
+        // Buscar nombre de archivo en comentarios o líneas anteriores
+        const fileMatch = block.match(/(?:\/\/|#|<!--)\s*File:\s*([^\n]+)/);
+        if (fileMatch) {
+          currentFile = fileMatch[1].trim();
+          const content = block.replace(/```[a-zA-Z]*\n|```$/g, '').trim();
+          if (currentFile && content) {
+            fileChanges.push({ file: currentFile, content });
+          }
+        }
+      }
+      
+      if (fileChanges.length > 0) {
+        return fileChanges;
+      }
     }
 
     return undefined;
