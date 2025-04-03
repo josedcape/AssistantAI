@@ -15,12 +15,12 @@ const Home = () => {
           <div className="flex justify-center mb-8">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-500 shadow-lg transform hover:scale-105 transition-transform duration-300" style={{background: 'radial-gradient(circle, rgba(162,160,226,1) 9%, rgba(32,35,217,1) 78%)'}}>
               <img 
-                src="/imagenes/botidinamix.jpg" 
+                src="https://project-files.picsart.com/project_files/a866d14d-af1e-4dc7-8629-5b68d0970ad4.png" 
                 alt="BOTIDINAMIX AI" 
                 className="w-full h-full object-cover"
                 style={{
                   filter: 'contrast(1.1) brightness(1.1)',
-                  mixBlendMode: 'luminosity'
+                  mixBlendMode: 'normal'
                 }}
               />
             </div>
