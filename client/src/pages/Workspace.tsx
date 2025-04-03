@@ -37,6 +37,8 @@ const Workspace = () => {
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(false); // Added state for file explorer visibility
+  const [showSidebar, setShowSidebar] = useState(false); // Added state for sidebar visibility
+
 
   // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
@@ -818,7 +820,7 @@ const Workspace = () => {
       {/* Mobile actions */}
       {isMobile && (
         <div className="md:hidden fixed bottom-5 right-5 z-10">
-          <div className="flex flexcol items-end space-y-2">
+          <div className="flex flex-col items-end space-y-2">
             {developmentPlan && (
               <button
                 className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
@@ -830,7 +832,7 @@ const Workspace = () => {
             )}
             <button
               className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
-              onClick={() => setShowFileExplorer(!showFileExplorer)}
+              onClick={() => setShowSidebar(!showSidebar)}
               title="Mostrar/Ocultar explorador de archivos"
             >
               <i className="ri-file-list-3-line text-xl"></i>

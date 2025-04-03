@@ -29,18 +29,18 @@ const DevelopmentPlan = ({
   if (!plan && !architecture && !components && !requirements) {
     return null;
   }
-  
+
   // Función para exportar el plan de desarrollo
   const exportPlan = () => {
     try {
       // Crear el contenido del archivo
       let content = "# PLAN DE DESARROLLO\n\n";
-      
+
       if (architecture) {
         content += "## ARQUITECTURA\n\n";
         content += architecture + "\n\n";
       }
-      
+
       if (plan && plan.length > 0) {
         content += "## PASOS DEL PLAN\n\n";
         plan.forEach((step, index) => {
@@ -48,7 +48,7 @@ const DevelopmentPlan = ({
         });
         content += "\n";
       }
-      
+
       if (components && components.length > 0) {
         content += "## COMPONENTES\n\n";
         components.forEach(component => {
@@ -56,14 +56,14 @@ const DevelopmentPlan = ({
         });
         content += "\n";
       }
-      
+
       if (requirements && requirements.length > 0) {
         content += "## REQUERIMIENTOS TÉCNICOS\n\n";
         requirements.forEach(req => {
           content += `- ${req}\n`;
         });
       }
-      
+
       // Crear blob y enlace de descarga
       const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -72,13 +72,13 @@ const DevelopmentPlan = ({
       link.download = "plan_desarrollo.md";
       document.body.appendChild(link);
       link.click();
-      
+
       // Limpiar
       setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }, 100);
-      
+
       toast({
         title: "Plan exportado",
         description: "El plan de desarrollo se ha descargado correctamente.",
@@ -102,7 +102,7 @@ const DevelopmentPlan = ({
             <i className="ri-close-line text-lg"></i>
           </Button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-4">
           <Accordion type="single" collapsible defaultValue="plan">
             {architecture && (
@@ -120,7 +120,7 @@ const DevelopmentPlan = ({
                 </AccordionContent>
               </AccordionItem>
             )}
-            
+
             {plan && plan.length > 0 && (
               <AccordionItem value="plan">
                 <AccordionTrigger className="text-left">
@@ -140,7 +140,7 @@ const DevelopmentPlan = ({
                 </AccordionContent>
               </AccordionItem>
             )}
-            
+
             {components && components.length > 0 && (
               <AccordionItem value="components">
                 <AccordionTrigger className="text-left">
@@ -160,7 +160,7 @@ const DevelopmentPlan = ({
                 </AccordionContent>
               </AccordionItem>
             )}
-            
+
             {requirements && requirements.length > 0 && (
               <AccordionItem value="requirements">
                 <AccordionTrigger className="text-left">
@@ -182,7 +182,7 @@ const DevelopmentPlan = ({
             )}
           </Accordion>
         </div>
-        
+
         <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex justify-end">
           <Button variant="outline" onClick={onClose} className="mr-2">
             Cerrar
