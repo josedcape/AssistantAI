@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ModelSelector } from "./ModelSelector";
 import CodeBlock from "./CodeBlock";
+import { sounds } from '@/lib/sounds';
 
 interface Message {
   id: string;
@@ -235,8 +236,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
 
     return highlightedCode;
   };
-
-  import { sounds } from '@/lib/sounds';
 
   // Función para renderizar mensajes con formato code
   const renderMessageContent = (content: string) => {
