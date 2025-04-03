@@ -50,13 +50,10 @@ const Header = () => {
       <div className="flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
           <Link href="/" className="flex items-center" onClick={handleLinkClick}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-2">
-              <img src="/imagenes/botidinamix.jpg" alt="BOTIDINAMIX AI" className="w-8 h-8 object-contain rounded-lg" style={{display: 'block'}} />
-            </div>
             <span className="font-bold text-lg hidden sm:block animate-typewriter">
-              <span className="golden-text">BOTIDINAMIX AI</span>
+              <span style={{background: 'radial-gradient(circle, rgba(162,160,226,1) 9%, rgba(32,35,217,1) 78%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>BOTIDINAMIX AI</span>
               <span className="text-slate-400 mx-2">|</span>
-              <span className="text-slate-500">CODESTORM</span>
+              <span className="golden-text">CODESTORM</span>
             </span>
           </Link>
         </div>
