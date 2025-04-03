@@ -11,8 +11,6 @@ const Home = () => {
     <div className="min-h-screen flex flex-col bg-black">
       <Header />
       <main className="flex-1">
-
-      <main className="flex-1">
         <div className="container relative">
           <div className="flex justify-center mb-8">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-500 shadow-lg transform hover:scale-105 transition-transform duration-300" style={{background: 'radial-gradient(circle, rgba(162,160,226,1) 9%, rgba(32,35,217,1) 78%)'}}>
