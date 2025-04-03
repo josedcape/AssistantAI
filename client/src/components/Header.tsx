@@ -51,7 +51,7 @@ const Header = () => {
         <div className="flex items-center">
           <Link href="/" className="flex items-center" onClick={handleLinkClick}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-2">
-              <img src="/imagenes/botidinamix.jpg" alt="BOTIDINAMIX AI" className="w-full h-full object-cover rounded-lg" />
+              <img src="/imagenes/botidinamix.jpg" alt="BOTIDINAMIX AI" className="w-8 h-8 object-contain rounded-lg" style={{display: 'block'}} />
             </div>
             <span className="font-bold text-lg hidden sm:block animate-typewriter">
               <span className="golden-text">BOTIDINAMIX AI</span>
