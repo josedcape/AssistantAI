@@ -519,8 +519,8 @@ const Workspace = () => {
 
           {/* Workspace Content */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Sidebar - hidden on mobile */}
-            <div className={`hidden md:block bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto ${showFileExplorer ? 'block' : 'hidden'}`}> {/* Added conditional rendering */}
+            {/* Sidebar - responsive */}
+            <div className={`${isMobile ? (showFileExplorer ? 'block' : 'hidden') : 'block'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto`}>
               <FileExplorer
                 projectId={projectId}
                 files={files}
@@ -819,7 +819,7 @@ const Workspace = () => {
 
       {/* Mobile actions */}
       {isMobile && (
-        <div className="md:hidden fixed bottom-5 right-5 z-10">
+        <div className="md:hidden fixed bottom-5 right-5 z-50">
           <div className="flex flex-col items-end space-y-2">
             {developmentPlan && (
               <button
@@ -832,7 +832,7 @@ const Workspace = () => {
             )}
             <button
               className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
-              onClick={() => setShowSidebar(!showSidebar)}
+              onClick={() => setShowFileExplorer(!showFileExplorer)}
               title="Mostrar/Ocultar explorador de archivos"
             >
               <i className="ri-file-list-3-line text-xl"></i>
