@@ -10,6 +10,7 @@ const Home = () => {
   return (
     <div className="min-h-screen flex flex-col bg-black">
       <Header />
+      <main className="flex-1">
 
       <main className="flex-1">
         <div className="container relative">
