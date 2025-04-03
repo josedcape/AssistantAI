@@ -16,12 +16,12 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
   // Función para obtener el ID del proyecto de forma segura
   const getProjectId = (): number | null => {
     if (!file) return null;
-    
+
     // Asegurarnos de que el projectId sea un número válido
-    const projectId = typeof file.projectId === 'number' 
-      ? file.projectId 
+    const projectId = typeof file.projectId === 'number'
+      ? file.projectId
       : parseInt(String(file.projectId));
-      
+
     return !isNaN(projectId) ? projectId : null;
   };
 
@@ -147,7 +147,7 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
               </div>
             </div>
           )}
-          <iframe 
+          <iframe
             ref={iframeRef}
             className="w-full h-full border-0"
             title="Vista previa"
@@ -168,9 +168,9 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
-          <CodeBlock 
-            code={file.content} 
-            language={file.type === 'javascript' ? 'js' : file.type} 
+          <CodeBlock
+            code={file.content}
+            language={file.type === 'javascript' ? 'js' : file.type}
             showLineNumbers={true}
           />
         </div>
@@ -182,7 +182,7 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900">
       <div className="flex justify-between items-center p-2 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center">
-          <button 
+          <button
             className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 mr-2"
             onClick={refreshPreview}
             title="Actualizar vista previa"
@@ -195,7 +195,7 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
         </div>
 
         <div className="flex items-center">
-          <button 
+          <button
             className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
             onClick={openInNewWindow}
             title="Abrir en nueva ventana"
