@@ -830,6 +830,56 @@ const Workspace = () => {
                 <i className="ri-file-list-line text-xl"></i>
               </button>
             )}
+            <div className="relative">
+              <button
+                className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
+                onClick={() => setShowSidebar(!showSidebar)}
+                title="Menú de navegación"
+              >
+                <i className="ri-menu-line text-xl"></i>
+              </button>
+              {showSidebar && (
+                <div className="absolute bottom-16 right-0 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="py-1">
+                    <button
+                      onClick={() => {setActiveTab("development"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
+                      Desarrollo
+                    </button>
+                    <button
+                      onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-eye-2-line text-green-500 mr-2"></i>
+                      Vista Previa
+                    </button>
+                    <button
+                      onClick={() => {setActiveTab("console"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-terminal-box-line text-purple-500 mr-2"></i>
+                      Consola
+                    </button>
+                    <button
+                      onClick={() => {setActiveTab("deployment"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-rocket-line text-red-500 mr-2"></i>
+                      Despliegue
+                    </button>
+                    <button
+                      onClick={() => {setActiveTab("assistant-chat"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-robot-line text-amber-500 mr-2"></i>
+                      Asistente
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
               onClick={() => setShowFileExplorer(!showFileExplorer)}
