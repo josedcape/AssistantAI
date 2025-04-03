@@ -18,9 +18,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import AssistantChat from "@/components/AssistantChat"; // Import the AssistantChat component
 import { DocumentUploader } from "@/components/DocumentUploader"; // Added import
 import ProjectDeployment from "@/components/ProjectDeployment"; // Importar componente de despliegue
+import { sounds } from '@/lib/sounds'; // Added import for sounds
 
 
-const Workspace = () => {
+const Workspace: React.FC = () => {
   const params = useParams<{ id: string }>();
   const projectId = parseInt(params.id);
   const [, navigate] = useLocation();
@@ -306,6 +307,11 @@ const Workspace = () => {
   const selectQuickPrompt = (prompt: string) => {
     setAiPrompt(prompt);
   };
+
+  useEffect(() => {
+    // Play laser sound when workspace loads
+    sounds.play('laser', 0.4);
+  }, []);
 
   if (isLoadingProject || isLoadingFiles) {
     return (

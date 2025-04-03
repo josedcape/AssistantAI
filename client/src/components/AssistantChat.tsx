@@ -236,12 +236,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ projectId, onApplyChanges
     return highlightedCode;
   };
 
+  import { sounds } from '@/lib/sounds';
+
   // Función para renderizar mensajes con formato code
   const renderMessageContent = (content: string) => {
     // Play magic sound effect for assistant messages
     if (content && content.length > 0) {
       sounds.play('typing', 0.2);
-      setTimeout(() => sounds.play('success', 0.3), 600);
+      setTimeout(() => sounds.play('futurist', 0.3), 600);
     }
     
     // Buscar bloques de código usando regex
