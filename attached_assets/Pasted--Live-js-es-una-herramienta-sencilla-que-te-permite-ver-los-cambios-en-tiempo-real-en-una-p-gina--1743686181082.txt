@@ -1,0 +1,61 @@
+**Live.js** es una herramienta sencilla que te permite ver los cambios en tiempo real en una página web mientras editas el código, sin necesidad de recargar la página manualmente. Esto es muy útil si deseas ver cómo se renderiza el HTML y CSS a medida que realizas cambios en el código. 
+
+### Cómo funciona:
+Live.js monitorea tus archivos HTML, CSS y JavaScript y automáticamente recarga la página en el navegador cuando detecta cambios en esos archivos. Este proceso se realiza sin que el usuario tenga que presionar el botón de recarga en el navegador.
+
+### ¿Cómo integrar Live.js en tu proyecto?
+
+1. **Incluir la librería en tu HTML**  
+   Puedes descargar Live.js o incluirlo desde un CDN (Content Delivery Network). Para ello, simplemente agrega el siguiente código en la etiqueta `<head>` de tu archivo HTML:
+
+   ```html
+   <script type="text/javascript" src="https://livejs.com/live.js"></script>
+   ```
+
+   Esto incluirá la funcionalidad de Live.js en tu página.
+
+2. **Estructura del archivo HTML**  
+   Asegúrate de tener tu código HTML con las etiquetas básicas y los archivos CSS y JavaScript que deseas monitorear. Aquí hay un ejemplo simple:
+
+   ```html
+   <!DOCTYPE html>
+   <html lang="es">
+   <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title>Previsualización en Tiempo Real</title>
+       <link rel="stylesheet" href="styles.css">
+       <script type="text/javascript" src="https://livejs.com/live.js"></script>
+   </head>
+   <body>
+       <h1>¡Hola, Mundo!</h1>
+       <p>Este es un ejemplo de previsualización en tiempo real con Live.js.</p>
+       <script src="script.js"></script>
+   </body>
+   </html>
+   ```
+
+3. **Inicia el servidor local (si es necesario)**  
+   Live.js no funciona directamente en archivos locales (abrir los archivos directamente desde tu sistema de archivos), por lo que necesitas ejecutar un servidor local para poder ver los cambios en tiempo real. Si no tienes uno configurado, puedes usar herramientas como:
+   - **Visual Studio Code con la extensión "Live Server"**.
+   - **http-server** de Node.js (puedes instalarlo con `npm install -g http-server`).
+
+   Simplemente ejecuta el servidor y abre tu página en el navegador.
+
+4. **Realiza cambios y previsualiza**  
+   Una vez que todo esté configurado, puedes comenzar a editar los archivos HTML, CSS o JavaScript en tu proyecto. Live.js detectará automáticamente cualquier cambio en estos archivos y recargará la página en el navegador, mostrando los cambios sin que tengas que hacer nada más.
+
+### ¿Qué puedes esperar de Live.js?
+
+- **Automática recarga**: Cada vez que guardes un archivo HTML, CSS o JavaScript, la página se recargará automáticamente.
+- **Sin intervención manual**: No necesitas presionar el botón de recarga en el navegador.
+- **Soporte para varios archivos**: Funciona bien con archivos HTML, CSS y JavaScript.
+
+### Limitaciones:
+- **Funciona solo con archivos que están en un servidor** (local o en producción), no con archivos directamente desde el sistema de archivos.
+- **Sin edición directa en el navegador**: Aunque Live.js recarga la página automáticamente, no permite editar el código directamente en la página como lo haría un editor de código embebido.
+
+### Alternativa:
+Si buscas una solución más interactiva, puedes considerar usar editores como **CodeMirror** o **Ace Editor**, los cuales permiten editar y previsualizar el código en tiempo real directamente en la interfaz de la aplicación.
+
+Live.js es ideal si solo necesitas previsualizar cambios en la página mientras editas archivos externos y es una solución muy ligera y fácil de implementar.
