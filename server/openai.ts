@@ -47,7 +47,7 @@ export function getAvailableModels() {
   return AVAILABLE_MODELS;
 }
 
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
 const openai = new OpenAI({
