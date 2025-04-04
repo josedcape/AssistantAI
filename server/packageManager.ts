@@ -124,6 +124,80 @@ function isNormalOutput(stderr: string, manager: string): boolean {
   return false;
 }
 
+/**
+ * Ejecuta un script definido en el package.json
+ */
+export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm'): Promise<PackageManagerResult> {
+  try {
+    // Validar el nombre del script
+    if (!scriptName || scriptName.trim() === '') {
+      return {
+        success: false,
+        message: 'El nombre del script es requerido'
+      };
+    }
+
+    // Sanitizar el nombre del script para prevenir inyección de comandos
+    const sanitizedScriptName = scriptName.replace(/[;&|`$><!\\]/g, '');
+    
+    // Construir el comando según el gestor
+    let cmd = manager;
+    let args: string[] = [];
+
+    switch (manager) {
+      case 'npm':
+        args = ['run', sanitizedScriptName];
+        break;
+      case 'yarn':
+        args = [sanitizedScriptName];
+        break;
+      case 'pnpm':
+        args = ['run', sanitizedScriptName];
+        break;
+      case 'bun':
+        args = ['run', sanitizedScriptName];
+        break;
+      default:
+        return {
+          success: false,
+          message: `Gestor de paquetes "${manager}" no soportado`
+        };
+    }
+
+    log(`Ejecutando: ${cmd} ${args.join(' ')}`);
+
+    // Usar execa para ejecutar el comando
+    const { stdout, stderr } = await execa(cmd, args, { 
+      timeout: 60000, // 1 min timeout
+      stripFinalNewline: true
+    });
+
+    // Comprobar si hay errores
+    if (stderr && !isNormalOutput(stderr, manager) && stderr.toLowerCase().includes('error')) {
+      return {
+        success: false,
+        message: `Error al ejecutar script ${sanitizedScriptName}`,
+        output: stdout,
+        error: stderr
+      };
+    }
+
+    return {
+      success: true,
+      message: `Script ${sanitizedScriptName} ejecutado correctamente`,
+      output: stdout
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    return {
+      success: false,
+      message: `Error al ejecutar script ${scriptName}`,
+      error: errorMessage
+    };
+  }
+}
+
 // Obtiene la lista de paquetes instalados del package.json
 export async function getInstalledPackages(): Promise<any[]> {
   try {
