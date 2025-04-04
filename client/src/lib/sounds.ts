@@ -1,9 +1,8 @@
-
 // Sistema de efectos de sonido para la aplicación
 class SoundSystem {
   private sounds: Record<string, HTMLAudioElement> = {};
   private enabled: boolean = true;
-  
+
   constructor() {
     // Precarga los efectos de sonido comunes
     this.preloadSounds({
@@ -16,12 +15,12 @@ class SoundSystem {
       save: '/sounds/save.mp3',
       hover: '/sounds/hover.mp3',
     });
-    
+
     // Recuperar preferencia de sonido del usuario
     const soundEnabled = localStorage.getItem('sound-enabled');
     this.enabled = soundEnabled === null ? true : soundEnabled === 'true';
   }
-  
+
   private preloadSounds(sources: Record<string, string>): void {
     // Solo cargamos los sonidos si el navegador soporta Audio
     if (typeof Audio !== 'undefined') {
@@ -37,10 +36,10 @@ class SoundSystem {
       });
     }
   }
-  
+
   play(name: string, volume: number = 0.4): void {
     if (!this.enabled) return;
-    
+
     const sound = this.sounds[name];
     if (sound) {
       // Crear una nueva instancia para permitir sonidos superpuestos
@@ -51,13 +50,13 @@ class SoundSystem {
       });
     }
   }
-  
+
   toggle(): boolean {
     this.enabled = !this.enabled;
     localStorage.setItem('sound-enabled', this.enabled.toString());
     return this.enabled;
   }
-  
+
   isEnabled(): boolean {
     return this.enabled;
   }
@@ -65,3 +64,18 @@ class SoundSystem {
 
 // Exportamos una instancia única
 export const sounds = new SoundSystem();
+
+export const play = async (soundName: string, volume = 1) => {
+  try {
+    const audio = new Audio();
+    audio.src = `/sounds/${soundName}.mp3`;
+    audio.volume = volume;
+    await audio.load();
+    await audio.play();
+  } catch (error) {
+    // Silenciar errores de reproducción de audio
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`Audio no disponible: ${soundName}`);
+    }
+  }
+};

@@ -46,18 +46,14 @@ const Home = () => {
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                   <Link href="/workspace/new">
-                    <a>
-                      <Button size={isMobile ? "default" : "lg"} className="text-base">
-                        <i className="ri-rocket-line mr-2"></i> Empezar ahora
-                      </Button>
-                    </a>
+                    <Button size={isMobile ? "default" : "lg"} className="text-base">
+                      <i className="ri-rocket-line mr-2"></i> Empezar ahora
+                    </Button>
                   </Link>
                   <Link href="/tutorials">
-                    <a>
-                      <Button variant="outline" size={isMobile ? "default" : "lg"} className="text-base">
-                        <i className="ri-book-open-line mr-2"></i> Ver tutorial
-                      </Button>
-                    </a>
+                    <Button variant="outline" size={isMobile ? "default" : "lg"} className="text-base">
+                      <i className="ri-book-open-line mr-2"></i> Ver tutorial
+                    </Button>
                   </Link>
                 </div>
 
@@ -242,15 +238,13 @@ const Home = () => {
                 Comienza a utilizar el poder de la IA para crear aplicaciones más rápido que nunca.
               </p>
               <Link href="/workspace/1">
-                <a>
-                  <Button 
-                    size={isMobile ? "default" : "lg"} 
-                    variant="outline" 
-                    className="text-white border-white hover:bg-white hover:text-primary-500 w-full sm:w-auto"
-                  >
-                    <i className="ri-code-line mr-2"></i> Crear un proyecto
-                  </Button>
-                </a>
+                <Button 
+                  size={isMobile ? "default" : "lg"} 
+                  variant="outline" 
+                  className="text-white border-white hover:bg-white hover:text-primary-500 w-full sm:w-auto"
+                >
+                  <i className="ri-code-line mr-2"></i> Crear un proyecto
+                </Button>
               </Link>
             </div>
           </section>
