@@ -28,8 +28,9 @@ const sounds = {
 };
 
 interface ProjectDeploymentProps {
-  projectId: string;
-  projectName: string;
+  projectId: string | number;
+  files?: any[];
+  refreshFiles?: () => void;
 }
 
 const ProjectDeployment = ({ projectId, projectName }: ProjectDeploymentProps) => {

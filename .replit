@@ -1,21 +1,38 @@
-modules = ["nodejs-20", "web"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+run = ["npm", "run", "dev"]
+hidden = [".config", "package-lock.json"]
+modules = ["nodejs-20:v8-20230920-bd784b9"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-23_11"
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["sh", "-c", "npm run dev"]
+run = ["node", "dist/index.js"]
+deploymentTarget = "cloudrun"
+ignorePorts = false
 
-[[ports]]
-localPort = 5000
-externalPort = 80
+[languages]
+[languages.javascript]
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
+[languages.javascript.languageServer]
+start = ["typescript-language-server", "--stdio"]
+[languages.css]
+pattern = "**/{*.less,*.scss,*.css}"
+[languages.css.languageServer]
+start = ["vscode-css-language-server", "--stdio"]
+[languages.html]
+pattern = "**/*.html"
+[languages.html.languageServer]
+start = ["vscode-html-language-server", "--stdio"]
 
-[[ports]]
-localPort = 5001
-externalPort = 3000
+[env]
+NODE_ENV = "development"
+PORT = "5001"
+XDG_CONFIG_HOME = "/home/runner/.config"
+PATH = "/home/runner/$REPL_SLUG/.config/npm/node_global/bin:/home/runner/$REPL_SLUG/node_modules/.bin"
+npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix", ".config"]
 
 [workflows]
 runButton = "Dev Server"
