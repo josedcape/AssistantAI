@@ -291,7 +291,12 @@ const Workspace: React.FC = () => {
       <div className="flex flex-col h-screen">
         <Header />
         <main className="flex-1 flex">
-          <div className="flex-1 flex flex-col">
+          {/* Sidebar */}
+          {/*<SidebarContent /> */} {/*This component was not defined in the original code, I have commented it out.*/}
+
+          {/* Main content area */}
+          <div className="bg-white dark:bg-slate-800 shadow-sm border-l dark:border-slate-700 flex flex-col flex-1 overflow-hidden">
+            {/* Project header with actions */}
             {isMobile && (
               <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2">
                 <div className="flex items-center">
@@ -783,7 +788,7 @@ const Workspace: React.FC = () => {
                 <div className="flex flex-col items-end space-y-2">
                   {developmentPlan && (
                     <button
-                      className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
+                      className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justifycenter focus:outline-none"
                       onClick={() => setDevelopmentPlan(null)}
                       title="Ver plan de desarrollo"
                     >
