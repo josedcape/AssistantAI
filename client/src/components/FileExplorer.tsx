@@ -29,7 +29,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
     try {
       setIsLoading(true);
       setLoading(true);
-      
+
       // Check if we have cached files first
       const cachedFiles = projectStorage.getProject<File[]>(projectId, []);
       if (cachedFiles && cachedFiles.length > 0) {
@@ -40,11 +40,11 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       // Always fetch fresh data from server
       const response = await apiRequest("GET", `/api/projects/${projectId}/files`);
       const data = await response.json();
-      
+
       // Update state and cache
       setFiles(data);
       projectStorage.saveProject(projectId, data);
-      
+
       // Save project ID as last used
       projectStorage.saveLastProjectId(projectId);
     } catch (error) {
@@ -67,11 +67,11 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       if (cachedDocs && cachedDocs.length > 0) {
         setDocuments(cachedDocs);
       }
-      
+
       // Fetch fresh data
       const response = await apiRequest("GET", `/api/projects/${projectId}/documents`);
       const data = await response.json();
-      
+
       // Update state and cache
       setDocuments(data);
       projectStorage.saveProject(`${projectId}_docs`, data);
@@ -90,7 +90,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       loadFiles();
       loadDocuments();
     }
-    
+
     // Agregar listener para el evento de extraer repositorio
     const handleExtractRepoEvent = () => {
       // Buscar un documento que podría ser un repositorio (por nombre o tipo)
@@ -99,7 +99,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         doc.name.includes('Repositorio') || 
         doc.path?.endsWith('.zip')
       );
-      
+
       if (repoDoc && repoDoc.id) {
         handleExtractRepository(repoDoc.id, new MouseEvent('click') as any);
       } else {
@@ -110,9 +110,9 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         });
       }
     };
-    
+
     document.addEventListener('extract-repository', handleExtractRepoEvent);
-    
+
     return () => {
       document.removeEventListener('extract-repository', handleExtractRepoEvent);
     };
@@ -165,27 +165,27 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       });
     }
   };
-  
+
   const handleExtractRepository = async (documentId: number, event: React.MouseEvent) => {
     event.stopPropagation();
-    
+
     try {
       const response = await apiRequest("POST", `/api/documents/${documentId}/extract`, {
         projectId: projectId
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Error al extraer archivos");
       }
-      
+
       const result = await response.json();
-      
+
       toast({
         title: "Repositorio extraído",
         description: `Se extrajeron ${result.processed || 0} archivos correctamente`,
       });
-      
+
       await loadDocuments();
     } catch (error) {
       console.error("Error extrayendo repositorio:", error);

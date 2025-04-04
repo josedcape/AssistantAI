@@ -23,13 +23,29 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
 
+  // Array of available project templates
+  const templates = [
+    { id: "html-css-js", name: "HTML/CSS/JS Básico", description: "Sitio web simple con HTML, CSS y JavaScript", icon: "ri-html5-line", iconColor: "text-orange-500" },
+    { id: "react", name: "React", description: "Aplicación React con componentes básicos", icon: "ri-reactjs-line", iconColor: "text-blue-400" },
+    { id: "vue", name: "Vue", description: "Aplicación Vue.js con componentes básicos", icon: "ri-vuejs-line", iconColor: "text-green-500" },
+    { id: "node", name: "Node.js", description: "Servidor Node.js con Express", icon: "ri-nodejs-line", iconColor: "text-green-600" },
+    { id: "python", name: "Python", description: "Aplicación Python con Flask", icon: "ri-python-line", iconColor: "text-blue-500" },
+    { id: "nextjs", name: "Next.js", description: "Aplicación Next.js con componentes básicos", icon: "ri-reactjs-line", iconColor: "text-sky-500" }, // Added Next.js
+    { id: "express", name: "Express.js", description: "Servidor Express.js", icon: "ri-nodejs-line", iconColor: "text-green-600" }, // Added Express.js
+    { id: "django", name: "Django", description: "Aplicación Django", icon: "ri-python-line", iconColor: "text-blue-500" }, // Added Django
+    { id: "flask", name: "Flask", description: "Aplicación Flask", icon: "ri-python-line", iconColor: "text-blue-500" }, // Added Flask
+    { id: "vue3", name: "Vue 3", description: "Aplicación Vue 3 con Composition API", icon: "ri-vuejs-line", iconColor: "text-green-500" }, // Added Vue 3
+    { id: "svelte", name: "Svelte", description: "Aplicación Svelte", icon: "ri-svelte-line", iconColor: "text-red-500" } // Added Svelte
+  ];
+
+
   // Focus on project name input when modal opens
   useEffect(() => {
     const timer = setTimeout(() => {
       const input = document.getElementById("projectName");
       if (input) input.focus();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -40,14 +56,14 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         onClose();
       }
     };
-    
+
     document.addEventListener('keydown', handleEscapeKey);
     return () => document.removeEventListener('keydown', handleEscapeKey);
   }, [isSubmitting, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!projectName.trim()) {
       toast({
         title: "Error",
@@ -56,19 +72,22 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       });
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
-      
+
       const response = await apiRequest("POST", "/api/projects", {
         name: projectName,
-        description
+        description,
+        template // Added template to the request
       });
-      
+
       const newProject = await response.json();
-      
-      // Create initial files based on template
+
+      // Create initial files based on template -  This section needs significant expansion to handle all templates.
+      // Placeholder for more robust template handling
       if (template === "html-css-js") {
+        //Existing HTML, CSS, and JS creation code remains unchanged.
         await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
           name: "index.html",
           content: `<!DOCTYPE html>
@@ -89,7 +108,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
 </html>`,
           type: "html"
         });
-        
+
         await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
           name: "estilos.css",
           content: `body {
@@ -117,20 +136,20 @@ h1 {
   #app {
     padding: 15px;
   }
-  
+
   h1 {
     font-size: 1.5rem;
   }
 }`,
           type: "css"
         });
-        
+
         await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
           name: "app.js",
           content: `// Código JavaScript para ${projectName}
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Aplicación iniciada');
-  
+
   // Detectar si es un dispositivo móvil
   const isMobile = window.innerWidth < 768;
   if (isMobile) {
@@ -140,15 +159,16 @@ document.addEventListener('DOMContentLoaded', () => {
           type: "javascript"
         });
       }
-      
+
+
       // Invalidate projects cache
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      
+
       toast({
         title: "Proyecto creado",
         description: `${projectName} ha sido creado exitosamente`
       });
-      
+
       // Navigate to the workspace
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
@@ -191,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <i className="ri-close-line text-xl"></i>
           </button>
         </div>
-        
+
         <div className="p-4">
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -210,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="description" className="text-sm font-medium">
                   Descripción (opcional)
@@ -224,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   disabled={isSubmitting}
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="template" className="text-sm font-medium">
                   Plantilla
@@ -238,68 +258,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     <SelectValue placeholder="Selecciona una plantilla" />
                   </SelectTrigger>
                   <SelectContent position={isMobile ? "popper" : "item-aligned"}>
-                    <div className={isMobile ? "max-h-[200px] overflow-y-auto" : ""}>
-                      <SelectItem value="html-css-js">
-                        <div className="flex items-start gap-2">
-                          <i className="ri-html5-line text-orange-500 mt-0.5"></i>
-                          <div>
-                            <div>HTML/CSS/JS Básico</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Sitio web simple con HTML, CSS y JavaScript
+                    <div className={isMobile ? "max-h-[300px] overflow-y-auto" : ""}>
+                      {templates.map(tmpl => (
+                        <SelectItem key={tmpl.id} value={tmpl.id}>
+                          <div className="flex items-start gap-2">
+                            <i className={`${tmpl.icon} ${tmpl.iconColor} mt-0.5`}></i>
+                            <div>
+                              <div>{tmpl.name}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {tmpl.description}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="react">
-                        <div className="flex items-start gap-2">
-                          <i className="ri-reactjs-line text-blue-400 mt-0.5"></i>
-                          <div>
-                            <div>React</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Aplicación React con componentes básicos
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="vue">
-                        <div className="flex items-start gap-2">
-                          <i className="ri-vuejs-line text-green-500 mt-0.5"></i>
-                          <div>
-                            <div>Vue</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Aplicación Vue.js con componentes básicos
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="node">
-                        <div className="flex items-start gap-2">
-                          <i className="ri-nodejs-line text-green-600 mt-0.5"></i>
-                          <div>
-                            <div>Node.js</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Servidor Node.js con Express
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="python">
-                        <div className="flex items-start gap-2">
-                          <i className="ri-python-line text-blue-500 mt-0.5"></i>
-                          <div>
-                            <div>Python</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Aplicación Python con Flask
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
+                        </SelectItem>
+                      ))}
                     </div>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            
+
             <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 gap-2 sm:gap-0">
               <Button
                 type="button"

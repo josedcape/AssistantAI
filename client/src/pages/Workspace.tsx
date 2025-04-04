@@ -469,7 +469,21 @@ const Workspace: React.FC = () => {
               </div>
 
               <div className="flex-1 flex overflow-hidden">
-                <div className={`${isMobile ? (showFileExplorer ? 'block' : 'hidden') : 'block'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto`}>
+                <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
+                  <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Explorador</h3>
+                      {isMobile && (
+                        <button 
+                          onClick={() => setActiveTab("development")}
+                          className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                        >
+                          <i className="ri-arrow-left-line"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {activeTab === "files" && (
                     <div className="h-full">
                       <FileExplorer
