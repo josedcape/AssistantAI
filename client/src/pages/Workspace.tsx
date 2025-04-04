@@ -797,7 +797,8 @@ const Workspace: React.FC = () => {
                       <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
                       Desarrollo
                     </button>
-                    <buttononClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
+                    <button 
+                      onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
                       className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
                     >
                       <i className="ri-eye-2-line text-green-500 mr-2"></i>
