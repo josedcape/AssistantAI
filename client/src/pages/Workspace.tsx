@@ -19,6 +19,7 @@ import AssistantChat from "@/components/AssistantChat"; // Import the AssistantC
 import { DocumentUploader } from "@/components/DocumentUploader"; // Added import
 import ProjectDeployment from "@/components/ProjectDeployment"; // Importar componente de despliegue
 import { sounds } from '@/lib/sounds'; // Added import for sounds
+import PackageExplorer from "@/components/PackageExplorer"; // Import PackageExplorer component
 
 
 const Workspace: React.FC = () => {
@@ -28,7 +29,7 @@ const Workspace: React.FC = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  const [activeTab, setActiveTab] = useState("development");
+  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -405,6 +406,11 @@ const Workspace: React.FC = () => {
                           <i className="ri-stack-line text-teal-500"></i>Recursos
                         </TabsTrigger>
                       )}
+                      {!isMobile && (
+                        <TabsTrigger value="packages" className="flex items-center gap-1.5">
+                          <i className="ri-package-line text-indigo-500"></i>Paquetes
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                   </Tabs>
                 </div>
@@ -527,12 +533,27 @@ const Workspace: React.FC = () => {
           <div className="flex-1 flex overflow-hidden">
             {/* Sidebar - responsive */}
             <div className={`${isMobile ? (showFileExplorer ? 'block' : 'hidden') : 'block'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto`}>
-              <FileExplorer
-                projectId={projectId}
-                files={files}
-                onFileSelect={handleFileSelect}
-                onFilesUpdate={refetchFiles}
-              />
+              {/* Sidebar content based on active tab */}
+              {activeTab === "files" && (
+                <div className="h-full">
+                  <FileExplorer
+                    projectId={projectId}
+                    files={files}
+                    onFileSelect={handleFileSelect}
+                    onFilesUpdate={refetchFiles}
+                  />
+                </div>
+              )}
+              {activeTab === "packages" && (
+                <div className="h-full">
+                  <PackageExplorer projectId={projectId} />
+                </div>
+              )}
+              {activeTab === "assistant-chat" && (
+                <div className="h-full">
+                  {/* Placeholder for assistant chat content */}
+                </div>
+              )}
             </div>
 
             {/* Editor and Preview */}
@@ -881,6 +902,13 @@ const Workspace: React.FC = () => {
                     >
                       <i className="ri-robot-line text-amber-500 mr-2"></i>
                       Asistente
+                    </button>
+                    <button
+                      onClick={() => {setActiveTab("packages"); setShowSidebar(false);}}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                    >
+                      <i className="ri-package-line mr-2"></i>
+                      Paquetes
                     </button>
                   </div>
                 </div>

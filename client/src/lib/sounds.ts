@@ -65,17 +65,27 @@ class SoundSystem {
 // Exportamos una instancia única
 export const sounds = new SoundSystem();
 
-export const play = async (soundName: string, volume = 1) => {
-  try {
-    const audio = new Audio();
-    audio.src = `/sounds/${soundName}.mp3`;
-    audio.volume = volume;
-    await audio.load();
-    await audio.play();
-  } catch (error) {
-    // Silenciar errores de reproducción de audio
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`Audio no disponible: ${soundName}`);
+export const playSound = (soundName: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const audio = new Audio(`/sounds/${soundName}.mp3`);
+
+      audio.onended = () => {
+        resolve();
+      };
+
+      audio.onerror = (err) => {
+        console.warn(`Error reproduciendo sonido ${soundName}:`, err);
+        resolve(); // Resolvemos de todas formas para no bloquear
+      };
+
+      audio.play().catch(err => {
+        console.warn(`Error reproduciendo sonido ${soundName}:`, err);
+        resolve(); // Resolvemos aunque falle la reproducción
+      });
+    } catch (err) {
+      console.warn(`Error al crear audio ${soundName}:`, err);
+      resolve(); // Resolvemos para no bloquear
     }
-  }
+  });
 };

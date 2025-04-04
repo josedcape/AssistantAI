@@ -9,7 +9,7 @@ import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } fr
 import { z } from "zod";
 import multer from "multer";
 import { downloadFromUrl, processUploadedFile, searchInDocuments, getDocumentContent } from "./documents";
-import { installPackage, uninstallPackage, listPackages, runScript, getPackageInfo } from "./packageManager";
+import { installPackage, uninstallPackage, listPackages, runScript, getPackageInfo, getInstalledPackages } from "./packageManager";
 import { setupSoundsRoutes } from "./sounds"; // Added import for sound routes
 
 
@@ -1290,7 +1290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let styleEl = document.getElementById(styleId);
 
             if (!styleEl) {
-document.createElement('style');
+              // Crear nuevo elemento style si no existe
+              styleEl = document.createElement('style');
               styleEl.id = styleId;
               document.head.appendChild(styleEl);
             }
@@ -1583,6 +1584,16 @@ document.createElement('style');
 
   // Register API routes
   app.use("/api", apiRouter);
+
+  apiRouter.get("/projects/:id/packages", async (req: Request, res: Response) => {
+    try {
+      const packages = await getInstalledPackages();
+      res.json(packages);
+    } catch (error) {
+      console.error("Error fetching packages:", error);
+      res.status(500).json({ message: "Error fetching installed packages" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

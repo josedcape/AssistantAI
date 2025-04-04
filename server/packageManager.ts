@@ -124,6 +124,34 @@ function isNormalOutput(stderr: string, manager: string): boolean {
   return false;
 }
 
+// Obtiene la lista de paquetes instalados del package.json
+export async function getInstalledPackages(): Promise<any[]> {
+  try {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+    
+    const dependencies = packageJson.dependencies || {};
+    const devDependencies = packageJson.devDependencies || {};
+    
+    const dependenciesList = Object.entries(dependencies).map(([name, version]) => ({
+      name,
+      version: String(version).replace(/[\^~]/, ''),
+      isDevDependency: false
+    }));
+    
+    const devDependenciesList = Object.entries(devDependencies).map(([name, version]) => ({
+      name,
+      version: String(version).replace(/[\^~]/, ''),
+      isDevDependency: true
+    }));
+    
+    return [...dependenciesList, ...devDependenciesList];
+  } catch (error) {
+    log(`Error al leer los paquetes instalados: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
 // El resto de funciones - mantener las mismas pero adaptarlas con execa y mejor manejo de errores
 // ...
 
