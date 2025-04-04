@@ -1,0 +1,116 @@
+El error indica que la función runScript no se está exportando desde el archivo packageManager.ts. Necesitamos corregir este problema en el archivo de asistente.
+
+Aquí está la versión corregida con los imports adaptados:
+
+import OpenAI from "openai";
+import { storage } from "./storage";
+import { getActiveModel } from "./openai";
+import { installPackage, uninstallPackage, getPackageInfo, listPackages } from "./packageManager";
+
+// Configuración de OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || ""
+});
+
+// Resto del código...
+
+/**
+ * Maneja los comandos específicos de gestión de paquetes
+ */
+async function handlePackageCommand(command: PackageAction): Promise<AssistantResponse> {
+  try {
+    let result;
+    switch (command.type) {
+      case 'install':
+        // Código de instalación...
+        
+      case 'uninstall':
+        // Código de desinstalación...
+        
+      case 'run-script':
+        if (!command.scriptName) {
+          return {
+            message: "No se especificó un nombre de script válido para ejecutar.",
+          };
+        }
+
+        // Como runScript no está disponible, usamos exec directamente
+        try {
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          
+          const manager = command.manager || 'npm';
+          let cmd = '';
+          
+          switch (manager) {
+            case 'npm': cmd = `npm run ${command.scriptName}`; break;
+            case 'yarn': cmd = `yarn ${command.scriptName}`; break;
+            case 'pnpm': cmd = `pnpm run ${command.scriptName}`; break;
+            case 'bun': cmd = `bun run ${command.scriptName}`; break;
+          }
+          
+          const { stdout, stderr } = await execAsync(cmd);
+          
+          return {
+            message: `✅ Script **${command.scriptName}** ejecutado correctamente.\n\n\`\`\`\n${stdout || ''}\n\`\`\``
+          };
+        } catch (error) {
+          return {
+            message: `❌ Error al ejecutar script **${command.scriptName}**:\n\n\`\`\`\n${error.message}\n\`\`\``
+          };
+        }
+        
+      // Resto de casos...
+    }
+  } catch (error) {
+    // Manejo de errores...
+  }
+}
+
+// Resto del código...
+
+
+Alternativa: puedes también implementar la función runScript en packageManager.ts si está faltando:
+
+// Agregar esta función a packageManager.ts
+export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm'): Promise<PackageManagerResult> {
+  try {
+    let command = '';
+    
+    switch (manager) {
+      case 'npm':
+        command = `npm run ${scriptName}`;
+        break;
+      case 'yarn':
+        command = `yarn ${scriptName}`;
+        break;
+      case 'pnpm':
+        command = `pnpm run ${scriptName}`;
+        break;
+      case 'bun':
+        command = `bun run ${scriptName}`;
+        break;
+      default:
+        return {
+          success: false,
+          message: `Gestor de paquetes "${manager}" no soportado`
+        };
+    }
+
+    const { stdout, stderr } = await execAsync(command);
+    
+    return {
+      success: true,
+      message: `Script ${scriptName} ejecutado correctamente`,
+      output: stdout,
+      error: stderr
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error al ejecutar script ${scriptName}`,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
