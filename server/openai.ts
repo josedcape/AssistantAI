@@ -50,13 +50,15 @@ export function getAvailableModels() {
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const apiKey = process.env.OPENAI_API_KEY?.trim();
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️ OPENAI_API_KEY no está configurada en el archivo .env");
+if (!apiKey) {
+  throw new Error("OpenAI API key no está configurada. Por favor configura OPENAI_API_KEY en el archivo .env");
 }
+
+const openai = new OpenAI({
+  apiKey: apiKey
+});
 
 // Interfaz extendida para incluir el plan de acción
 interface CodeGenerationWithPlanResponse extends Omit<CodeGenerationResponse, 'files'> {
