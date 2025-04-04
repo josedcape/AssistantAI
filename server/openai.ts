@@ -52,11 +52,11 @@ dotenv.config({ path: '.env' });
 
 function getOpenAIConfig() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  
+
   if (!apiKey) {
     throw new Error("OpenAI API key no está configurada. Por favor configura OPENAI_API_KEY en el archivo .env");
   }
-  
+
   return new OpenAI({
     apiKey: apiKey,
     maxRetries: 3,
