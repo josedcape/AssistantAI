@@ -2,23 +2,35 @@
 class SoundSystem {
   private sounds: Record<string, HTMLAudioElement> = {};
   private enabled: boolean = true;
+  private initialized: boolean = false;
 
   constructor() {
-    // Precarga los efectos de sonido comunes
-    this.preloadSounds({
-      click: '/sounds/click.mp3',
-      success: '/sounds/success.mp3',
-      error: '/sounds/error.mp3',
-      notification: '/sounds/notification.mp3',
-      typing: '/sounds/typing.mp3',
-      deploy: '/sounds/deploy.mp3',
-      save: '/sounds/save.mp3',
-      hover: '/sounds/hover.mp3',
-    });
-
     // Recuperar preferencia de sonido del usuario
     const soundEnabled = localStorage.getItem('sound-enabled');
     this.enabled = soundEnabled === null ? true : soundEnabled === 'true';
+
+    // Inicializar sonidos bajo demanda
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', () => {
+        // Inicializar sonidos la primera vez que el usuario interactúa
+        if (!this.initialized) {
+          this.initialize();
+        }
+      }, { once: true });
+    }
+  }
+
+  private initialize(): void {
+    // Precarga los efectos de sonido comunes
+    this.preloadSounds({
+      click: '/sounds/click.mp3',
+      notification: '/sounds/notification.mp3',
+      success: '/sounds/success.mp3',
+      error: '/sounds/error.mp3',
+      hover: '/sounds/hover.mp3',
+      save: '/sounds/save.mp3',
+    });
+    this.initialized = true;
   }
 
   private preloadSounds(sources: Record<string, string>): void {
@@ -26,28 +38,36 @@ class SoundSystem {
     if (typeof Audio !== 'undefined') {
       Object.entries(sources).forEach(([name, path]) => {
         try {
-          const audio = new Audio();
-          audio.volume = 0.4; // Volumen moderado por defecto
-          audio.src = path;
+          const audio = new Audio(path);
+          audio.load();
           this.sounds[name] = audio;
-        } catch (error) {
-          console.warn(`No se pudo cargar el sonido: ${name}`);
+        } catch (err) {
+          console.debug(`No se pudo cargar el sonido: ${path}`);
         }
       });
     }
   }
 
   play(name: string, volume: number = 0.4): void {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.initialized) return;
 
     const sound = this.sounds[name];
     if (sound) {
       // Crear una nueva instancia para permitir sonidos superpuestos
-      const soundClone = sound.cloneNode() as HTMLAudioElement;
-      soundClone.volume = volume;
-      soundClone.play().catch(err => {
-        console.warn(`Error reproduciendo sonido ${name}:`, err);
-      });
+      try {
+        const newSound = sound.cloneNode() as HTMLAudioElement;
+        newSound.volume = volume;
+        const playPromise = newSound.play();
+
+        // Solo manejamos la promesa si existe
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            // Silenciar errores en consola
+          });
+        }
+      } catch (err) {
+        // Silenciar errores de reproducción
+      }
     }
   }
 
@@ -65,27 +85,21 @@ class SoundSystem {
 // Exportamos una instancia única
 export const sounds = new SoundSystem();
 
-export const playSound = (soundName: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const audio = new Audio(`/sounds/${soundName}.mp3`);
+// Función auxiliar para reproducir sonidos sin depender del sistema principal
+export const play = async (soundName: string, volume = 0.4): Promise<void> => {
+  try {
+    if (typeof Audio === 'undefined') return;
 
-      audio.onended = () => {
-        resolve();
-      };
+    const audio = new Audio(`/sounds/${soundName}.mp3`);
+    audio.volume = volume;
+    const playPromise = audio.play();
 
-      audio.onerror = (err) => {
-        console.warn(`Error reproduciendo sonido ${soundName}:`, err);
-        resolve(); // Resolvemos de todas formas para no bloquear
-      };
-
-      audio.play().catch(err => {
-        console.warn(`Error reproduciendo sonido ${soundName}:`, err);
-        resolve(); // Resolvemos aunque falle la reproducción
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Silenciar errores
       });
-    } catch (err) {
-      console.warn(`Error al crear audio ${soundName}:`, err);
-      resolve(); // Resolvemos para no bloquear
     }
-  });
+  } catch (error) {
+    // Silenciar errores
+  }
 };

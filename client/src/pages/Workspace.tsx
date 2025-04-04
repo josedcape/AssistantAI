@@ -15,11 +15,11 @@ import ConsoleOutput from "@/components/ConsoleOutput";
 import StatusBar from "@/components/StatusBar";
 import DevelopmentPlan from "@/components/DevelopmentPlan";
 import { useIsMobile } from "@/hooks/use-mobile";
-import AssistantChat from "@/components/AssistantChat"; // Import the AssistantChat component
-import { DocumentUploader } from "@/components/DocumentUploader"; // Added import
-import ProjectDeployment from "@/components/ProjectDeployment"; // Importar componente de despliegue
-import { sounds } from '@/lib/sounds'; // Added import for sounds
-import PackageExplorer from "@/components/PackageExplorer"; // Import PackageExplorer component
+import AssistantChat from "@/components/AssistantChat";
+import { DocumentUploader } from "@/components/DocumentUploader";
+import ProjectDeployment from "@/components/ProjectDeployment";
+import { sounds } from '@/lib/sounds';
+import PackageExplorer from "@/components/PackageExplorer";
 
 
 const Workspace: React.FC = () => {
@@ -38,11 +38,10 @@ const Workspace: React.FC = () => {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showFileExplorer, setShowFileExplorer] = useState(false); // Added state for file explorer visibility
-  const [showSidebar, setShowSidebar] = useState(false); // Added state for sidebar visibility
+  const [showFileExplorer, setShowFileExplorer] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
 
 
-  // Estado para el plan de desarrollo
   const [developmentPlan, setDevelopmentPlan] = useState<{
     plan?: string[];
     architecture?: string;
@@ -50,13 +49,11 @@ const Workspace: React.FC = () => {
     requirements?: string[];
   } | null>(null);
 
-  // Fetch project details
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
     enabled: !isNaN(projectId),
   });
 
-  // Fetch project files
   const { 
     data: filesData, 
     isLoading: isLoadingFiles, 
@@ -67,7 +64,6 @@ const Workspace: React.FC = () => {
     enabled: !isNaN(projectId),
   });
 
-  // Fetch available agents
   const {
     data: agentsData,
     isLoading: isLoadingAgents,
@@ -76,52 +72,41 @@ const Workspace: React.FC = () => {
     queryKey: ['/api/agents'],
   });
 
-  // Set up agents array once data is loaded
   useEffect(() => {
     if (agentsData) {
       setAvailableAgents(agentsData);
     }
   }, [agentsData]);
 
-  // Set up files array once data is loaded
   useEffect(() => {
     if (filesData) {
       setFiles(filesData);
-
-      // Set the first file as active if none is selected
       if (!activeFile && filesData.length > 0) {
         setActiveFile(filesData[0]);
       }
     }
   }, [filesData, activeFile]);
 
-  // Efecto para ocultar automáticamente el mensaje de éxito después de 10 segundos
   useEffect(() => {
     if (showSuccessMessage) {
       const timer = setTimeout(() => {
         setShowSuccessMessage(false);
       }, 10000);
-
       return () => clearTimeout(timer);
     }
   }, [showSuccessMessage]);
 
-  // Handle back to home button
   const handleBackToHome = () => {
     navigate("/");
   };
 
-  // Handle file selection
   const handleFileSelect = (file: File) => {
     setActiveFile(file);
-
-    // On mobile, switch to development tab
     if (isMobile) {
       setActiveTab("development");
     }
   };
 
-  // Generate code using AI
   const generateCode = async () => {
     if (!aiPrompt.trim()) {
       toast({
@@ -134,11 +119,8 @@ const Workspace: React.FC = () => {
 
     try {
       setIsGenerating(true);
-
-      // Get the language from the active file if any
       const language = activeFile ? getLanguageFromFileType(activeFile.type) : undefined;
 
-      // Verificar que el ID del proyecto sea válido
       if (isNaN(projectId)) {
         toast({
           title: "Error",
@@ -152,19 +134,16 @@ const Workspace: React.FC = () => {
       const requestPayload: any = {
         prompt: aiPrompt,
         language,
-        projectId: Number(projectId) // Convertir explícitamente a número
+        projectId: Number(projectId)
       };
 
-      // Si hay agentes seleccionados, incluirlos en la solicitud
       if (selectedAgents.length > 0) {
         requestPayload.agents = selectedAgents;
       }
 
       const response = await apiRequest("POST", "/api/generate", requestPayload);
-
       const result: CodeGenerationResponse = await response.json();
 
-      // Guardar el plan de desarrollo si existe
       if (result.plan || result.architecture || result.components || result.requirements) {
         const newPlan = {
           plan: result.plan || [],
@@ -172,14 +151,10 @@ const Workspace: React.FC = () => {
           components: result.components || [],
           requirements: result.requirements || []
         };
-
         setDevelopmentPlan(newPlan);
 
-        // También guardamos el plan en el servidor si tenemos un ID de proyecto válido
         if (projectId && !isNaN(Number(projectId))) {
           try {
-            // Podríamos enviar el plan al servidor para almacenarlo permanentemente
-            // Este endpoint debería agregarse en el backend
             await apiRequest("POST", "/api/development-plans", {
               ...newPlan,
               projectId: Number(projectId)
@@ -189,7 +164,6 @@ const Workspace: React.FC = () => {
           }
         }
 
-        // Mostrar un toast con el plan de desarrollo
         toast({
           title: "Plan de desarrollo creado",
           description: "Se ha generado un plan de desarrollo para tu aplicación.",
@@ -197,9 +171,7 @@ const Workspace: React.FC = () => {
         });
       }
 
-      // Manejar los archivos generados
       if (result.files && result.files.length > 0) {
-        // Verificar nuevamente que projectId sea un número válido
         if (isNaN(projectId)) {
           toast({
             title: "Error",
@@ -211,15 +183,12 @@ const Workspace: React.FC = () => {
         }
 
         const validProjectId = Number(projectId);
-
-        // Crear todos los archivos uno por uno
         for (const file of result.files) {
-          // Crear un nuevo archivo para cada uno
           try {
             await apiRequest("POST", `/api/projects/${validProjectId}/files`, {
               name: file.name,
               content: file.content,
-              type: file.type || getFileLanguage(file.name) // Usar el tipo o inferirlo del nombre
+              type: file.type || getFileLanguage(file.name)
             });
           } catch (error) {
             console.error(`Error creating file ${file.name}:`, error);
@@ -231,11 +200,8 @@ const Workspace: React.FC = () => {
           }
         }
 
-        // Actualizar la lista de archivos y seleccionar el primero HTML como activo
         const filesResult = await refetchFiles();
         const updatedFiles = filesResult.data || [];
-
-        // Intentar seleccionar un archivo HTML primero, luego JS, luego cualquiera
         const htmlFile = updatedFiles.find((f: File) => f.type === 'html');
         const jsFile = updatedFiles.find((f: File) => f.type === 'javascript');
 
@@ -247,30 +213,19 @@ const Workspace: React.FC = () => {
           setActiveFile(updatedFiles[0]);
         }
       } else if (activeFile && result.code) {
-        // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
-        // y tenemos un archivo activo, actualizarlo
-
         const updateResponse = await apiRequest("PUT", `/api/files/${activeFile.id}`, {
           content: result.code
         });
-
         const updatedFile = await updateResponse.json();
-
-        // Update the files array
         setFiles(files.map(file => file.id === activeFile.id ? updatedFile : file));
         setActiveFile(updatedFile);
       } else if (result.code) {
-        // COMPATIBILIDAD ANTERIOR: Si todavía recibimos solo un archivo de código
-        // y no tenemos un archivo activo, crear uno nuevo
-
         const fileType = result.language === "html" ? "html" : 
                         result.language === "css" ? "css" : 
                         "javascript";
-
         const fileExtension = result.language === "html" ? ".html" : 
                               result.language === "css" ? ".css" : 
                               ".js";
-
         const fileName = `generado${fileExtension}`;
 
         const createResponse = await apiRequest("POST", `/api/projects/${projectId}/files`, {
@@ -280,16 +235,11 @@ const Workspace: React.FC = () => {
         });
 
         const newFile = await createResponse.json();
-
-        // Update files and set as active
         await refetchFiles();
         setActiveFile(newFile);
       }
 
-      // Mostrar mensaje de éxito con opción para ver el plan
       setShowSuccessMessage(true);
-
-      // Clear the prompt
       setAiPrompt("");
 
     } catch (error) {
@@ -304,13 +254,11 @@ const Workspace: React.FC = () => {
     }
   };
 
-  // Handle quick prompt selection
   const selectQuickPrompt = (prompt: string) => {
     setAiPrompt(prompt);
   };
 
   useEffect(() => {
-    // Play laser sound when workspace loads
     sounds.play('laser', 0.4);
   }, []);
 
@@ -343,7 +291,6 @@ const Workspace: React.FC = () => {
 
       <main className="flex-1 flex">
         <div className="flex-1 flex flex-col">
-          {/* Mobile toolbar with back button */}
           {isMobile && (
             <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2">
               <div className="flex items-center">
@@ -379,7 +326,6 @@ const Workspace: React.FC = () => {
             </div>
           )}
 
-          {/* Workspace Tabs */}
           <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-14">
@@ -438,7 +384,6 @@ const Workspace: React.FC = () => {
                   <button 
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
                     onClick={() => {
-                      // Verificar que el ID del proyecto sea válido
                       if (isNaN(projectId) || projectId <= 0) {
                         toast({
                           title: "Error",
@@ -448,30 +393,24 @@ const Workspace: React.FC = () => {
                         return;
                       }
 
-                      // Buscar un archivo HTML para mostrar la aplicación
                       const htmlFile = files.find(f => f.type === 'html');
                       if (htmlFile) {
                         setActiveFile(htmlFile);
                         setActiveTab("preview");
 
-                        // Notificar que se debe recargar la vista previa
                         setTimeout(() => {
-                          // Usar postMessage para comunicarse con el iframe
                           const previewIframe = document.querySelector('iframe');
                           if (previewIframe && previewIframe.contentWindow) {
                             try {
-                              // Encontrar todos los archivos relevantes para la vista previa
                               const cssFiles = files.filter(f => f.type === 'css');
                               const jsFiles = files.filter(f => f.type === 'javascript');
 
-                              // Preparar un mapa de archivos CSS y JS para actualizar contenido
                               const cssMap = {};
                               cssFiles.forEach(f => { cssMap[f.name] = f.content; });
 
                               const jsMap = {};
                               jsFiles.forEach(f => { jsMap[f.name] = f.content; });
 
-                              // Enviar mensaje al iframe
                               previewIframe.contentWindow.postMessage({
                                 type: 'refreshContent',
                                 html: htmlFile.content,
@@ -488,7 +427,7 @@ const Workspace: React.FC = () => {
                               console.error("Error al comunicarse con la vista previa:", e);
                             }
                           }
-                        }, 500); // Pequeño retraso para asegurar que el iframe está listo
+                        }, 500);
                       } else {
                         toast({
                           title: "No hay archivo HTML",
@@ -529,11 +468,8 @@ const Workspace: React.FC = () => {
             </div>
           </div>
 
-          {/* Workspace Content */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Sidebar - responsive */}
             <div className={`${isMobile ? (showFileExplorer ? 'block' : 'hidden') : 'block'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto`}>
-              {/* Sidebar content based on active tab */}
               {activeTab === "files" && (
                 <div className="h-full">
                   <FileExplorer
@@ -556,9 +492,7 @@ const Workspace: React.FC = () => {
               )}
             </div>
 
-            {/* Editor and Preview */}
             <div className="flex-1 flex flex-col">
-              {/* AI code generation prompt */}
               <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                 <div className="relative">
                   <div className="flex">
@@ -626,7 +560,6 @@ const Workspace: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Selector de agentes */}
                     {showAgentsSelector && (
                       <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
                         <h4 className="text-sm font-medium mb-2">Selecciona agentes especializados</h4>
@@ -684,9 +617,7 @@ const Workspace: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tab Content */}
               <div className="flex-1 flex">
-                {/* Development Tab - Code Editor */}
                 {activeTab === "development" && activeFile && (
                   <CodeEditor 
                     file={activeFile}
@@ -697,7 +628,6 @@ const Workspace: React.FC = () => {
                   />
                 )}
 
-                {/* Preview Tab */}
                 {activeTab === "preview" && activeFile && (
                   <CodePreview 
                     file={activeFile}
@@ -705,7 +635,6 @@ const Workspace: React.FC = () => {
                   />
                 )}
 
-                {/* Console Tab */}
                 {activeTab === "console" && (
                   <ConsoleOutput 
                     projectId={projectId}
@@ -713,7 +642,6 @@ const Workspace: React.FC = () => {
                   />
                 )}
 
-                {/* Deployment Tab */}
                 {activeTab === "deployment" && (
                   <div className="flex-1 flex flex-col">
                     <ProjectDeployment 
@@ -724,7 +652,6 @@ const Workspace: React.FC = () => {
                   </div>
                 )}
 
-                {/* Assistant Chat Tab */}
                 {activeTab === "assistant-chat" && (
                   <div className="flex-1 flex flex-col">
                     <AssistantChat
@@ -771,7 +698,6 @@ const Workspace: React.FC = () => {
                 )}
 
 
-                {/* No file selected */}
                 {!activeFile && (
                   <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                     <div className="text-center p-4">
@@ -797,12 +723,10 @@ const Workspace: React.FC = () => {
             </div>
           </div>
 
-          {/* Status Bar */}
           <StatusBar activeFile={activeFile || undefined} projectName={project?.name} />
         </div>
       </main>
 
-      {/* Mensaje de éxito con botón para ver plan de desarrollo */}
       {showSuccessMessage && developmentPlan && (
         <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 shadow-lg rounded-lg px-6 py-4 flex items-center z-50 border border-green-200 dark:border-green-900">
           <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-2 mr-4">
@@ -833,7 +757,6 @@ const Workspace: React.FC = () => {
         </div>
       )}
 
-      {/* Plan de desarrollo modal */}
       {developmentPlan && !showSuccessMessage && (
         <DevelopmentPlan
           plan={developmentPlan.plan}
@@ -844,7 +767,6 @@ const Workspace: React.FC = () => {
         />
       )}
 
-      {/* Mobile actions */}
       {isMobile && (
         <div className="md:hidden fixed bottom-5 right-5 z-50">
           <div className="flex flex-col items-end space-y-2">
@@ -875,8 +797,7 @@ const Workspace: React.FC = () => {
                       <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
                       Desarrollo
                     </button>
-                    <button
-                      onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
+                    <buttononClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
                       className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
                     >
                       <i className="ri-eye-2-line text-green-500 mr-2"></i>
