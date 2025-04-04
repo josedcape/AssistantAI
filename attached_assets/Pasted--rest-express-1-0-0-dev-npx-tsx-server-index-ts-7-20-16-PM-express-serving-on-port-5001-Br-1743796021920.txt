@@ -1,0 +1,91 @@
+> rest-express@1.0.0 dev
+> npx tsx server/index.ts
+
+7:20:16 PM [express] serving on port 5001
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Error:   Failed to scan for dependencies from entries:
+  /home/runner/workspace/client/index.html
+
+  ✘ [ERROR] Unexpected closing "main" tag does not match opening "div" tag
+
+    client/src/pages/Workspace.tsx:740:14:
+      740 │             </main>
+          │               ~~~~
+          ╵               div
+
+  The opening "div" tag is here:
+
+    client/src/pages/Workspace.tsx:330:13:
+      330 │             <div className="bg-white dark:bg-slate-800 shadow-sm ...
+          ╵              ~~~
+
+
+✘ [ERROR] Unexpected closing "div" tag does not match opening "main" tag
+
+    client/src/pages/Workspace.tsx:861:10:
+      861 │         </div>
+          │           ~~~
+          ╵           main
+
+  The opening "main" tag is here:
+
+    client/src/pages/Workspace.tsx:293:9:
+      293 │         <main className="flex-1 flex">
+          ╵          ~~~~
+
+
+✘ [ERROR] Unexpected closing "SidebarProvider" tag does not match opening "div" tag
+
+    client/src/pages/Workspace.tsx:862:8:
+      862 │       </SidebarProvider>
+          │         ~~~~~~~~~~~~~~~
+          ╵         div
+
+  The opening "div" tag is here:
+
+    client/src/pages/Workspace.tsx:291:7:
+      291 │       <div className="flex flex-col h-screen">
+          ╵        ~~~
+
+
+✘ [ERROR] The character "}" is not valid inside a JSX element
+
+    client/src/pages/Workspace.tsx:864:2:
+      864 │   };
+          │   ^
+          ╵   {'}'}
+
+  Did you mean to escape it as "{'}'}" instead?
+
+
+✘ [ERROR] Unexpected end of file before a closing "SidebarProvider" tag
+
+    client/src/pages/Workspace.tsx:866:27:
+      866 │   export default Workspace;
+          │                            ^
+          ╵                            </SidebarProvider>
+
+  The opening "SidebarProvider" tag is here:
+
+    client/src/pages/Workspace.tsx:290:5:
+      290 │     <SidebarProvider defaultOpen={!isMobile}>
+          ╵      ~~~~~~~~~~~~~~~
+
+
+    at failureErrorWithLog (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:1472:15)
+    at /home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:945:25
+    at runOnEndCallbacks (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:1315:45)
+    at buildResponseToResult (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:943:7)
+    at /home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:955:9
+    at new Promise (<anonymous>)
+    at requestCallbacks.on-end (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:954:54)
+    at handleRequest (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:647:17)
+    at handleIncomingPacket (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:672:7)
+    at Socket.readFromStdout (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
