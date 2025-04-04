@@ -6,7 +6,7 @@ modules = ["nodejs-20:v8-20230920-bd784b9"]
 channel = "stable-23_11"
 
 [deployment]
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "npm run start"]
 deploymentTarget = "cloudrun"
 ignorePorts = false
 
@@ -35,7 +35,7 @@ npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
 requiredFiles = [".replit", "replit.nix", ".config"]
 
 [workflows]
-runButton = "Dev Server"
+runButton = "Start App"
 
 [[workflows.workflow]]
 name = "Run Server"
@@ -51,6 +51,19 @@ args = "npm run dev"
 
 [[workflows.workflow]]
 name = "Dev Server"
+author = 41144892
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Start App"
 author = 41144892
 mode = "sequential"
 
