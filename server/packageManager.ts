@@ -11,6 +11,12 @@ interface PackageInstallOptions {
   global?: boolean;
 }
 
+interface PackageUninstallOptions {
+  packageName: string;
+  manager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  global?: boolean;
+}
+
 interface PackageManagerResult {
   success: boolean;
   message: string;
@@ -195,6 +201,131 @@ export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'p
       message: `Error al ejecutar script ${scriptName}`,
       error: errorMessage
     };
+  }
+}
+
+/**
+ * Desinstala un paquete usando el gestor especificado
+ */
+export async function uninstallPackage(options: PackageUninstallOptions): Promise<PackageManagerResult> {
+  const { 
+    packageName, 
+    manager = 'npm', 
+    global = false 
+  } = options;
+
+  // Validar el nombre del paquete
+  if (!packageName || packageName.trim() === '') {
+    return {
+      success: false,
+      message: 'El nombre del paquete es requerido'
+    };
+  }
+
+  // Sanitizar el nombre del paquete para prevenir inyección de comandos
+  const sanitizedPackageName = packageName.replace(/[;&|`$><!\\]/g, '');
+
+  try {
+    // Construir los argumentos según el gestor
+    let cmd = manager;
+    let args: string[] = [];
+
+    switch (manager) {
+      case 'npm':
+        args = ['uninstall', sanitizedPackageName];
+        if (global) args.push('-g');
+        break;
+      case 'yarn':
+        args = ['remove', sanitizedPackageName];
+        if (global) args.push('global');
+        break;
+      case 'pnpm':
+        args = ['remove', sanitizedPackageName];
+        if (global) args.push('--global');
+        break;
+      case 'bun':
+        args = ['remove', sanitizedPackageName];
+        if (global) args.push('--global');
+        break;
+      default:
+        return {
+          success: false,
+          message: `Gestor de paquetes "${manager}" no soportado`
+        };
+    }
+
+    log(`Ejecutando: ${cmd} ${args.join(' ')}`);
+
+    // Usar execa para mejor manejo de errores
+    const { stdout, stderr } = await execa(cmd, args, { 
+      timeout: 60000, // 1 min timeout
+      stripFinalNewline: true
+    });
+
+    // Manejar errores si los hay
+    if (stderr && !isNormalOutput(stderr, manager)) {
+      return {
+        success: false,
+        message: `Error al desinstalar ${packageName}`,
+        output: stdout,
+        error: stderr
+      };
+    }
+
+    // Actualizar package.json en memoria
+    await removePackageFromCache(packageName);
+
+    return {
+      success: true,
+      message: `Paquete ${packageName} desinstalado correctamente`,
+      output: stdout
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log(`Error de desinstalación: ${errorMessage}`);
+    
+    return {
+      success: false,
+      message: `Error al desinstalar ${packageName}`,
+      error: errorMessage
+    };
+  }
+}
+
+// Función para eliminar un paquete del package.json
+async function removePackageFromCache(packageName: string): Promise<void> {
+  try {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    
+    let packageJsonContent;
+    try {
+      packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
+    } catch (err) {
+      log(`Error al leer package.json: ${err}`);
+      return;
+    }
+
+    const packageJson = JSON.parse(packageJsonContent);
+    
+    // Eliminar de dependencias y devDependencies
+    if (packageJson.dependencies && packageJson.dependencies[packageName]) {
+      delete packageJson.dependencies[packageName];
+    }
+    
+    if (packageJson.devDependencies && packageJson.devDependencies[packageName]) {
+      delete packageJson.devDependencies[packageName];
+    }
+
+    // Guardar con formato consistente
+    await fs.writeFile(
+      packageJsonPath, 
+      JSON.stringify(packageJson, null, 2) + '\n', 
+      'utf-8'
+    );
+
+    log(`Package.json actualizado, se eliminó ${packageName}`);
+  } catch (error) {
+    log(`Error al actualizar package.json: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
