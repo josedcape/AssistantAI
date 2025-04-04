@@ -48,17 +48,26 @@ export function getAvailableModels() {
 }
 
 import * as dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env' });
 
-const apiKey = process.env.OPENAI_API_KEY?.trim();
-
-if (!apiKey) {
-  throw new Error("OpenAI API key no está configurada. Por favor configura OPENAI_API_KEY en el archivo .env");
+function getOpenAIConfig() {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  
+  if (!apiKey) {
+    throw new Error("OpenAI API key no está configurada. Por favor configura OPENAI_API_KEY en el archivo .env");
+  }
+  
+  return new OpenAI({
+    apiKey: apiKey,
+    maxRetries: 3,
+    timeout: 30000
+  });
 }
 
-const openai = new OpenAI({
-  apiKey: apiKey
-});
+const openai = getOpenAIConfig();
+
+// Re-exportar para uso en otros módulos
+export { openai };
 
 // Interfaz extendida para incluir el plan de acción
 interface CodeGenerationWithPlanResponse extends Omit<CodeGenerationResponse, 'files'> {
