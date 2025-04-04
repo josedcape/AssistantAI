@@ -22,6 +22,17 @@ import { sounds } from '@/lib/sounds';
 import PackageExplorer from "@/components/PackageExplorer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
+// Función auxiliar para determinar el tipo de archivo basado en la extensión
+const getFileLanguage = (fileName: string): string => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext === 'html') return 'html';
+  if (ext === 'css') return 'css';
+  if (ext === 'js') return 'javascript';
+  if (ext === 'ts' || ext === 'tsx') return 'typescript';
+  if (ext === 'json') return 'json';
+  if (ext === 'md') return 'markdown';
+  return 'text';
+};
 
 const Workspace: React.FC = () => {
   const params = useParams<{ id: string }>();
@@ -41,7 +52,6 @@ const Workspace: React.FC = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-
 
   const [developmentPlan, setDevelopmentPlan] = useState<{
     plan?: string[];
@@ -291,9 +301,6 @@ const Workspace: React.FC = () => {
       <div className="flex flex-col h-screen">
         <Header />
         <main className="flex-1 flex">
-          {/* Sidebar */}
-          {/*<SidebarContent /> */} {/*This component was not defined in the original code, I have commented it out.*/}
-
           {/* Main content area */}
           <div className="bg-white dark:bg-slate-800 shadow-sm border-l dark:border-slate-700 flex flex-col flex-1 overflow-hidden">
             {/* Project header with actions */}
@@ -472,400 +479,401 @@ const Workspace: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex-1 flex overflow-hidden">
-                <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
-                  <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">Explorador</h3>
-                      {isMobile && (
-                        <button 
-                          onClick={() => setActiveTab("development")}
-                          className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                        >
-                          <i className="ri-arrow-left-line"></i>
-                        </button>
-                      )}
-                    </div>
+            <div className="flex-1 flex overflow-hidden">
+              <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
+                <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Explorador</h3>
+                    {isMobile && (
+                      <button 
+                        onClick={() => setActiveTab("development")}
+                        className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                      >
+                        <i className="ri-arrow-left-line"></i>
+                      </button>
+                    )}
                   </div>
-
-                  {activeTab === "files" && (
-                    <div className="h-full">
-                      <FileExplorer
-                        projectId={projectId}
-                        files={files}
-                        onFileSelect={handleFileSelect}
-                        onFilesUpdate={refetchFiles}
-                      />
-                    </div>
-                  )}
-                  {activeTab === "packages" && (
-                    <div className="h-full">
-                      <PackageExplorer projectId={projectId} />
-                    </div>
-                  )}
-                  {activeTab === "assistant-chat" && (
-                    <div className="h-full">
-                      {/* Placeholder for assistant chat content */}
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex-1 flex flex-col">
-                  <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                    <div className="relative">
-                      <div className="flex">
-                        <div className="grow relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i className="ri-robot-line text-primary-400"></i>
-                          </div>
-                          <input
-                            type="text"
-                            className="block w-full pl-10 pr-12 py-2 border-0 rounded-l-lg bg-white dark:bg-slate-800 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            placeholder="Describe lo que quieres crear..."
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !isGenerating) {
-                                generateCode();
-                              }
-                            }}
-                          />
-                        </div>
-                        <Button
-                          onClick={generateCode}
-                          disabled={isGenerating || !aiPrompt.trim()}
-                          className="rounded-l-none bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all duration-300"
-                        >
-                          {isGenerating ? (
-                            <>
-                              <i className="ri-loader-4-line animate-spin mr-2"></i>
-                              Generando...
-                            </>
-                          ) : "Generar"}
-                        </Button>
-                      </div>
-
-                      <div className="mt-2">
-                        <div className="flex justify-between">
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            <button
-                              className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                              onClick={() => selectQuickPrompt("Crea una app web básica con HTML, CSS y JavaScript")}
-                            >
-                              App web básica
-                            </button>
-                            <button
-                              className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                              onClick={() => selectQuickPrompt("Crea un formulario de contacto con validación")}
-                            >
-                              Formulario de contacto
-                            </button>
-                            <button
-                              className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                              onClick={() => selectQuickPrompt("Crea una calculadora simple")}
-                            >
-                              Calculadora
-                            </button>
-                          </div>
-
-                          <button
-                            className="px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 flex items-center text-xs"
-                            onClick={() => setShowAgentsSelector(!showAgentsSelector)}
-                          >
-                            <i className="ri-robot-line mr-1"></i>
-                            {selectedAgents.length > 0 ? `${selectedAgents.length} agentes` : "Agentes"}
-                            <i className={`ri-arrow-${showAgentsSelector ? 'up' : 'down'}-s-line ml-1`}></i>
-                          </button>
-                        </div>
-
-                        {showAgentsSelector && (
-                          <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
-                            <h4 className="text-sm font-medium mb-2">Selecciona agentes especializados</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                              Los agentes se encargarán de generar componentes específicos de tu aplicación.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                              {availableAgents.map((agent) => (
-                                <div 
-                                  key={agent.name}
-                                  className="flex items-start"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    id={`agent-${agent.name}`}
-                                    checked={selectedAgents.includes(agent.name)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedAgents(prevAgents => [...prevAgents, agent.name]);
-                                      } else {
-                                        setSelectedAgents(prevAgents => prevAgents.filter(name => name !== agent.name));
-                                      }
-                                    }}
-                                    className="mr-2 mt-1"
-                                  />
-                                  <div>
-                                    <label 
-                                      htmlFor={`agent-${agent.name}`}
-                                      className="text-sm font-medium cursor-pointer"
-                                    >
-                                      {agent.description}
-                                    </label>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                      {agent.functions.length} funciones
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {selectedAgents.length > 0 && (
-                              <div className="mt-3 flex justify-end">
-                                <button
-                                  className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
-                                  onClick={() => setSelectedAgents([])}
-                                >
-                                  Limpiar selección
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                {activeTab === "files" && (
+                  <div className="h-full">
+                    <FileExplorer
+                      projectId={projectId}
+                      files={files}
+                      onFileSelect={handleFileSelect}
+                      onFilesUpdate={refetchFiles}
+                    />
                   </div>
+                )}
+                {activeTab === "packages" && (
+                  <div className="h-full">
+                    <PackageExplorer projectId={projectId} />
+                  </div>
+                )}
+                {activeTab === "assistant-chat" && (
+                  <div className="h-full">
+                    {/* Placeholder for assistant chat content */}
+                  </div>
+                )}
+              </div>
 
-                  <div className="flex-1 flex">
-                    {activeTab === "development" && activeFile && (
-                      <CodeEditor 
-                        file={activeFile}
-                        onUpdate={(updatedFile) => {
-                          setFiles(files.map(file => file.id === updatedFile.id ? updatedFile : file));
-                          setActiveFile(updatedFile);
-                        }} 
-                      />
-                    )}
-
-                    {activeTab === "preview" && activeFile && (
-                      <CodePreview 
-                        file={activeFile}
-                        allFiles={files}
-                      />
-                    )}
-
-                    {activeTab === "console" && (
-                      <ConsoleOutput 
-                        projectId={projectId}
-                        activeFileId={activeFile?.id}
-                      />
-                    )}
-
-                    {activeTab === "deployment" && (
-                      <div className="flex-1 flex flex-col">
-                        <ProjectDeployment 
-                          projectId={projectId} 
-                          files={files} 
-                          refreshFiles={refetchFiles}
-                        />
-                      </div>
-                    )}
-
-                    {activeTab === "assistant-chat" && (
-                      <div className="flex-1 flex flex-col">
-                        <AssistantChat
-                          projectId={projectId}
-                          onApplyChanges={(fileUpdates) => {
-                            fileUpdates.forEach(async (update) => {
-                              const existingFile = files.find(f => f.name === update.file);
-                              if (existingFile) {
-                                try {
-                                  const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
-                                  const updatedFile = await response.json();
-                                  setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
-                                  if (activeFile && activeFile.id === updatedFile.id) {
-                                    setActiveFile(updatedFile);
-                                  }
-                                  toast({ title: "Archivo actualizado", description: `${update.file} ha sido actualizado` });
-                                } catch (error) {
-                                  console.error("Error updating file:", error);
-                                  toast({ title: "Error", description: "No se pudo actualizar el archivo", variant: "destructive" });
-                                }
-                              } else {
-                                try {
-                                  const extension = update.file.split('.').pop()?.toLowerCase();
-                                  let fileType = "text";
-                                  if (extension === "js") fileType = "javascript";
-                                  else if (extension === "html") fileType = "html";
-                                  else if (extension === "css") fileType = "css";
-                                  else if (extension === "json") fileType = "json";
-                                  else if (extension === "md") fileType = "markdown";
-                                  else if (extension === "ts" || extension === "tsx") fileType = "typescript";
-                                  const response = await apiRequest("POST", `/api/projects/${projectId}/files`, { name: update.file, content: update.content, type: fileType });
-                                  const newFile = await response.json();
-                                  setFiles(prev => [...prev, newFile]);
-                                  toast({ title: "Archivo creado", description: `${update.file} ha sido creado` });
-                                } catch (error) {
-                                  console.error("Error creating file:", error);
-                                  toast({ title: "Error", description: "No se pudo crear el archivo", variant: "destructive" });
-                                }
-                              }
-                            });
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+                  <div className="relative">
+                    <div className="flex">
+                      <div className="grow relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i className="ri-robot-line text-primary-400"></i>
+                        </div>
+                        <input
+                          type="text"
+                          className="block w-full pl-10 pr-12 py-2 border-0 rounded-l-lg bg-white dark:bg-slate-800 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="Describe lo que quieres crear..."
+                          value={aiPrompt}
+                          onChange={(e) => setAiPrompt(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !isGenerating) {
+                              generateCode();
+                            }
                           }}
                         />
                       </div>
-                    )}
+                      <Button
+                        onClick={generateCode}
+                        disabled={isGenerating || !aiPrompt.trim()}
+                        className="rounded-l-none bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all duration-300"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <i className="ri-loader-4-line animate-spin mr-2"></i>
+                            Generando...
+                          </>
+                        ) : "Generar"}
+                      </Button>
+                    </div>
 
+                    <div className="mt-2">
+                      <div className="flex justify-between">
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <button
+                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                            onClick={() => selectQuickPrompt("Crea una app web básica con HTML, CSS y JavaScript")}
+                          >
+                            App web básica
+                          </button>
+                          <button
+                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                            onClick={() => selectQuickPrompt("Crea un formulario de contacto con validación")}
+                          >
+                            Formulario de contacto
+                          </button>
+                          <button
+                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                            onClick={() => selectQuickPrompt("Crea una calculadora simple")}
+                          >
+                            Calculadora
+                          </button>
+                        </div>
 
-                    {!activeFile && (
-                      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                        <div className="text-center p-4">
-                          <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                            <i className="ri-file-line text-3xl text-slate-400"></i>
-                          </div>
-                          <h3 className="text-lg font-medium mb-2">No hay archivos abiertos</h3>
-                          <p className="text-slate-600 dark:text-slate-400 mb-4">
-                            Selecciona un archivo para comenzar a editar
+                        <button
+                          className="px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 flex items-center text-xs"
+                          onClick={() => setShowAgentsSelector(!showAgentsSelector)}
+                        >
+                          <i className="ri-robot-line mr-1"></i>
+                          {selectedAgents.length > 0 ? `${selectedAgents.length} agentes` : "Agentes"}
+                          <i className={`ri-arrow-${showAgentsSelector ? 'up' : 'down'}-s-line ml-1`}></i>
+                        </button>
+                      </div>
+
+                      {showAgentsSelector && (
+                        <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
+                          <h4 className="text-sm font-medium mb-2">Selecciona agentes especializados</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                            Los agentes se encargarán de generar componentes específicos de tu aplicación.
                           </p>
-                          {isMobile && (
-                            <Button
-                              variant="outline"
-                              onClick={() => setActiveTab("preview")}
-                            >
-                              Ver archivos del proyecto
-                            </Button>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                            {availableAgents.map((agent) => (
+                              <div 
+                                key={agent.name}
+                                className="flex items-start"
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={`agent-${agent.name}`}
+                                  checked={selectedAgents.includes(agent.name)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedAgents(prevAgents => [...prevAgents, agent.name]);
+                                    } else {
+                                      setSelectedAgents(prevAgents => prevAgents.filter(name => name !== agent.name));
+                                    }
+                                  }}
+                                  className="mr-2 mt-1"
+                                />
+                                <div>
+                                  <label 
+                                    htmlFor={`agent-${agent.name}`}
+                                    className="text-sm font-medium cursor-pointer"
+                                  >
+                                    {agent.description}
+                                  </label>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {agent.functions.length} funciones
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {selectedAgents.length > 0 && (
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                                onClick={() => setSelectedAgents([])}
+                              >
+                                Limpiar selección
+                              </button>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  <StatusBar activeFile={activeFile || undefined} projectName={project?.name} />
                 </div>
-              </div>
-            </main>
-            {showSuccessMessage && developmentPlan && (
-              <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 shadow-lg rounded-lg px-6 py-4 flex items-center z-50 border border-green-200 dark:border-green-900">
-                <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-2 mr-4">
-                  <i className="ri-check-line text-green-600 dark:text-green-300 text-xl"></i>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900 dark:text-white">¡Código generado con éxito!</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Se ha creado un plan para la construcción de tu aplicación.</p>
-                </div>
-                <div className="ml-4">
-                  <Button
-                    onClick={() => {
-                      setShowSuccessMessage(false);
-                      setDevelopmentPlan(developmentPlan);
-                    }}
-                  >
-                    <i className="ri-eye-line mr-2"></i>
-                    Ver plan
-                  </Button>
-                  <button 
-                    className="ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    onClick={() => setShowSuccessMessage(false)}
-                    aria-label="Cerrar"
-                  >
-                    <i className="ri-close-line text-lg"></i>
-                  </button>
-                </div>
-              </div>
-            )}
 
-            {developmentPlan && !showSuccessMessage && (
-              <DevelopmentPlan
-                plan={developmentPlan.plan}
-                architecture={developmentPlan.architecture}
-                components={developmentPlan.components}
-                requirements={developmentPlan.requirements}
-                onClose={() => setDevelopmentPlan(null)}
-              />
-            )}
-
-            {isMobile && (
-              <div className="md:hidden fixed bottom-5 right-5 z-50">
-                <div className="flex flex-col items-end space-y-2">
-                  {developmentPlan && (
-                    <button
-                      className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justifycenter focus:outline-none"
-                      onClick={() => setDevelopmentPlan(null)}
-                      title="Ver plan de desarrollo"
-                    >
-                      <i className="ri-file-list-line text-xl"></i>
-                    </button>
+                <div className="flex-1 flex">
+                  {activeTab === "development" && activeFile && (
+                    <CodeEditor 
+                      file={activeFile}
+                      onUpdate={(updatedFile) => {
+                        setFiles(files.map(file => file.id === updatedFile.id ? updatedFile : file));
+                        setActiveFile(updatedFile);
+                      }} 
+                    />
                   )}
-                  <div className="relative">
-                    <button
-                      className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
-                      onClick={() => setShowSidebar(!showSidebar)}
-                      title="Menú de navegación"
-                    >
-                      <i className="ri-menu-line text-xl"></i>
-                    </button>
-                    {showSidebar && (
-                      <div className="absolute bottom-16 right-0 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div className="py-1">
-                          <button
-                            onClick={() => {setActiveTab("development"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
-                            Desarrollo
-                          </button>
-                          <button 
-                            onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-eye-2-line text-green-500 mr-2"></i>
-                            Vista Previa
-                          </button>
-                          <button
-                            onClick={() => {setActiveTab("console"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-terminal-box-line text-purple-500 mr-2"></i>
-                            Consola
-                          </button>
-                          <button
-                            onClick={() => {setActiveTab("deployment"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-rocket-line text-red-500 mr-2"></i>
-                            Despliegue
-                          </button>
-                          <button
-                            onClick={() => {setActiveTab("assistant-chat"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-robot-line text-amber-500 mr-2"></i>
-                            Asistente
-                          </button>
-                          <button
-                            onClick={() => {setActiveTab("packages"); setShowSidebar(false);}}
-                            className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                          >
-                            <i className="ri-package-line mr-2"></i>
-                            Paquetes
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
-                    onClick={() => setShowFileExplorer(!showFileExplorer)}
-                    title="Mostrar/Ocultar explorador de archivos"
-                  >
-                    <i className="ri-file-list-3-line text-xl"></i>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </SidebarProvider>
-    );
-  };
 
-  export default Workspace;
+                  {activeTab === "preview" && activeFile && (
+                    <CodePreview 
+                      file={activeFile}
+                      allFiles={files}
+                    />
+                  )}
+
+                  {activeTab === "console" && (
+                    <ConsoleOutput 
+                      projectId={projectId}
+                      activeFileId={activeFile?.id}
+                    />
+                  )}
+
+                  {activeTab === "deployment" && (
+                    <div className="flex-1 flex flex-col">
+                      <ProjectDeployment 
+                        projectId={projectId} 
+                        files={files} 
+                        refreshFiles={refetchFiles}
+                      />
+                    </div>
+                  )}
+
+                  {activeTab === "assistant-chat" && (
+                    <div className="flex-1 flex flex-col">
+                      <AssistantChat
+                        projectId={projectId}
+                        onApplyChanges={(fileUpdates) => {
+                          fileUpdates.forEach(async (update) => {
+                            const existingFile = files.find(f => f.name === update.file);
+                            if (existingFile) {
+                              try {
+                                const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
+                                const updatedFile = await response.json();
+                                setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
+                                if (activeFile && activeFile.id === updatedFile.id) {
+                                  setActiveFile(updatedFile);
+                                }
+                                toast({ title: "Archivo actualizado", description: `${update.file} ha sido actualizado` });
+                              } catch (error) {
+                                console.error("Error updating file:", error);
+                                toast({ title: "Error", description: "No se pudo actualizar el archivo", variant: "destructive" });
+                              }
+                            } else {
+                              try {
+                                const extension = update.file.split('.').pop()?.toLowerCase();
+                                let fileType = "text";
+                                if (extension === "js") fileType = "javascript";
+                                else if (extension === "html") fileType = "html";
+                                else if (extension === "css") fileType = "css";
+                                else if (extension === "json") fileType = "json";
+                                else if (extension === "md") fileType = "markdown";
+                                else if (extension === "ts" || extension === "tsx") fileType = "typescript";
+                                const response = await apiRequest("POST", `/api/projects/${projectId}/files`, { name: update.file, content: update.content, type: fileType });
+                                const newFile = await response.json();
+                                setFiles(prev => [...prev, newFile]);
+                                toast({ title: "Archivo creado", description: `${update.file} ha sido creado` });
+                              } catch (error) {
+                                console.error("Error creating file:", error);
+                                toast({ title: "Error", description: "No se pudo crear el archivo", variant: "destructive" });
+                              }
+                            }
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {!activeFile && (
+                    <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+                      <div className="text-center p-4">
+                        <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                          <i className="ri-file-line text-3xl text-slate-400"></i>
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">No hay archivos abiertos</h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-4">
+                          Selecciona un archivo para comenzar a editar
+                        </p>
+                        {isMobile && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setActiveTab("preview")}
+                          >
+                            Ver archivos del proyecto
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <StatusBar activeFile={activeFile || undefined} projectName={project?.name} />
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {showSuccessMessage && developmentPlan && (
+          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 shadow-lg rounded-lg px-6 py-4 flex items-center z-50 border border-green-200 dark:border-green-900">
+            <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-2 mr-4">
+              <i className="ri-check-line text-green-600 dark:text-green-300 text-xl"></i>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-gray-900 dark:text-white">¡Código generado con éxito!</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Se ha creado un plan para la construcción de tu aplicación.</p>
+            </div>
+            <div className="ml-4">
+              <Button
+                onClick={() => {
+                  setShowSuccessMessage(false);
+                  setDevelopmentPlan(developmentPlan);
+                }}
+              >
+                <i className="ri-eye-line mr-2"></i>
+                Ver plan
+              </Button>
+              <button 
+                className="ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                onClick={() => setShowSuccessMessage(false)}
+                aria-label="Cerrar"
+              >
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {developmentPlan && !showSuccessMessage && (
+          <DevelopmentPlan
+            plan={developmentPlan.plan}
+            architecture={developmentPlan.architecture}
+            components={developmentPlan.components}
+            requirements={developmentPlan.requirements}
+            onClose={() => setDevelopmentPlan(null)}
+          />
+        )}
+
+        {isMobile && (
+          <div className="md:hidden fixed bottom-5 right-5 z-50">
+            <div className="flex flex-col items-end space-y-2">
+              {developmentPlan && (
+                <button
+                  className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justifycenter focus:outline-none"
+                  onClick={() => setDevelopmentPlan(null)}
+                  title="Ver plan de desarrollo"
+                >
+                  <i className="ri-file-list-line text-xl"></i>
+                </button>
+              )}
+              <div className="relative">
+                <button
+                  className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  title="Menú de navegación"
+                >
+                  <i className="ri-menu-line text-xl"></i>
+                </button>
+                {showSidebar && (
+                  <div className="absolute bottom-16 right-0 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {setActiveTab("development"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
+                        Desarrollo
+                      </button>
+                      <button 
+                        onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-eye-2-line text-green-500 mr-2"></i>
+                        Vista Previa
+                      </button>
+                      <button
+                        onClick={() => {setActiveTab("console"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-terminal-box-line text-purple-500 mr-2"></i>
+                        Consola
+                      </button>
+                      <button
+                        onClick={() => {setActiveTab("deployment"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-rocket-line text-red-500 mr-2"></i>
+                        Despliegue
+                      </button>
+                      <button
+                        onClick={() => {setActiveTab("assistant-chat"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-robot-line text-amber-500 mr-2"></i>
+                        Asistente
+                      </button>
+                      <button
+                        onClick={() => {setActiveTab("packages"); setShowSidebar(false);}}
+                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
+                      >
+                        <i className="ri-package-line mr-2"></i>
+                        Paquetes
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
+                onClick={() => setShowFileExplorer(!showFileExplorer)}
+                title="Mostrar/Ocultar explorador de archivos"
+              >
+                <i className="ri-file-list-3-line text-xl"></i>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </SidebarProvider>
+  );
+};
+
+export default Workspace;
