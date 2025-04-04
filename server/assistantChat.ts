@@ -1,10 +1,9 @@
 import OpenAI from "openai";
 import { storage } from "./storage";
-import { openai } from "./openai";
-import { installPackage, uninstallPackage, runScript, getPackageInfo } from "./packageManager";
-
 import { getActiveModel } from "./openai";
+import { installPackage, uninstallPackage, runScript, getPackageInfo, listPackages } from "./packageManager";
 
+// Configuración de OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ""
 });
@@ -31,7 +30,7 @@ interface AssistantResponse {
  * Tipos para acciones del asistente relacionadas con paquetes
  */
 interface PackageAction {
-  type: 'install' | 'uninstall' | 'run-script' | 'info';
+  type: 'install' | 'uninstall' | 'run-script' | 'info' | 'list';
   packageName?: string;
   version?: string; 
   isDev?: boolean;
@@ -41,67 +40,298 @@ interface PackageAction {
 
 /**
  * Detecta si el mensaje contiene un comando para el gestor de paquetes
+ * con soporte mejorado para múltiples idiomas y variaciones
  */
 function detectPackageCommand(message: string): PackageAction | null {
-  // Patrones para comandos de paquetes
-  const installPattern = /instalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)(\s+versión\s+([0-9.^~><= ]+))?(\s+como dev(eloper)?)?/i;
-  const uninstallPattern = /desinstalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i;
-  const runScriptPattern = /ejecutar? (script|comando)\s+([a-zA-Z0-9\-_]+)/i;
-  const infoPattern = /información (sobre|de) (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i;
+  const normalizedMsg = message.toLowerCase().trim();
 
-  // Verificar instalación
-  const installMatch = message.match(installPattern);
-  if (installMatch) {
-    return {
-      type: 'install',
-      packageName: installMatch[2],
-      version: installMatch[4],
-      isDev: !!installMatch[5],
-      manager: 'npm'
-    };
+  // Patrones en español e inglés
+  const installPatterns = [
+    // Español
+    /instalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)(\s+versión\s+([0-9.^~><= ]+))?(\s+como dev(eloper)?)?/i,
+    /añadir (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)(\s+versión\s+([0-9.^~><= ]+))?(\s+como dev(eloper)?)?/i,
+    /agregar (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)(\s+versión\s+([0-9.^~><= ]+))?(\s+como dev(eloper)?)?/i,
+    // Inglés
+    /install (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+as dev(eloper)?)?/i,
+    /add (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+as dev(eloper)?)?/i
+  ];
+
+  // Comandos directos (npm install X, yarn add X)
+  const directInstallPatterns = [
+    /npm\s+i(nstall)?\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+(--save-dev|-D))?/i,
+    /yarn\s+add\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+(--dev|-D))?/i,
+    /pnpm\s+add\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+(--save-dev|-D))?/i,
+    /bun\s+add\s+([a-zA-Z0-9@\-_./]+)(\s+version\s+([0-9.^~><= ]+))?(\s+(--dev|-D))?/i
+  ];
+
+  // Verificar instalación con patrones normales
+  for (const pattern of installPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      const manager = detectPackageManager(normalizedMsg);
+      return {
+        type: 'install',
+        packageName: match[2],
+        version: match[4],
+        isDev: !!match[5],
+        manager
+      };
+    }
   }
+
+  // Verificar instalación con comandos directos
+  for (const pattern of directInstallPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      // Detectar el gestor basado en el comando
+      let manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
+      if (match[0].startsWith('yarn')) manager = 'yarn';
+      if (match[0].startsWith('pnpm')) manager = 'pnpm';
+      if (match[0].startsWith('bun')) manager = 'bun';
+
+      return {
+        type: 'install',
+        packageName: match[2],
+        version: match[4],
+        isDev: !!match[5],
+        manager
+      };
+    }
+  }
+
+  // Patrones para desinstalar
+  const uninstallPatterns = [
+    // Español
+    /desinstalar? (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /eliminar (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /quitar (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /remover (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    // Inglés
+    /uninstall (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /remove (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)/i
+  ];
+
+  // Comandos directos de desinstalación
+  const directUninstallPatterns = [
+    /npm\s+(uninstall|remove|r|un|rm)\s+([a-zA-Z0-9@\-_./]+)/i,
+    /yarn\s+(remove|r)\s+([a-zA-Z0-9@\-_./]+)/i,
+    /pnpm\s+(remove|r|uninstall|rm)\s+([a-zA-Z0-9@\-_./]+)/i,
+    /bun\s+(remove|r|uninstall|rm)\s+([a-zA-Z0-9@\-_./]+)/i
+  ];
 
   // Verificar desinstalación
-  const uninstallMatch = message.match(uninstallPattern);
-  if (uninstallMatch) {
-    return {
-      type: 'uninstall',
-      packageName: uninstallMatch[2],
-      manager: 'npm'
-    };
+  for (const pattern of uninstallPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      const manager = detectPackageManager(normalizedMsg);
+      return {
+        type: 'uninstall',
+        packageName: match[2],
+        manager
+      };
+    }
   }
+
+  // Verificar desinstalación con comandos directos
+  for (const pattern of directUninstallPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      let manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
+      if (match[0].startsWith('yarn')) manager = 'yarn';
+      if (match[0].startsWith('pnpm')) manager = 'pnpm';
+      if (match[0].startsWith('bun')) manager = 'bun';
+
+      return {
+        type: 'uninstall',
+        packageName: match[2],
+        manager
+      };
+    }
+  }
+
+  // Patrones para ejecutar scripts
+  const runScriptPatterns = [
+    // Español
+    /ejecutar? (script|comando)\s+([a-zA-Z0-9\-_]+)/i,
+    /correr (script|comando)\s+([a-zA-Z0-9\-_]+)/i,
+    /lanzar (script|comando)\s+([a-zA-Z0-9\-_]+)/i,
+    // Inglés
+    /run (script|command)\s+([a-zA-Z0-9\-_]+)/i,
+    /execute (script|command)\s+([a-zA-Z0-9\-_]+)/i,
+    /start (script|command)\s+([a-zA-Z0-9\-_]+)/i
+  ];
+
+  // Comandos directos para scripts
+  const directRunScriptPatterns = [
+    /npm\s+(run|start)\s+([a-zA-Z0-9\-_]+)/i,
+    /yarn\s+([a-zA-Z0-9\-_]+)(?!\s+(add|remove|info))/i,
+    /pnpm\s+(run|start)\s+([a-zA-Z0-9\-_]+)/i,
+    /bun\s+(run|start)\s+([a-zA-Z0-9\-_]+)/i
+  ];
 
   // Verificar ejecución de script
-  const runScriptMatch = message.match(runScriptPattern);
-  if (runScriptMatch) {
-    return {
-      type: 'run-script',
-      scriptName: runScriptMatch[2],
-      manager: 'npm'
-    };
+  for (const pattern of runScriptPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      const manager = detectPackageManager(normalizedMsg);
+      return {
+        type: 'run-script',
+        scriptName: match[2],
+        manager
+      };
+    }
   }
 
+  // Verificar ejecución de script con comandos directos
+  for (const pattern of directRunScriptPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      let manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
+      if (match[0].startsWith('yarn')) manager = 'yarn';
+      if (match[0].startsWith('pnpm')) manager = 'pnpm';
+      if (match[0].startsWith('bun')) manager = 'bun';
+
+      // El índice del grupo varía según el patrón
+      const scriptIndex = manager === 'yarn' ? 1 : 2;
+
+      return {
+        type: 'run-script',
+        scriptName: match[scriptIndex],
+        manager
+      };
+    }
+  }
+
+  // Patrones para información de paquetes
+  const infoPatterns = [
+    // Español
+    /información (sobre|de) (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /buscar (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /detalles (de|sobre) (paquete|librería|biblioteca|dependencia|módulo)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    // Inglés
+    /information (about|on) (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /search (for)? (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)/i,
+    /details (of|about|on) (package|library|dependency|module)s?\s+([a-zA-Z0-9@\-_./]+)/i
+  ];
+
+  // Comandos directos para info
+  const directInfoPatterns = [
+    /npm\s+(info|view|show|v)\s+([a-zA-Z0-9@\-_./]+)/i,
+    /yarn\s+info\s+([a-zA-Z0-9@\-_./]+)/i,
+    /pnpm\s+info\s+([a-zA-Z0-9@\-_./]+)/i,
+    /bun\s+pm\s+info\s+([a-zA-Z0-9@\-_./]+)/i
+  ];
+
   // Verificar información de paquete
-  const infoMatch = message.match(infoPattern);
-  if (infoMatch) {
-    return {
-      type: 'info',
-      packageName: infoMatch[3],
-      manager: 'npm'
-    };
+  for (const pattern of infoPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      const manager = detectPackageManager(normalizedMsg);
+      return {
+        type: 'info',
+        packageName: match[3] || match[2], // Adaptarse a diferentes patrones
+        manager
+      };
+    }
+  }
+
+  // Verificar información con comandos directos
+  for (const pattern of directInfoPatterns) {
+    const match = normalizedMsg.match(pattern);
+    if (match) {
+      let manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
+      if (match[0].startsWith('yarn')) manager = 'yarn';
+      if (match[0].startsWith('pnpm')) manager = 'pnpm';
+      if (match[0].startsWith('bun')) manager = 'bun';
+
+      return {
+        type: 'info',
+        packageName: match[2] || match[1], // Adaptarse a diferentes patrones
+        manager
+      };
+    }
+  }
+
+  // Patrones para listar paquetes
+  const listPatterns = [
+    // Español
+    /listar? (paquetes|librerías|bibliotecas|dependencias|módulos)/i,
+    /mostrar (paquetes|librerías|bibliotecas|dependencias|módulos)/i,
+    /ver (paquetes|librerías|bibliotecas|dependencias|módulos)/i,
+    // Inglés
+    /list (packages|libraries|dependencies|modules)/i,
+    /show (packages|libraries|dependencies|modules)/i,
+    /display (packages|libraries|dependencies|modules)/i
+  ];
+
+  // Comandos directos para listar
+  const directListPatterns = [
+    /npm\s+(list|ls|la|ll)\s*$/i,
+    /yarn\s+(list)\s*$/i,
+    /pnpm\s+(list|ls)\s*$/i,
+    /bun\s+pm\s+(ls)\s*$/i
+  ];
+
+  // Verificar listado de paquetes
+  for (const pattern of listPatterns) {
+    if (pattern.test(normalizedMsg)) {
+      const manager = detectPackageManager(normalizedMsg);
+      return {
+        type: 'list',
+        manager
+      };
+    }
+  }
+
+  // Verificar listado con comandos directos
+  for (const pattern of directListPatterns) {
+    if (pattern.test(normalizedMsg)) {
+      let manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
+      if (normalizedMsg.includes('yarn')) manager = 'yarn';
+      if (normalizedMsg.includes('pnpm')) manager = 'pnpm';
+      if (normalizedMsg.includes('bun')) manager = 'bun';
+
+      return {
+        type: 'list',
+        manager
+      };
+    }
   }
 
   return null;
 }
 
+/**
+ * Detecta el gestor de paquetes preferido en el mensaje
+ */
+function detectPackageManager(message: string): 'npm' | 'yarn' | 'pnpm' | 'bun' {
+  const normalizedMsg = message.toLowerCase();
+
+  if (normalizedMsg.includes('yarn')) return 'yarn';
+  if (normalizedMsg.includes('pnpm')) return 'pnpm';
+  if (normalizedMsg.includes('bun')) return 'bun';
+
+  // Valor por defecto
+  return 'npm';
+}
+
+/**
+ * Procesa los mensajes del asistente, incluyendo comandos de paquetes
+ */
 export async function processAssistantChat(request: AssistantRequest): Promise<AssistantResponse> {
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }
 
+    // Detectar si es un comando para el gestor de paquetes ANTES de llamar a la API
+    const packageCommand = detectPackageCommand(request.message);
+    if (packageCommand) {
+      return await handlePackageCommand(packageCommand);
+    }
+
     // Obtener archivos del proyecto si existe un ID de proyecto
-    let projectFiles: File[] = [];
+    let projectFiles = [];
     if (request.projectId) {
       projectFiles = await storage.getFilesByProjectId(request.projectId);
     }
@@ -123,12 +353,6 @@ Reglas para tus respuestas:
 4. Usa comentarios solo cuando sean necesarios para explicar lógica compleja
 5. Mantén consistencia con el estilo de código existente
 
-Instrucciones para cambios de código:
-1. Primero explica brevemente qué cambios harás y por qué
-2. Luego muestra el código con los cambios propuestos
-3. Si son múltiples archivos, organízalos en orden lógico
-4. Utiliza el formato JSON especificado para los cambios
-
 INFORMACIÓN DEL PROYECTO ACTUAL:
 ${filesContext}
 
@@ -145,11 +369,11 @@ Cuando propongas cambios a archivos, incluye al final de tu mensaje un bloque JS
 }
 \`\`\`
 
-IMPORTANTE:
-- Sé preciso y útil
-- Explica claramente lo que haces
-- Cuando propongas cambios, asegúrate de mantener la estructura y estilo del proyecto
-- Si no puedes completar una solicitud, explica por qué y sugiere alternativas`;
+COMANDOS ESPECIALES:
+- Puedes instalar paquetes con "instalar paquete X" o "npm install X"
+- Puedes desinstalar paquetes con "desinstalar paquete X" o "npm uninstall X"
+- Puedes ejecutar scripts con "ejecutar script X" o "npm run X"
+- Puedes obtener información con "información sobre paquete X" o "npm info X"`;
 
     // Convertir el historial de mensajes al formato esperado por OpenAI
     const formattedHistory = request.history.map(msg => ({
@@ -167,7 +391,6 @@ IMPORTANTE:
     // Usar el modelo especificado o el modelo activo como respaldo
     let modelToUse = request.modelId || getActiveModel();
 
-    // Validar que el modelo sea válido, en caso contrario usar el modelo por defecto
     try {
       // Llamar a la API de OpenAI
       const response = await openai.chat.completions.create({
@@ -175,104 +398,6 @@ IMPORTANTE:
         messages,
         temperature: 0.7,
       });
-
-      // Detectar si es un comando para el gestor de paquetes
-      const packageCommand = detectPackageCommand(request.message);
-
-      if (packageCommand) {
-        let result;
-        try {
-          switch (packageCommand.type) {
-            case 'install':
-              if (!packageCommand.packageName) {
-                return {
-                  message: "No se especificó un nombre de paquete válido para instalar.",
-                  fileChanges: undefined
-                };
-              }
-
-              result = await installPackage({
-                packageName: packageCommand.packageName,
-                version: packageCommand.version,
-                isDev: packageCommand.isDev,
-                manager: packageCommand.manager
-              });
-
-              return {
-                message: result.success 
-                  ? `✅ Paquete **${packageCommand.packageName}** instalado correctamente.\n\n${result.output || ''}` 
-                  : `❌ Error al instalar **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
-                fileChanges: undefined
-              };
-
-            case 'uninstall':
-              if (!packageCommand.packageName) {
-                return {
-                  message: "No se especificó un nombre de paquete válido para desinstalar.",
-                  fileChanges: undefined
-                };
-              }
-
-              result = await uninstallPackage({
-                packageName: packageCommand.packageName,
-                manager: packageCommand.manager
-              });
-
-              return {
-                message: result.success 
-                  ? `✅ Paquete **${packageCommand.packageName}** desinstalado correctamente.` 
-                  : `❌ Error al desinstalar **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
-                fileChanges: undefined
-              };
-
-            case 'run-script':
-              if (!packageCommand.scriptName) {
-                return {
-                  message: "No se especificó un nombre de script válido para ejecutar.",
-                  fileChanges: undefined
-                };
-              }
-
-              result = await runScript(
-                packageCommand.scriptName,
-                packageCommand.manager
-              );
-
-              return {
-                message: result.success 
-                  ? `✅ Script **${packageCommand.scriptName}** ejecutado correctamente.\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
-                  : `❌ Error al ejecutar script **${packageCommand.scriptName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
-                fileChanges: undefined
-              };
-
-            case 'info':
-              if (!packageCommand.packageName) {
-                return {
-                  message: "No se especificó un nombre de paquete válido para obtener información.",
-                  fileChanges: undefined
-                };
-              }
-
-              result = await getPackageInfo(
-                packageCommand.packageName,
-                packageCommand.manager
-              );
-
-              return {
-                message: result.success 
-                  ? `📦 Información de **${packageCommand.packageName}**:\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
-                  : `❌ Error al obtener información de **${packageCommand.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
-                fileChanges: undefined
-              };
-          }
-        } catch (error) {
-          return {
-            message: `❌ Error al procesar comando de paquete: ${error instanceof Error ? error.message : String(error)}`,
-            fileChanges: undefined
-          };
-        }
-      }
-
 
       return {
         message: response.choices[0].message.content || "Lo siento, no pude procesar tu solicitud.",
@@ -310,14 +435,130 @@ IMPORTANTE:
 }
 
 /**
+ * Maneja los comandos específicos de gestión de paquetes
+ */
+async function handlePackageCommand(command: PackageAction): Promise<AssistantResponse> {
+  try {
+    let result;
+    switch (command.type) {
+      case 'install':
+        if (!command.packageName) {
+          return {
+            message: "No se especificó un nombre de paquete válido para instalar.",
+          };
+        }
+
+        result = await installPackage({
+          packageName: command.packageName,
+          version: command.version,
+          isDev: command.isDev,
+          manager: command.manager
+        });
+
+        return {
+          message: result.success 
+            ? `✅ Paquete **${command.packageName}${command.version ? `@${command.version}` : ''}** instalado correctamente${command.isDev ? ' como dependencia de desarrollo' : ''}.
+               \n\n${formatCommandOutput(result.output)}` 
+            : `❌ Error al instalar **${command.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+        };
+
+      case 'uninstall':
+        if (!command.packageName) {
+          return {
+            message: "No se especificó un nombre de paquete válido para desinstalar.",
+          };
+        }
+
+        result = await uninstallPackage({
+          packageName: command.packageName,
+          manager: command.manager
+        });
+
+        return {
+          message: result.success 
+            ? `✅ Paquete **${command.packageName}** desinstalado correctamente.` 
+            : `❌ Error al desinstalar **${command.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+        };
+
+      case 'run-script':
+        if (!command.scriptName) {
+          return {
+            message: "No se especificó un nombre de script válido para ejecutar.",
+          };
+        }
+
+        result = await runScript(
+          command.scriptName,
+          command.manager
+        );
+
+        return {
+          message: result.success 
+            ? `✅ Script **${command.scriptName}** ejecutado correctamente.\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
+            : `❌ Error al ejecutar script **${command.scriptName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+        };
+
+      case 'info':
+        if (!command.packageName) {
+          return {
+            message: "No se especificó un nombre de paquete válido para obtener información.",
+          };
+        }
+
+        result = await getPackageInfo(
+          command.packageName,
+          command.manager
+        );
+
+        return {
+          message: result.success 
+            ? `📦 Información de **${command.packageName}**:\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
+            : `❌ Error al obtener información de **${command.packageName}**:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+        };
+
+      case 'list':
+        result = await listPackages(command.manager);
+
+        return {
+          message: result.success 
+            ? `📋 Lista de paquetes (${command.manager}):\n\n\`\`\`\n${result.output || ''}\n\`\`\`` 
+            : `❌ Error al listar paquetes:\n\n\`\`\`\n${result.error || result.message}\n\`\`\``,
+        };
+
+      default:
+        return {
+          message: "Comando de paquete no reconocido.",
+        };
+    }
+  } catch (error) {
+    return {
+      message: `❌ Error al procesar comando de paquete: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Formatea la salida de comandos para mejor legibilidad
+ */
+function formatCommandOutput(output?: string): string {
+  if (!output) return '';
+
+  // Limitar longitud y añadir formato
+  if (output.length > 1000) {
+    output = output.substring(0, 1000) + '... [Salida truncada]';
+  }
+
+  return '```\n' + output + '\n```';
+}
+
+/**
  * Extrae la información de cambios de archivos de la respuesta del asistente
  */
 function extractFileChanges(text: string): Array<{file: string, content: string}> | undefined {
   try {
-    // Buscar bloques de código y JSON
+    // Buscar bloques de código JSON explícitos
     const jsonMatch = text.match(/```json\s*({[\s\S]*?})\s*```/);
-    const codeBlocks = text.match(/```([a-zA-Z]*)\n([\s\S]*?)```/g);
-    
+
     // Si hay un bloque JSON explícito, usarlo
     if (jsonMatch) {
       const jsonData = JSON.parse(jsonMatch[1]);
@@ -325,27 +566,24 @@ function extractFileChanges(text: string): Array<{file: string, content: string}
         return jsonData.fileChanges;
       }
     }
-    
-    // Si no hay JSON pero hay bloques de código, intentar extraer cambios
-    if (codeBlocks && !jsonMatch) {
-      const fileChanges: Array<{file: string, content: string}> = [];
-      let currentFile = "";
-      
-      for (const block of codeBlocks) {
-        // Buscar nombre de archivo en comentarios o líneas anteriores
-        const fileMatch = block.match(/(?:\/\/|#|<!--)\s*File:\s*([^\n]+)/);
-        if (fileMatch) {
-          currentFile = fileMatch[1].trim();
-          const content = block.replace(/```[a-zA-Z]*\n|```$/g, '').trim();
-          if (currentFile && content) {
-            fileChanges.push({ file: currentFile, content });
-          }
-        }
+
+    // Buscar bloques de código con nombres de archivo
+    const fileCodeBlocks = [];
+    const codeBlockRegex = /```([a-zA-Z]*)\s*(?:\/\/|#|<!--)?\s*[Ff]ile:\s*([^\n]+)\s*(?:-->)?\n([\s\S]*?)```/g;
+    let match;
+
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      const language = match[1] || '';
+      const fileName = match[2].trim();
+      const content = match[3];
+
+      if (fileName && content) {
+        fileCodeBlocks.push({ file: fileName, content });
       }
-      
-      if (fileChanges.length > 0) {
-        return fileChanges;
-      }
+    }
+
+    if (fileCodeBlocks.length > 0) {
+      return fileCodeBlocks;
     }
 
     return undefined;
