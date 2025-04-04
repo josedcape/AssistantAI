@@ -366,9 +366,15 @@ export async function executeAgent(
       throw new Error(`El agente "${agentName}" no está disponible`);
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey.trim() === '') {
+      throw new Error("La API key de OpenAI no está configurada correctamente");
     }
+
+    // Reinicializar el cliente de OpenAI con la API key
+    const openaiClient = new OpenAI({
+      apiKey: apiKey
+    });
     
     // Forzar el lenguaje JavaScript cuando se usan agentes, a menos que se especifique explícitamente
     if (!request.language) {
@@ -398,11 +404,14 @@ export async function executeAgent(
     }));
 
     // Llamar a la API
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: MODEL,
       messages: messages as any,
       tools: functions,
       temperature: 0.7,
+    }).catch(error => {
+      console.error("Error en la llamada a OpenAI:", error);
+      throw new Error(`Error al comunicarse con OpenAI: ${error.message}`);
     });
 
     // Procesar la respuesta
@@ -543,6 +552,10 @@ export async function orchestrateAgents(
   request: CodeGenerationRequest, 
   agentNames: string[]
 ): Promise<CodeGenerationResponse[]> {
+  if (!agentNames || agentNames.length === 0) {
+    throw new Error("No se han seleccionado agentes para ejecutar");
+  }
+
   const results: CodeGenerationResponse[] = [];
 
   try {
