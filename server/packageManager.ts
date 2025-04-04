@@ -152,6 +152,124 @@ export async function getInstalledPackages(): Promise<any[]> {
   }
 }
 
+// Obtiene información sobre un paquete
+export async function getPackageInfo(packageName: string, manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm'): Promise<PackageManagerResult> {
+  // Validar el nombre del paquete
+  if (!packageName || packageName.trim() === '') {
+    return {
+      success: false,
+      message: 'El nombre del paquete es requerido'
+    };
+  }
+
+  // Sanitizar el nombre del paquete
+  const sanitizedPackageName = packageName.replace(/[;&|`$><!\\]/g, '');
+
+  try {
+    // Construir los argumentos según el gestor
+    let cmd = manager;
+    let args: string[] = [];
+
+    switch (manager) {
+      case 'npm':
+        args = ['view', sanitizedPackageName, '--json'];
+        break;
+      case 'yarn':
+        args = ['info', sanitizedPackageName, '--json'];
+        break;
+      case 'pnpm':
+        args = ['info', sanitizedPackageName, '--json'];
+        break;
+      case 'bun':
+        args = ['pm', 'info', sanitizedPackageName, '--json'];
+        break;
+      default:
+        return {
+          success: false,
+          message: `Gestor de paquetes "${manager}" no soportado`
+        };
+    }
+
+    log(`Ejecutando: ${cmd} ${args.join(' ')}`);
+
+    const { stdout, stderr } = await execa(cmd, args, { 
+      timeout: 30000, // 30 segundos timeout
+      stripFinalNewline: true
+    });
+
+    // Manejar errores si los hay
+    if (stderr && !isNormalOutput(stderr, manager)) {
+      return {
+        success: false,
+        message: `Error al obtener información de ${packageName}`,
+        error: stderr
+      };
+    }
+
+    return {
+      success: true,
+      message: `Información del paquete ${packageName} obtenida correctamente`,
+      output: stdout
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Si el paquete no existe, proporcionar un mensaje más claro
+    if (errorMessage.includes('code E404') || errorMessage.includes('not found')) {
+      return {
+        success: false,
+        message: `El paquete "${packageName}" no se encontró en el registro`,
+        error: errorMessage
+      };
+    }
+    
+    return {
+      success: false,
+      message: `Error al obtener información de ${packageName}`,
+      error: errorMessage
+    };
+  }
+}
+
+// Lista los paquetes instalados
+export async function listPackages(manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm'): Promise<PackageManagerResult> {
+  try {
+    // Obtener la lista de paquetes instalados desde package.json directamente
+    const installedPackages = await getInstalledPackages();
+    
+    if (installedPackages.length === 0) {
+      return {
+        success: true,
+        message: 'No hay paquetes instalados',
+        output: 'No se encontraron dependencias instaladas.'
+      };
+    }
+    
+    // Formatear la salida para que sea más legible
+    const formatPackage = (pkg: any) => {
+      return `${pkg.name}@${pkg.version}${pkg.isDevDependency ? ' (dev)' : ''}`;
+    };
+    
+    const formattedOutput = installedPackages
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(formatPackage)
+      .join('\n');
+    
+    return {
+      success: true,
+      message: `${installedPackages.length} paquetes listados`,
+      output: formattedOutput
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: 'Error al listar paquetes',
+      error: errorMessage
+    };
+  }
+}
+
 // El resto de funciones - mantener las mismas pero adaptarlas con execa y mejor manejo de errores
 // ...
 
