@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { File, Document } from "@shared/schema";
+import { File, Document, PanelLeft } from "@shared/schema"; // Assuming PanelLeft is correctly imported
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -8,6 +8,15 @@ import { DocumentUploader } from "./DocumentUploader";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { FileIcon, FolderIcon, TrashIcon, RefreshCwIcon, PlusIcon, PackageOpenIcon, PackageIcon } from "lucide-react";
+import { 
+  SidebarGroup, 
+  SidebarGroupLabel, 
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton
+} from "@/components/ui/sidebar"; // Assuming these are correctly imported
+
 
 interface FileExplorerProps {
   projectId: number;
@@ -247,19 +256,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-800">
-      <div className="flex justify-between items-center p-2 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 bg-white dark:bg-slate-800">
-        <h3 className="text-sm font-medium">Explorador</h3>
-        <div className="flex space-x-1">
-          <Button variant="ghost" size="icon" onClick={handleRefresh} title="Actualizar">
-            <RefreshCwIcon className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handleCreateNewFile} title="Nuevo archivo">
-            <PlusIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <SidebarGroup>
+        <SidebarGroupLabel className="flex justify-between">
+          <span>Explorador</span>
+          <div className="flex space-x-1">
+            <Button variant="ghost" size="icon" onClick={handleRefresh} title="Actualizar">
+              <RefreshCwIcon className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleCreateNewFile} title="Nuevo archivo">
+              <PlusIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
 
-      <div className="flex-grow overflow-auto p-1">
         {isLoading && (
           <div className="flex justify-center items-center h-20">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -430,7 +440,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
             )}
           </CollapsibleContent>
         </Collapsible>
-      </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
     </div>
   );
 }

@@ -20,7 +20,9 @@ import { DocumentUploader } from "@/components/DocumentUploader";
 import ProjectDeployment from "@/components/ProjectDeployment";
 import { sounds } from '@/lib/sounds';
 import PackageExplorer from "@/components/PackageExplorer";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
+import { PanelLeft } from "lucide-react"; // Added import for the icon
+
 
 // Función auxiliar para determinar el tipo de archivo basado en la extensión
 const getFileLanguage = (fileName: string): string => {
@@ -479,45 +481,48 @@ const Workspace: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="flex-1 flex overflow-hidden">
-              <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
-                <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Explorador</h3>
-                    {isMobile && (
-                      <button 
-                        onClick={() => setActiveTab("development")}
-                        className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                      >
-                        <i className="ri-arrow-left-line"></i>
-                      </button>
+              <Sidebar>
+                <SidebarContent>
+                  <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
+                    <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium">Explorador</h3>
+                        {isMobile && (
+                          <button 
+                            onClick={() => setActiveTab("development")}
+                            className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                          >
+                            <i className="ri-arrow-left-line"></i>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {activeTab === "files" && (
+                      <div className="h-full">
+                        <FileExplorer
+                          projectId={projectId}
+                          files={files}
+                          onFileSelect={handleFileSelect}
+                          onFilesUpdate={refetchFiles}
+                        />
+                      </div>
+                    )}
+                    {activeTab === "packages" && (
+                      <div className="h-full">
+                        <PackageExplorer projectId={projectId} />
+                      </div>
+                    )}
+                    {activeTab === "assistant-chat" && (
+                      <div className="h-full">
+                        {/* Placeholder for assistant chat content */}
+                      </div>
                     )}
                   </div>
-                </div>
-
-                {activeTab === "files" && (
-                  <div className="h-full">
-                    <FileExplorer
-                      projectId={projectId}
-                      files={files}
-                      onFileSelect={handleFileSelect}
-                      onFilesUpdate={refetchFiles}
-                    />
-                  </div>
-                )}
-                {activeTab === "packages" && (
-                  <div className="h-full">
-                    <PackageExplorer projectId={projectId} />
-                  </div>
-                )}
-                {activeTab === "assistant-chat" && (
-                  <div className="h-full">
-                    {/* Placeholder for assistant chat content */}
-                  </div>
-                )}
-              </div>
+                </SidebarContent>
+              </Sidebar>
 
               <div className="flex-1 flex flex-col">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700">
@@ -793,82 +798,10 @@ const Workspace: React.FC = () => {
         )}
 
         {isMobile && (
-          <div className="md:hidden fixed bottom-5 right-5 z-50">
-            <div className="flex flex-col items-end space-y-2">
-              {developmentPlan && (
-                <button
-                  className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justifycenter focus:outline-none"
-                  onClick={() => setDevelopmentPlan(null)}
-                  title="Ver plan de desarrollo"
-                >
-                  <i className="ri-file-list-line text-xl"></i>
-                </button>
-              )}
-              <div className="relative">
-                <button
-                  className="w-14 h-14 rounded-full shadow-lg bg-primary-500 text-white flex items-center justify-center focus:outline-none"
-                  onClick={() => setShowSidebar(!showSidebar)}
-                  title="Menú de navegación"
-                >
-                  <i className="ri-menu-line text-xl"></i>
-                </button>
-                {showSidebar && (
-                  <div className="absolute bottom-16 right-0 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="py-1">
-                      <button
-                        onClick={() => {setActiveTab("development"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-code-s-slash-line text-blue-500 mr-2"></i>
-                        Desarrollo
-                      </button>
-                      <button 
-                        onClick={() => {setActiveTab("preview"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-eye-2-line text-green-500 mr-2"></i>
-                        Vista Previa
-                      </button>
-                      <button
-                        onClick={() => {setActiveTab("console"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-terminal-box-line text-purple-500 mr-2"></i>
-                        Consola
-                      </button>
-                      <button
-                        onClick={() => {setActiveTab("deployment"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-rocket-line text-red-500 mr-2"></i>
-                        Despliegue
-                      </button>
-                      <button
-                        onClick={() => {setActiveTab("assistant-chat"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-robot-line text-amber-500 mr-2"></i>
-                        Asistente
-                      </button>
-                      <button
-                        onClick={() => {setActiveTab("packages"); setShowSidebar(false);}}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center"
-                      >
-                        <i className="ri-package-line mr-2"></i>
-                        Paquetes
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <button
-                className="w-14 h-14 rounded-full shadow-lg bg-blue-500 text-white flex items-center justify-center focus:outline-none"
-                onClick={() => setShowFileExplorer(!showFileExplorer)}
-                title="Mostrar/Ocultar explorador de archivos"
-              >
-                <i className="ri-file-list-3-line text-xl"></i>
-              </button>
-            </div>
+          <div className="md:hidden fixed bottom-4 left-4 z-20">
+            <SidebarTrigger className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full h-12 w-12 flex items-center justify-center shadow-lg">
+              <PanelLeft className="h-6 w-6" />
+            </SidebarTrigger>
           </div>
         )}
       </div>
