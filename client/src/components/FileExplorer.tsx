@@ -22,10 +22,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [openSection, setOpenSection] = useState<"files" | "documents" | "both">("both");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
   const loadFiles = async () => {
     try {
+      setIsLoading(true);
       setLoading(true);
       
       // Check if we have cached files first
@@ -33,7 +35,6 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       if (cachedFiles && cachedFiles.length > 0) {
         console.log("Loading files from local storage", cachedFiles.length);
         setFiles(cachedFiles);
-        setLoading(false);
       }
 
       // Always fetch fresh data from server
@@ -55,6 +56,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       });
     } finally {
       setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -244,8 +246,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex justify-between items-center p-2 border-b">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-800">
+      <div className="flex justify-between items-center p-2 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 bg-white dark:bg-slate-800">
         <h3 className="text-sm font-medium">Explorador</h3>
         <div className="flex space-x-1">
           <Button variant="ghost" size="icon" onClick={handleRefresh} title="Actualizar">
@@ -258,6 +260,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       </div>
 
       <div className="flex-grow overflow-auto p-1">
+        {isLoading && (
+          <div className="flex justify-center items-center h-20">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+
         {/* Archivos */}
         <Collapsible 
           open={openSection === "files" || openSection === "both"} 
