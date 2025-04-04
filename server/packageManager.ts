@@ -1,4 +1,3 @@
-
 import { execa } from 'execa';
 import { log } from './vite';
 import fs from 'fs/promises';
@@ -31,7 +30,7 @@ interface PackageManagerResult {
 export async function installPackage(options: PackageInstallOptions): Promise<PackageManagerResult> {
   try {
     const { packageName, version, isDev = false, manager = 'npm', global = false } = options;
-    
+
     // Validar el nombre del paquete
     if (!packageName || packageName.trim() === '') {
       return {
@@ -43,7 +42,7 @@ export async function installPackage(options: PackageInstallOptions): Promise<Pa
     // Sanitizar el nombre del paquete para prevenir inyección de comandos
     const sanitizedPackageName = packageName.replace(/[;&|`$><!\\]/g, '');
     const sanitizedVersion = version ? version.replace(/[;&|`$><!\\]/g, '') : '';
-    
+
     // Construir el comando según el gestor
     let cmd = manager;
     let args: string[] = [];
@@ -90,7 +89,7 @@ export async function installPackage(options: PackageInstallOptions): Promise<Pa
     const { stdout, stderr } = await execa(cmd, args, {
       timeout: 120000, // 2 minutos máximo
     });
-    
+
     // Algunos gestores de paquetes usan stderr para mensajes informativos
     if (stderr && !isNormalOutput(stderr, manager)) {
       log(`Advertencia durante la instalación: ${stderr}`);
@@ -109,7 +108,7 @@ export async function installPackage(options: PackageInstallOptions): Promise<Pa
 
   } catch (error: any) {
     log(`Error instalando paquete: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Error al instalar el paquete',
@@ -125,7 +124,7 @@ export async function installPackage(options: PackageInstallOptions): Promise<Pa
 export async function uninstallPackage(options: PackageUninstallOptions): Promise<PackageManagerResult> {
   try {
     const { packageName, manager = 'npm', global = false } = options;
-    
+
     // Validar el nombre del paquete
     if (!packageName || packageName.trim() === '') {
       return {
@@ -136,7 +135,7 @@ export async function uninstallPackage(options: PackageUninstallOptions): Promis
 
     // Sanitizar el nombre del paquete para prevenir inyección de comandos
     const sanitizedPackageName = packageName.replace(/[;&|`$><!\\]/g, '');
-    
+
     // Construir el comando según el gestor
     let cmd = manager;
     let args: string[] = [];
@@ -175,7 +174,7 @@ export async function uninstallPackage(options: PackageUninstallOptions): Promis
     const { stdout, stderr } = await execa(cmd, args, {
       timeout: 60000, // 1 minuto máximo
     });
-    
+
     // Algunos gestores de paquetes usan stderr para mensajes informativos
     if (stderr && !isNormalOutput(stderr, manager)) {
       log(`Advertencia durante la desinstalación: ${stderr}`);
@@ -194,7 +193,7 @@ export async function uninstallPackage(options: PackageUninstallOptions): Promis
 
   } catch (error: any) {
     log(`Error desinstalando paquete: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Error al desinstalar el paquete',
@@ -228,7 +227,7 @@ export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'p
 
     // Sanitizar el nombre del script para prevenir inyección de comandos
     const sanitizedScriptName = scriptName.replace(/[;&|`$><!\\]/g, '');
-    
+
     // Construir el comando según el gestor
     let cmd = manager;
     let args: string[] = [];
@@ -259,7 +258,7 @@ export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'p
     const { stdout, stderr } = await execa(cmd, args, {
       timeout: 30000, // 30 segundos máximo para scripts
     });
-    
+
     // Algunos gestores de paquetes usan stderr para mensajes informativos
     if (stderr && !isNormalOutput(stderr, manager)) {
       log(`Advertencia durante la ejecución: ${stderr}`);
@@ -273,7 +272,7 @@ export async function runScript(scriptName: string, manager: 'npm' | 'yarn' | 'p
 
   } catch (error: any) {
     log(`Error ejecutando script: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Error al ejecutar el script',
@@ -298,7 +297,7 @@ export async function getPackageInfo(packageName: string, manager: 'npm' | 'yarn
 
     // Sanitizar el nombre del paquete para prevenir inyección de comandos
     const sanitizedPackageName = packageName.replace(/[;&|`$><!\\]/g, '');
-    
+
     // Construir el comando según el gestor
     let cmd = manager;
     let args: string[] = [];
@@ -329,7 +328,7 @@ export async function getPackageInfo(packageName: string, manager: 'npm' | 'yarn
     const { stdout, stderr } = await execa(cmd, args, {
       timeout: 30000, // 30 segundos máximo
     });
-    
+
     return {
       success: true,
       message: `Información de ${sanitizedPackageName} obtenida correctamente`,
@@ -338,7 +337,7 @@ export async function getPackageInfo(packageName: string, manager: 'npm' | 'yarn
 
   } catch (error: any) {
     log(`Error obteniendo información del paquete: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Error al obtener información del paquete',
@@ -383,7 +382,7 @@ export async function listPackages(manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'n
     const { stdout, stderr } = await execa(cmd, args, {
       timeout: 30000, // 30 segundos máximo
     });
-    
+
     return {
       success: true,
       message: `Lista de paquetes obtenida correctamente`,
@@ -392,7 +391,7 @@ export async function listPackages(manager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'n
 
   } catch (error: any) {
     log(`Error listando paquetes: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Error al listar paquetes',
@@ -458,23 +457,23 @@ async function removeDependencyFromCache(packageName: string): Promise<void> {
   try {
     const packageJsonPath = path.join(process.cwd(), 'package.json');
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
-    
+
     let found = false;
     if (packageJson.dependencies && packageJson.dependencies[packageName]) {
       delete packageJson.dependencies[packageName];
       found = true;
     }
-    
+
     if (packageJson.devDependencies && packageJson.devDependencies[packageName]) {
       delete packageJson.devDependencies[packageName];
       found = true;
     }
-    
+
     if (!found) {
       log(`El paquete ${packageName} no se encontró en package.json`);
       return;
     }
-    
+
     await fs.writeFile(
       packageJsonPath, 
       JSON.stringify(packageJson, null, 2) + '\n', 
@@ -492,22 +491,22 @@ export async function getInstalledPackages(): Promise<any[]> {
   try {
     const packageJsonPath = path.join(process.cwd(), 'package.json');
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
-    
+
     const dependencies = packageJson.dependencies || {};
     const devDependencies = packageJson.devDependencies || {};
-    
+
     const dependenciesList = Object.entries(dependencies).map(([name, version]) => ({
       name,
       version: String(version).replace(/[\^~]/, ''),
       isDevDependency: false
     }));
-    
+
     const devDependenciesList = Object.entries(devDependencies).map(([name, version]) => ({
       name,
       version: String(version).replace(/[\^~]/, ''),
       isDevDependency: true
     }));
-    
+
     return [...dependenciesList, ...devDependenciesList];
   } catch (error) {
     log(`Error al leer los paquetes instalados: ${error instanceof Error ? error.message : String(error)}`);
