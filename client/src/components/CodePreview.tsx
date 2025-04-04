@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { File } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import CodeBlock from "./CodeBlock";
+import CodePreview from "./CodePreview"; // Import the new CodePreview component
 
 interface CodePreviewProps {
   file: File;
   allFiles?: File[];
 }
 
-const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
+const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -51,57 +52,31 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
     const projectId = getProjectId();
     if (!projectId) return;
 
-    if (iframeRef.current) {
-      // Crear la URL con el ID del proyecto como número
-      const previewUrl = `/api/projects/${projectId}/preview`;
-      iframeRef.current.src = previewUrl;
+    //Instead of iframe manipulation, use the new component
+    const htmlFiles = allFiles.filter(f => f.type === 'html');
+    const cssFiles = allFiles.filter(f => f.type === 'css');
+    const jsFiles = allFiles.filter(f => f.type === 'javascript');
 
-      // Configurar un listener para mensajes desde el iframe
-      const handleIframeMessage = (event: MessageEvent) => {
-        if (event.data && event.data.type === 'previewReady') {
-          setIsLoading(false);
-
-          // Si hay archivos disponibles, enviarlos al iframe para actualizaciones
-          if (allFiles && allFiles.length > 0) {
-            // Encontrar archivos HTML, CSS y JS
-            const htmlFiles = allFiles.filter(f => f.type === 'html');
-            const cssFiles = allFiles.filter(f => f.type === 'css');
-            const jsFiles = allFiles.filter(f => f.type === 'javascript');
-
-            // Preparar un mapa de archivos CSS y JS para actualizar contenido
-            const cssMap: Record<string, string> = {};
-            cssFiles.forEach(f => { cssMap[f.name] = f.content; });
-
-            const jsMap: Record<string, string> = {};
-            jsFiles.forEach(f => { jsMap[f.name] = f.content; });
-
-            // Si hay un archivo HTML, enviarlo junto con los archivos CSS y JS
-            if (htmlFiles.length > 0) {
-              try {
-                const htmlContent = htmlFiles[0].content;
-
-                // Enviar mensaje al iframe
-                iframeRef.current?.contentWindow?.postMessage({
-                  type: 'refreshContent',
-                  html: htmlContent,
-                  css: cssMap,
-                  js: jsMap
-                }, '*');
-              } catch (e) {
-                console.error("Error al comunicarse con la vista previa:", e);
-              }
-            }
-          }
-        }
-      };
-
-      window.addEventListener('message', handleIframeMessage);
-
-      // Limpiar el listener cuando el componente se desmonte
-      return () => {
-        window.removeEventListener('message', handleIframeMessage);
-      };
+    let htmlContent = '';
+    if(htmlFiles.length > 0) {
+        htmlContent = htmlFiles[0].content;
     }
+
+    const cssMap: Record<string, string> = {};
+    cssFiles.forEach(f => { cssMap[f.name] = f.content; });
+
+    const jsMap: Record<string, string> = {};
+    jsFiles.forEach(f => { jsMap[f.name] = f.content; });
+
+    // Concatenate CSS content
+    const css = Object.values(cssMap).join('\n');
+
+    // Concatenate JS content
+    const js = Object.values(jsMap).join('\n');
+
+
+    setIsLoading(false); // Set loading to false after content is prepared
+
   };
 
   // Función para abrir la vista previa en una nueva ventana
@@ -137,24 +112,29 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
 
     // Para archivos HTML o proyectos web, usar iframe
     if ((isHtml || hasValidProject) && hasValidProject) {
+        const htmlFiles = allFiles.filter(f => f.type === 'html');
+        const cssFiles = allFiles.filter(f => f.type === 'css');
+        const jsFiles = allFiles.filter(f => f.type === 'javascript');
+
+        let htmlContent = '';
+        if(htmlFiles.length > 0) {
+            htmlContent = htmlFiles[0].content;
+        }
+
+        const cssMap: Record<string, string> = {};
+        cssFiles.forEach(f => { cssMap[f.name] = f.content; });
+
+        const jsMap: Record<string, string> = {};
+        jsFiles.forEach(f => { jsMap[f.name] = f.content; });
+
+        // Concatenate CSS content
+        const css = Object.values(cssMap).join('\n');
+
+        // Concatenate JS content
+        const js = Object.values(jsMap).join('\n');
+
       return (
-        <div className="relative h-full">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-slate-900 bg-opacity-70 dark:bg-opacity-70 z-10">
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 border-4 border-t-primary-500 border-primary-200 rounded-full animate-spin mb-2"></div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Cargando vista previa...</p>
-              </div>
-            </div>
-          )}
-          <iframe
-            ref={iframeRef}
-            className="w-full h-full border-0"
-            title="Vista previa"
-            sandbox="allow-scripts allow-same-origin"
-            loading="lazy"
-          ></iframe>
-        </div>
+        <CodePreview html={htmlContent} css={css} js={js} />
       );
     }
 
@@ -212,4 +192,4 @@ const CodePreview = ({ file, allFiles = [] }: CodePreviewProps) => {
   );
 };
 
-export default CodePreview;
+export default CodePreviewComponent;
