@@ -107,10 +107,10 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       if (!response.ok) throw new Error("Failed to fetch files");
 
       const data = await response.json();
-      
+
       // Actualizar el estado con los nuevos datos
       setFiles(data);
-      
+
       // Actualizar el caché
       projectStorage.saveProject(projectId, 'files', data);
       projectStorage.saveLastProjectId(projectId);
@@ -122,7 +122,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         });
         sounds.play('success', 0.3);
       }
-      
+
       return data;
     } catch (error) {
       console.error("Error loading files:", error);
@@ -267,10 +267,10 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
       // Actualizar el state local
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-      
+
       // Recargar archivos para asegurar que el state esté actualizado
       setTimeout(() => loadFiles(false), 300);
-      
+
       toast({
         title: "Éxito",
         description: "Archivo eliminado correctamente",
@@ -374,12 +374,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
       // Reload files immediately and then select the new file
       await loadFiles(false);
-      
+
       // Find the newly created file in the updated files list and select it
       const updatedFiles = await apiRequest("GET", `/api/projects/${projectId}/files`);
       const filesData = await updatedFiles.json();
       const createdFile = filesData.find(f => f.name === filePath);
-      
+
       if (createdFile) {
         onFileSelect(createdFile);
       }
