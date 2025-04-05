@@ -768,7 +768,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   };
 
   return (
-    <div className={`h-full flex flex-col bg-white dark:bg-slate-800 transition-all duration-300 ${isMobile ? 'fixed inset-0 z-50' : ''}`}>
+    <div className={`h-full flex flex-col bg-white dark:bg-slate-800 transition-all duration-300 ${isMobile ? 'fixed inset-0 z-50 overflow-hidden' : ''}`}>
       <SidebarGroup>
         <SidebarGroupLabel className="flex justify-between items-center">
           <span>Explorador</span>
@@ -822,7 +822,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
           <Collapsible 
             open={openSections.files} 
             onOpenChange={() => toggleSection('files')}
-            className="mb-2"
+            className="mb-2 overflow-y-auto"
           >
             <CollapsibleTrigger className="flex items-center w-full p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
               {openSections.files ? 
