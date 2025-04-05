@@ -73,7 +73,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Función auxiliar para determinar el tipo de archivo basado en la extensión
+// Helper function to determine file type based on extension
 const getFileLanguage = (fileName: string): string => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (ext === 'html') return 'html';
@@ -85,7 +85,7 @@ const getFileLanguage = (fileName: string): string => {
   return 'text';
 };
 
-// Definir el tipo para la estructura de carpetas
+// Define folder structure type
 interface FolderStructure {
   id: string;
   name: string;
@@ -104,7 +104,7 @@ const Workspace: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado principal
+  // Main state
   const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -118,7 +118,7 @@ const Workspace: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showFloatingActions, setShowFloatingActions] = useState(true);
 
-  // Estados para la estructura de carpetas
+  // Folder structure states
   const [folderStructure, setFolderStructure] = useState<FolderStructure[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
@@ -126,7 +126,7 @@ const Workspace: React.FC = () => {
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
 
-  // Nuevos estados para las funcionalidades adicionales
+  // Additional feature states
   const [sidebarTab, setSidebarTab] = useState<"files" | "documents" | "repository" | "projects">("files");
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoadingRepo, setIsLoadingRepo] = useState(false);
@@ -146,7 +146,7 @@ const Workspace: React.FC = () => {
     requirements?: string[];
   } | null>(null);
 
-  // Queries para cargar datos
+  // Queries to load data
   const { 
     data: project, 
     isLoading: isLoadingProject, 
@@ -180,22 +180,27 @@ const Workspace: React.FC = () => {
     queryKey: ['/api/projects'],
   });
 
-  // Efecto para organizar archivos en estructura de carpetas
+  // Effect for organizing files into folder structure - simplified approach
   useEffect(() => {
     if (filesData) {
-      const newFolderStructure: FolderStructure[] = [];
-      const rootFiles: File[] = [];
+      // Create a flat map of folders
       const folderMap: Record<string, FolderStructure> = {};
+      const rootFolders: FolderStructure[] = [];
 
-      // Primero crear todas las carpetas necesarias
+      // First, create all necessary folders
       filesData.forEach(file => {
         if (file.path) {
           const pathParts = file.path.split('/').filter(Boolean);
-          let currentPath = '';
 
+          // Add each folder in the path
+          let currentPath = '';
           pathParts.forEach((part, index) => {
+            const isLastPart = index === pathParts.length - 1;
             const parentPath = currentPath;
             currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+            // Skip the last part if it's a file
+            if (isLastPart && file.name.includes('.')) return;
 
             if (!folderMap[currentPath]) {
               const newFolder: FolderStructure = {
@@ -214,86 +219,101 @@ const Workspace: React.FC = () => {
                   folderMap[parentPath].folders.push(newFolder);
                 }
               } else {
-                newFolderStructure.push(newFolder);
+                rootFolders.push(newFolder);
               }
             }
           });
-
-          // Añadir archivo a su carpeta correspondiente
-          if (pathParts.length > 0) {
-            const folderPath = pathParts.join('/');
-            if (folderMap[folderPath]) {
-              folderMap[folderPath].files.push(file);
-            }
-          }
-        } else {
-          // Archivos sin path van a la raíz
-          rootFiles.push(file);
         }
       });
 
-      // Añadir carpetas preexistentes
-      const defaultFolders: FolderStructure[] = [
-        {
+      // Add files to their respective folders
+      filesData.forEach(file => {
+        if (file.path) {
+          const pathParts = file.path.split('/').filter(Boolean);
+          if (pathParts.length > 0) {
+            // Get the parent folder path
+            const parentPathParts = [...pathParts];
+            if (file.name.includes('.')) {
+              parentPathParts.pop();
+            }
+
+            const parentPath = parentPathParts.join('/');
+
+            if (folderMap[parentPath]) {
+              folderMap[parentPath].files.push(file);
+            } else if (parentPathParts.length === 0) {
+              // This is a root file
+              const rootFile = file;
+              // Add to root level files
+            }
+          }
+        }
+      });
+
+      // Ensure we have a src folder
+      if (!folderMap['src']) {
+        const srcFolder: FolderStructure = {
           id: 'src',
           name: 'src',
           path: 'src',
-          files: filesData.filter(f => !f.path && f.name.includes('.')).filter(f => !rootFiles.includes(f)),
-          folders: [
-            {
-              id: 'components',
-              name: 'components',
-              path: 'src/components',
-              files: [],
-              folders: [],
-              isExpanded: false
-            },
-            {
-              id: 'lib',
-              name: 'lib',
-              path: 'src/lib',
-              files: [],
-              folders: [],
-              isExpanded: false
-            }
-          ],
+          files: [],
+          folders: [],
           isExpanded: true
-        }
-      ];
+        };
 
-      // Combinar estructura predeterminada con la estructura generada
-      const combinedStructure = [...newFolderStructure];
-      defaultFolders.forEach(defaultFolder => {
-        if (!combinedStructure.some(folder => folder.path === defaultFolder.path)) {
-          combinedStructure.push(defaultFolder);
-        }
-      });
+        rootFolders.push(srcFolder);
+        folderMap['src'] = srcFolder;
+      }
 
-      setFolderStructure(combinedStructure);
+      // Add root files (those without a path)
+      const rootFiles = filesData.filter(f => !f.path);
+
+      // If no folders exist, create a default structure
+      if (rootFolders.length === 0) {
+        const defaultRoot: FolderStructure = {
+          id: 'root',
+          name: 'root',
+          path: '',
+          files: rootFiles,
+          folders: [],
+          isExpanded: true
+        };
+
+        rootFolders.push(defaultRoot);
+      } else {
+        // Add root files to the first root folder
+        if (rootFolders.length > 0 && rootFiles.length > 0) {
+          rootFolders[0].files.push(...rootFiles);
+        }
+      }
+
+      setFolderStructure(rootFolders);
       setFiles(filesData);
+
+      // Set the active file if none is selected
       if (!activeFile && filesData.length > 0) {
         setActiveFile(filesData[0]);
       }
     }
   }, [filesData, activeFile]);
 
-  // Funciones para manejar la estructura de carpetas
+  // Folder structure handling functions - simplified
   const toggleFolderExpand = useCallback((folderId: string) => {
-    const updateFolderStructure = (folders: FolderStructure[]): FolderStructure[] => {
-      return folders.map(folder => {
-        if (folder.id === folderId) {
-          return { ...folder, isExpanded: !folder.isExpanded };
-        }
-        if (folder.folders.length > 0) {
-          return { ...folder, folders: updateFolderStructure(folder.folders) };
-        }
-        return folder;
-      });
-    };
+    setFolderStructure(prevStructure => {
+      // Create a deep copy function for the folder structure
+      const deepCopyFolders = (folders: FolderStructure[]): FolderStructure[] => {
+        return folders.map(folder => ({
+          ...folder,
+          folders: deepCopyFolders(folder.folders),
+          isExpanded: folder.id === folderId ? !folder.isExpanded : folder.isExpanded
+        }));
+      };
 
-    setFolderStructure(prevStructure => updateFolderStructure(prevStructure));
+      return deepCopyFolders(prevStructure);
+    });
   }, []);
 
+  // Create folder - simplified approach
   const handleCreateFolder = useCallback(async () => {
     if (!newFolderName.trim()) {
       toast({
@@ -308,12 +328,12 @@ const Workspace: React.FC = () => {
       const parentPath = activeFolder || '';
       const newPath = parentPath ? `${parentPath}/${newFolderName}` : newFolderName;
 
-      // Crear carpeta en el backend
+      // Create folder in backend
       await apiRequest("POST", `/api/projects/${projectId}/folders`, {
         path: newPath
       });
 
-      // Actualizar UI
+      // Update UI - simplified approach
       const newFolder: FolderStructure = {
         id: `folder-${Date.now()}`,
         name: newFolderName,
@@ -323,27 +343,42 @@ const Workspace: React.FC = () => {
         isExpanded: true
       };
 
-      const updateFolderStructure = (folders: FolderStructure[], targetPath: string | null): FolderStructure[] => {
-        if (!targetPath) {
-          return [...folders, newFolder];
+      // Add the folder directly to folder structure
+      setFolderStructure(prevStructure => {
+        if (!activeFolder) {
+          // Add to root if no active folder
+          return [...prevStructure, newFolder];
         }
 
-        return folders.map(folder => {
-          if (folder.path === targetPath) {
-            return { ...folder, folders: [...folder.folders, newFolder], isExpanded: true };
-          }
-          if (folder.folders.length > 0) {
-            return { ...folder, folders: updateFolderStructure(folder.folders, targetPath) };
-          }
-          return folder;
-        });
-      };
+        // Create a deep copy function that adds the folder to the active path
+        const addFolderToPath = (folders: FolderStructure[], targetPath: string): FolderStructure[] => {
+          return folders.map(folder => {
+            if (folder.path === targetPath) {
+              return {
+                ...folder,
+                folders: [...folder.folders, newFolder],
+                isExpanded: true
+              };
+            }
 
-      setFolderStructure(prevStructure => updateFolderStructure(prevStructure, activeFolder));
+            if (folder.folders.length > 0) {
+              return {
+                ...folder,
+                folders: addFolderToPath(folder.folders, targetPath)
+              };
+            }
+
+            return folder;
+          });
+        };
+
+        return addFolderToPath(prevStructure, activeFolder);
+      });
+
       setNewFolderName("");
       setShowNewFolderDialog(false);
 
-      // Añadir al historial
+      // Add to history
       setFileChangesHistory(prev => [...prev, {
         timestamp: new Date(),
         filename: newPath,
@@ -367,6 +402,7 @@ const Workspace: React.FC = () => {
     }
   }, [newFolderName, activeFolder, projectId, toast]);
 
+  // Create file - simplified approach
   const handleCreateFile = useCallback(async () => {
     if (!newFileName.trim()) {
       toast({
@@ -381,7 +417,7 @@ const Workspace: React.FC = () => {
       const path = activeFolder || '';
       const fileType = getFileLanguage(newFileName);
 
-      // Crear archivo en el backend
+      // Create file in backend
       const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
         name: newFileName,
         path: path,
@@ -391,30 +427,45 @@ const Workspace: React.FC = () => {
 
       const newFile = await response.json();
 
-      // Actualizar UI
-      const updateFolderStructure = (folders: FolderStructure[], targetPath: string | null): FolderStructure[] => {
-        if (!targetPath) {
-          return folders.map(folder => folder);
-        }
-
-        return folders.map(folder => {
-          if (folder.path === targetPath) {
-            return { ...folder, files: [...folder.files, newFile] };
-          }
-          if (folder.folders.length > 0) {
-            return { ...folder, folders: updateFolderStructure(folder.folders, targetPath) };
-          }
-          return folder;
-        });
-      };
-
-      setFolderStructure(prevStructure => updateFolderStructure(prevStructure, activeFolder));
+      // Update UI - simplified approach with more direct state update
       setFiles(prevFiles => [...prevFiles, newFile]);
+
+      // Update folder structure
+      setFolderStructure(prevStructure => {
+        // Create a deep copy function that adds the file to the active path
+        const addFileToPath = (folders: FolderStructure[], targetPath: string): FolderStructure[] => {
+          return folders.map(folder => {
+            if (folder.path === targetPath) {
+              return {
+                ...folder,
+                files: [...folder.files, newFile]
+              };
+            }
+
+            if (folder.folders.length > 0) {
+              return {
+                ...folder,
+                folders: addFileToPath(folder.folders, targetPath)
+              };
+            }
+
+            return folder;
+          });
+        };
+
+        return activeFolder 
+          ? addFileToPath(prevStructure, activeFolder)
+          // If no active folder, add to the first root folder
+          : prevStructure.map((folder, index) => 
+              index === 0 ? { ...folder, files: [...folder.files, newFile] } : folder
+            );
+      });
+
       setActiveFile(newFile);
       setNewFileName("");
       setShowNewFileDialog(false);
 
-      // Añadir al historial
+      // Add to history
       setFileChangesHistory(prev => [...prev, {
         timestamp: new Date(),
         filename: path ? `${path}/${newFileName}` : newFileName,
@@ -436,7 +487,7 @@ const Workspace: React.FC = () => {
         variant: "destructive"
       });
     }
-  }, [newFileName, activeFolder, projectId, toast, setActiveFile, setFiles]);
+  }, [newFileName, activeFolder, projectId, toast]);
 
   // Effect hooks
   useEffect(() => {
@@ -464,7 +515,7 @@ const Workspace: React.FC = () => {
     sounds.play('laser', 0.4);
   }, []);
 
-  // Detectar scroll para ocultar/mostrar el botón flotante
+  // Detect scroll to hide/show floating button
   useEffect(() => {
     if (!isMobile) return;
 
@@ -518,7 +569,7 @@ const Workspace: React.FC = () => {
     setActiveFolder(folderPath);
   }, []);
 
-  // Nuevos handlers para las funcionalidades adicionales
+  // New handlers for additional features
   const handleDocumentUpload = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -536,15 +587,12 @@ const Workspace: React.FC = () => {
       duration: 3000
     });
 
-    // Añadir al historial
+    // Add to history
     setFileChangesHistory(prev => [...prev, {
       timestamp: new Date(),
       filename: files.length === 1 ? files[0].name : `${files.length} documentos`,
       description: "Documentos cargados"
     }]);
-
-    // Aquí iría la lógica para subir los documentos al servidor
-    // Por simplicidad, simulamos una subida exitosa
   }, [toast]);
 
   const handleImportFromRepo = useCallback(async () => {
@@ -560,7 +608,7 @@ const Workspace: React.FC = () => {
     setIsLoadingRepo(true);
 
     try {
-      // Simulamos la llamada a la API para importar desde el repositorio
+      // Simulate API call to import from repository
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       toast({
@@ -569,7 +617,7 @@ const Workspace: React.FC = () => {
         duration: 3000
       });
 
-      // Añadir al historial
+      // Add to history
       setFileChangesHistory(prev => [...prev, {
         timestamp: new Date(),
         filename: repoUrl,
@@ -577,7 +625,7 @@ const Workspace: React.FC = () => {
       }]);
 
       setRepoUrl("");
-      // Refrescar la lista de archivos
+      // Refresh file list
       await refetchFiles();
     } catch (error) {
       console.error("Error al importar repositorio:", error);
@@ -617,10 +665,10 @@ const Workspace: React.FC = () => {
 
       setNewProjectName("");
 
-      // Refrescar la lista de proyectos
+      // Refresh project list
       await refetchProjects();
 
-      // Opcional: Navegar al nuevo proyecto
+      // Optional: Navigate to new project
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
       console.error("Error al crear proyecto:", error);
@@ -637,7 +685,7 @@ const Workspace: React.FC = () => {
   }, [navigate]);
 
   const toggleSidebar = useCallback(() => {
-    // Asegurarse de que la barra lateral se muestre primero si está colapsada
+    // Make sure sidebar is shown first if collapsed
     if (isSidebarCollapsed) {
       setIsSidebarCollapsed(false);
     } else {
@@ -650,7 +698,7 @@ const Workspace: React.FC = () => {
   }, [isMobile, isSidebarCollapsed]);
 
   const showSidebar = useCallback(() => {
-    // Función específica para mostrar la barra lateral
+    // Specific function to show sidebar
     setIsSidebarCollapsed(false);
     if (isMobile) {
       setShowMobileMenu(false);
@@ -721,7 +769,7 @@ const Workspace: React.FC = () => {
 
       try {
         if (existingFile) {
-          // Actualizar archivo existente
+          // Update existing file
           const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
           const updatedFile = await response.json();
           setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
@@ -730,14 +778,14 @@ const Workspace: React.FC = () => {
             setActiveFile(updatedFile);
           }
 
-          // Añadir al historial
+          // Add to history
           setFileChangesHistory(prev => [...prev, {
             timestamp: new Date(),
             filename: update.file,
             description: "Archivo actualizado"
           }]);
         } else {
-          // Crear nuevo archivo
+          // Create new file
           const fileType = getFileLanguage(update.file);
           const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
             name: update.file,
@@ -747,7 +795,7 @@ const Workspace: React.FC = () => {
           const newFile = await response.json();
           setFiles(prev => [...prev, newFile]);
 
-          // Añadir al historial
+          // Add to history
           setFileChangesHistory(prev => [...prev, {
             timestamp: new Date(),
             filename: update.file,
@@ -774,7 +822,7 @@ const Workspace: React.FC = () => {
     setShowSuccessMessage(true);
   }, [files, activeFile, projectId, toast]);
 
-  // Renderizado de la estructura de carpetas
+  // Render folder structure - simplified
   const renderFolderStructure = useCallback((folders: FolderStructure[]) => {
     return folders.map(folder => (
       <li key={folder.id} className="mb-1">
@@ -824,7 +872,7 @@ const Workspace: React.FC = () => {
     ));
   }, [activeFile, activeFolder, handleFileSelect, handleFolderSelect, toggleFolderExpand]);
 
-  // Componente de historial de cambios
+  // History component
   const HistoryComponent = () => (
     <div className="h-full overflow-y-auto p-4">
       <h2 className="text-lg font-semibold mb-4 flex items-center">
@@ -869,7 +917,7 @@ const Workspace: React.FC = () => {
     </div>
   );
 
-  // Componentes para la barra lateral
+  // Sidebar components
   const SidebarFiles = () => (
     <div className="h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-2 p-2">
@@ -949,7 +997,7 @@ const Workspace: React.FC = () => {
               />
             </div>
           </div>
-          <<DialogFooter>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowNewFileDialog(false)}>
               Cancelar
             </Button>
@@ -1129,7 +1177,7 @@ const Workspace: React.FC = () => {
     </div>
   );
 
-  // Componente para la navegación de la barra lateral
+  // Sidebar navigation component
   const SidebarNavigation = () => (
     <div className="border-b dark:border-slate-700 mb-2">
       <Tabs 
@@ -1175,13 +1223,13 @@ const Workspace: React.FC = () => {
     </div>
   );
 
-  // Floating Action Button para móviles
+  // Floating Action Button for mobile
   const FloatingActionButton = () => {
     if (!isMobile || !showFloatingActions) return null;
 
     return (
       <>
-        {/* Botón principal */}
+        {/* Main button */}
         <button
           className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center transition-all duration-300 ${showMobileMenu ? 'rotate-45' : ''}`}
           onClick={toggleMobileMenu}
@@ -1189,10 +1237,10 @@ const Workspace: React.FC = () => {
           {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
 
-        {/* Menú flotante */}
+        {/* Floating menu */}
         {showMobileMenu && (
           <div className="fixed bottom-24 right-6 z-50 flex flex-col space-y-3 items-end">
-            {/* Botón para mostrar/ocultar sidebar */}
+            {/* Button to show/hide sidebar */}
             <div className="flex items-center">
               <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
                 Explorador
@@ -1208,7 +1256,7 @@ const Workspace: React.FC = () => {
               </button>
             </div>
 
-            {/* Botón para vista previa */}
+            {/* Preview button */}
             <div className="flex items-center">
               <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
                 Vista previa
@@ -1224,7 +1272,7 @@ const Workspace: React.FC = () => {
               </button>
             </div>
 
-            {/* Botón para asistente */}
+            {/* Assistant button */}
             <div className="flex items-center">
               <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
                 Asistente
@@ -1240,7 +1288,7 @@ const Workspace: React.FC = () => {
               </button>
             </div>
 
-            {/* Botón para configuración */}
+            {/* Settings button */}
             <div className="flex items-center">
               <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
                 Opciones
@@ -1281,7 +1329,7 @@ const Workspace: React.FC = () => {
     );
   };
 
-  // Renderizado principal
+  // Main render
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-slate-900">
       <Header 
@@ -1292,7 +1340,7 @@ const Workspace: React.FC = () => {
 
       <SidebarProvider>
         <div className="flex flex-1 overflow-hidden">
-          {/* Explorador de archivos (en el sidebar o en modal móvil) */}
+          {/* File explorer (in sidebar or mobile modal) */}
           <FileSystemProvider projectId={projectId}>
             {(!isMobile || showMobileMenu) && (
               <div className={`${showMobileMenu ? 'absolute inset-0 z-50 bg-white dark:bg-slate-900' : 'w-64 border-r border-border'}`}>
@@ -1306,7 +1354,7 @@ const Workspace: React.FC = () => {
             )}
           </FileSystemProvider>
 
-          {/* Panel principal con editor */}
+          {/* Main panel with editor */}
           <div className="flex-1 overflow-hidden">
             <div className="flex flex-col h-full">
               <div className="border-b dark:border-slate-700">
@@ -1362,7 +1410,7 @@ const Workspace: React.FC = () => {
                           setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
                           setActiveFile(updatedFile);
 
-                          // Añadir al historial
+                          // Add to history
                           setFileChangesHistory(prev => [...prev, {
                             timestamp: new Date(),
                             filename: updatedFile.name,
@@ -1446,7 +1494,7 @@ const Workspace: React.FC = () => {
         onUpdatePreview={updatePreview}
       />
 
-      {/* Botón flotante para móviles */}
+      {/* Floating button for mobile */}
       <FloatingActionButton />
     </div>
   );
