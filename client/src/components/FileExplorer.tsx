@@ -768,7 +768,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-slate-800">
+    <div className={`h-full flex flex-col bg-white dark:bg-slate-800 transition-all duration-300 ${isMobile ? 'fixed inset-0 z-50' : ''}`}>
       <SidebarGroup>
         <SidebarGroupLabel className="flex justify-between items-center">
           <span>Explorador</span>

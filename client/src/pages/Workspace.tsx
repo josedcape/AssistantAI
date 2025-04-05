@@ -1199,9 +1199,13 @@ const Workspace: React.FC = () => {
               </span>
               <button
                 className="w-10 h-10 rounded-full bg-slate-800 text-white shadow-md flex items-center justify-center"
-                onClick={showSidebar} // Cambiado a showSidebar para asegurar que siempre se muestre
+                onClick={() => {
+                  setIsSidebarCollapsed(false);
+                  setShowMobileMenu(false);
+                }}
               >
                 <PanelLeft className="h-5 w-5" />
+              </button>
               </button>
             </div>
 
