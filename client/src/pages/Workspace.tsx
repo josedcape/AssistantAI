@@ -949,7 +949,7 @@ const Workspace: React.FC = () => {
               />
             </div>
           </div>
-          <DialogFooter>
+          <<DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowNewFileDialog(false)}>
               Cancelar
             </Button>
@@ -1292,41 +1292,22 @@ const Workspace: React.FC = () => {
 
       <SidebarProvider>
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar 
-            className={`border-r dark:border-slate-700 ${isSidebarCollapsed ? 'w-0 md:w-12' : 'w-full md:w-64'} transition-all duration-300 ${isMobile ? 'absolute z-40 h-[calc(100%-4rem)] bg-white dark:bg-slate-900' : ''}`}
-          >
-            <div className="flex flex-col h-full">
-              <div className="flex justify-between items-center p-2">
-                <h2 className={`text-sm font-semibold ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
-                  Explorador
-                </h2>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-7 w-7" 
-                  onClick={toggleSidebar}
-                  title={isSidebarCollapsed ? "Expandir" : "Colapsar"}
-                >
-                  {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                </Button>
+          {/* Explorador de archivos (en el sidebar o en modal móvil) */}
+          <FileSystemProvider projectId={projectId}>
+            {(!isMobile || showMobileMenu) && (
+              <div className={`${showMobileMenu ? 'absolute inset-0 z-50 bg-white dark:bg-slate-900' : 'w-64 border-r border-border'}`}>
+                <FileExplorer
+                  projectId={projectId}
+                  onFileSelect={handleFileSelect}
+                  selectedFileId={activeFile?.id}
+                  onClose={() => setShowMobileMenu(false)}
+                />
               </div>
+            )}
+          </FileSystemProvider>
 
-              {!isSidebarCollapsed && (
-                <>
-                  <SidebarNavigation />
-
-                  <div className="flex-1 overflow-hidden">
-                    {sidebarTab === "files" && <SidebarFiles />}
-                    {sidebarTab === "documents" && <SidebarDocuments />}
-                    {sidebarTab === "repository" && <SidebarRepository />}
-                    {sidebarTab === "projects" && <SidebarProjects />}
-                  </div>
-                </>
-              )}
-            </div>
-          </Sidebar>
-
-          <SidebarContent className="flex-1 overflow-hidden">
+          {/* Panel principal con editor */}
+          <div className="flex-1 overflow-hidden">
             <div className="flex flex-col h-full">
               <div className="border-b dark:border-slate-700">
                 <Tabs 
@@ -1454,7 +1435,7 @@ const Workspace: React.FC = () => {
                 {activeTab === "history" && <HistoryComponent />}
               </div>
             </div>
-          </SidebarContent>
+          </div>
         </div>
       </SidebarProvider>
 
