@@ -17,7 +17,8 @@ import {
   ChevronDown,
   FileTextIcon,
   FileCodeIcon,
-  FolderPlusIcon
+  FolderPlusIcon,
+  XIcon
 } from "lucide-react";
 import { 
   SidebarGroup, 
@@ -37,14 +38,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sounds } from "@/lib/sounds";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useForm } from "react-hook-form";
 
 interface FileExplorerProps {
   projectId: number;
   onFileSelect: (file: File) => void;
   selectedFileId?: number;
+  onClose?: () => void;
 }
 
-function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerProps) {
+// Interfaces para los formularios
+interface NewFileFormData {
+  fileName: string;
+  fileExtension: string;
+}
+
+interface NewFolderFormData {
+  folderName: string;
+}
+
+function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose }: FileExplorerProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,12 +72,24 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
-  const [newFileName, setNewFileName] = useState("");
-  const [newFolderName, setNewFolderName] = useState("");
-  const [fileExtension, setFileExtension] = useState(".js");
   const [currentPath, setCurrentPath] = useState(""); // Para guardar la ruta actual al crear archivos/carpetas
   const { toast } = useToast();
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Usar react-hook-form para manejar los formularios
+  const fileForm = useForm<NewFileFormData>({
+    defaultValues: {
+      fileName: "",
+      fileExtension: ".js"
+    }
+  });
+
+  const folderForm = useForm<NewFolderFormData>({
+    defaultValues: {
+      folderName: ""
+    }
+  });
 
   // Common file extensions
   const commonExtensions = [
@@ -97,7 +123,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
   // Memoized data fetching functions
   const loadFiles = useCallback(async (showToast = false) => {
-    if (!projectId || isNaN(projectId)) return;
+    if (!projectId || isNaN(projectId)) return [];
 
     try {
       setIsLoading(true);
@@ -139,15 +165,9 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
   }, [projectId, toast]);
 
   const loadDocuments = useCallback(async (showToast = false) => {
-    if (!projectId || isNaN(projectId)) return;
+    if (!projectId || isNaN(projectId)) return [];
 
     try {
-      // Check cache first
-      const cachedDocs = projectStorage.getProject<Document[]>(projectId, 'documents');
-      if (cachedDocs?.length > 0) {
-        setDocuments(cachedDocs);
-      }
-
       // Fetch fresh data
       const response = await apiRequest("GET", `/api/projects/${projectId}/documents`);
       if (!response.ok) throw new Error("Failed to fetch documents");
@@ -163,6 +183,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         });
         sounds.play('success', 0.3);
       }
+
+      return data;
     } catch (error) {
       console.error("Error loading documents:", error);
       toast({
@@ -171,6 +193,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         variant: "destructive",
       });
       sounds.play('error', 0.3);
+      return [];
     }
   }, [projectId, toast]);
 
@@ -317,8 +340,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
     }
   };
 
-  const handleCreateNewFile = async () => {
-    if (!newFileName.trim()) {
+  const handleCreateNewFile = async (data: NewFileFormData) => {
+    if (!data.fileName.trim()) {
       toast({
         title: "Error",
         description: "El nombre del archivo no puede estar vacío",
@@ -328,7 +351,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       return;
     }
 
-    const fullFileName = newFileName + fileExtension;
+    const fullFileName = data.fileName + data.fileExtension;
     const filePath = currentPath ? `${currentPath}/${fullFileName}` : fullFileName;
 
     try {
@@ -351,10 +374,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         throw new Error(errorData.message || "Error al crear archivo");
       }
 
-      const newFile = await response.json();
-
       // Reset form
-      setNewFileName("");
+      fileForm.reset();
       setShowNewFileDialog(false);
 
       // Auto-expand the file type group
@@ -366,23 +387,28 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         setOpenFolders(prev => ({ ...prev, [currentPath]: true }));
       }
 
+      // Reload files and update UI
+      const filesData = await loadFiles(false);
+
+      if (filesData && filesData.length > 0) {
+        // Find the newly created file in the updated files list
+        const createdFile = filesData.find(f => 
+          f.name === filePath || 
+          f.path === filePath || 
+          f.name === fullFileName
+        );
+
+        if (createdFile) {
+          // Select the newly created file
+          setTimeout(() => onFileSelect(createdFile), 100);
+        }
+      }
+
       toast({
         title: "Archivo creado",
         description: `Se ha creado el archivo ${fullFileName}`,
       });
       sounds.play('success', 0.4);
-
-      // Reload files immediately and then select the new file
-      await loadFiles(false);
-
-      // Find the newly created file in the updated files list and select it
-      const updatedFiles = await apiRequest("GET", `/api/projects/${projectId}/files`);
-      const filesData = await updatedFiles.json();
-      const createdFile = filesData.find(f => f.name === filePath);
-
-      if (createdFile) {
-        onFileSelect(createdFile);
-      }
     } catch (error) {
       console.error("Error creando archivo:", error);
       toast({
@@ -394,8 +420,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
     }
   };
 
-  const handleCreateNewFolder = async () => {
-    if (!newFolderName.trim()) {
+  const handleCreateNewFolder = async (data: NewFolderFormData) => {
+    if (!data.folderName.trim()) {
       toast({
         title: "Error",
         description: "El nombre de la carpeta no puede estar vacío",
@@ -406,8 +432,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
     }
 
     const folderPath = currentPath 
-      ? `${currentPath}/${newFolderName}` 
-      : newFolderName;
+      ? `${currentPath}/${data.folderName}` 
+      : data.folderName;
 
     try {
       toast({
@@ -430,24 +456,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       }
 
       // Reset form
-      setNewFolderName("");
+      folderForm.reset();
       setShowNewFolderDialog(false);
 
       // Auto-expand the folder
       setOpenFolders(prev => ({ ...prev, [folderPath]: true }));
 
+      // Reload files to refresh the UI with the new folder
+      await loadFiles(false);
+
       toast({
         title: "Carpeta creada",
-        description: `Se ha creado la carpeta ${newFolderName}`,
+        description: `Se ha creado la carpeta ${data.folderName}`,
       });
       sounds.play('success', 0.4);
-
-      // Recargar archivos forzando una actualización completa
-      await loadFiles(true);
-      setFiles(prevFiles => {
-        const updatedFiles = [...prevFiles];
-        return updatedFiles;
-      });
     } catch (error) {
       console.error("Error creando carpeta:", error);
       toast({
@@ -458,6 +480,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       sounds.play('error', 0.3);
     }
   };
+
   const handleRefresh = () => {
     // Avoid multiple quick refreshes
     if (refreshTimeoutRef.current) {
@@ -512,6 +535,11 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
       // Select file for viewing
       onFileSelect(tempFile);
+
+      // Auto-close sidebar on mobile after selecting a file
+      if (isMobile && onClose) {
+        setTimeout(onClose, 300);
+      }
     } catch (error) {
       console.error("Error loading document:", error);
       toast({
@@ -674,7 +702,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         <div 
           className={`
             flex items-center w-full py-1 px-1.5 rounded text-xs 
-            hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer
+            hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer group
             ${level > 0 ? 'ml-2' : ''}
           `}
           onClick={() => toggleFolder(folderPath)}
@@ -696,6 +724,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                 e.stopPropagation();
                 setCurrentPath(folderPath === 'raíz' ? '' : folderPath);
                 setShowNewFileDialog(true);
+                fileForm.reset();
               }}
               title="Nuevo archivo"
             >
@@ -709,6 +738,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                 e.stopPropagation();
                 setCurrentPath(folderPath === 'raíz' ? '' : folderPath);
                 setShowNewFolderDialog(true);
+                folderForm.reset();
               }}
               title="Nueva carpeta"
             >
@@ -736,7 +766,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                       flex justify-between items-center p-1 rounded text-xs cursor-pointer group
                       ${selectedFileId === file.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}
                     `}
-                    onClick={() => onFileSelect(file)}
+                    onClick={() => {
+                      onFileSelect(file);
+                      if (isMobile && onClose) {
+                        setTimeout(onClose, 300);
+                      }
+                    }}
                     title={fileName}
                   >
                     <div className="flex items-center truncate">
@@ -773,6 +808,17 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         <SidebarGroupLabel className="flex justify-between items-center">
           <span>Explorador</span>
           <div className="flex space-x-1">
+            {isMobile && onClose && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={onClose} 
+                title="Cerrar"
+                className="h-7 w-7"
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -789,6 +835,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
               onClick={() => {
                 setCurrentPath('');
                 setShowNewFileDialog(true);
+                fileForm.reset();
               }} 
               title="Nuevo archivo"
               className="h-7 w-7"
@@ -802,6 +849,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
               onClick={() => {
                 setCurrentPath('');
                 setShowNewFolderDialog(true);
+                folderForm.reset();
               }} 
               title="Nueva carpeta"
               className="h-7 w-7"
@@ -844,6 +892,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                       onClick={() => {
                         setCurrentPath('');
                         setShowNewFileDialog(true);
+                        fileForm.reset();
                       }}
                     >
                       <PlusIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -855,6 +904,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                       onClick={() => {
                         setCurrentPath('');
                         setShowNewFolderDialog(true);
+                        folderForm.reset();
                       }}
                     >
                       <FolderPlusIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -900,7 +950,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                                   flex justify-between items-center p-1 rounded text-xs cursor-pointer group
                                   ${selectedFileId === file.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}
                                 `}
-                                onClick={() => onFileSelect(file)}
+                                onClick={() => {
+                                  onFileSelect(file);
+                                  if (isMobile && onClose) {
+                                    setTimeout(onClose, 300);
+                                  }
+                                }}
                                 title={file.name}
                               >
                                 <div className="flex items-center truncate">
@@ -1031,50 +1086,45 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                 : "Introduce el nombre y tipo del archivo que deseas crear"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-3">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="filename" className="col-span-4">
-                Nombre del archivo
-              </Label>
-              <div className="col-span-3">
-                <Input 
-                  id="filename"
-                  placeholder="nombre-archivo"
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  className="col-span-3"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateNewFile();
-                    }
-                  }}
-                />
+          <form onSubmit={fileForm.handleSubmit(handleCreateNewFile)}>
+            <div className="grid gap-4 py-3">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="fileName" className="col-span-4">
+                  Nombre del archivo
+                </Label>
+                <div className="col-span-3">
+                  <Input 
+                    id="fileName"
+                    placeholder="nombre-archivo"
+                    {...fileForm.register("fileName", { required: true })}
+                    className="col-span-3"
+                    autoFocus
+                  />
+                </div>
+                <div className="col-span-1">
+                  <select 
+                    {...fileForm.register("fileExtension")}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {commonExtensions.map(ext => (
+                      <option key={ext.value} value={ext.value}>{ext.value}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground col-span-4">
+                  El archivo se creará como: <strong>{fileForm.watch("fileName")}{fileForm.watch("fileExtension")}</strong>
+                </p>
               </div>
-              <div className="col-span-1">
-                <select 
-                  value={fileExtension}
-                  onChange={(e) => setFileExtension(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {commonExtensions.map(ext => (
-                    <option key={ext.value} value={ext.value}>{ext.value}</option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-xs text-muted-foreground col-span-4">
-                El archivo se creará como: <strong>{newFileName}{fileExtension}</strong>
-              </p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowNewFileDialog(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleCreateNewFile}>
-              Crear archivo
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowNewFileDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                Crear archivo
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -1089,39 +1139,35 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
                 : "Introduce el nombre de la carpeta que deseas crear"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-3">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="foldername" className="col-span-4">
-                Nombre de la carpeta
-              </Label>
-              <div className="col-span-4">
-                <Input 
-                  id="foldername"
-                  placeholder="mi-carpeta"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  className="col-span-4"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateNewFolder();
-                    }
-                  }}
-                />
+          <form onSubmit={folderForm.handleSubmit(handleCreateNewFolder)}>
+            <div className="grid gap-4 py-3">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="folderName" className="col-span-4">
+                  Nombre de la carpeta
+                </Label>
+                <div className="col-span-4">
+                  <Input 
+                    id="folderName"
+                    placeholder="mi-carpeta"
+                    {...folderForm.register("folderName", { required: true })}
+                    className="col-span-4"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground col-span-4">
+                  La carpeta se creará como: <strong>{currentPath ? `${currentPath}/` : ''}{folderForm.watch("folderName")}</strong>
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground col-span-4">
-                La carpeta se creará como: <strong>{currentPath ? `${currentPath}/` : ''}{newFolderName}</strong>
-              </p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleCreateNewFolder}>
-              Crear carpeta
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                Crear carpeta
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

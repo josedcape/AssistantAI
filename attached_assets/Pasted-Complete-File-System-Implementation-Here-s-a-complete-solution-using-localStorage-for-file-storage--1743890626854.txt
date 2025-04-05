@@ -1,0 +1,564 @@
+Complete File System Implementation
+Here's a complete solution using localStorage for file storage:
+
+jsx
+Copy Code
+// FileSystem.js
+import { createContext, useContext, useState, useEffect } from 'react';
+
+// Create context for file system
+const FileSystemContext = createContext();
+
+// File system provider component
+export function FileSystemProvider({ children }) {
+  const [files, setFiles] = useState([]);
+  const [currentPath, setCurrentPath] = useState('/');
+  const [loading, setLoading] = useState(true);
+
+  // Load files from localStorage on initial render
+  useEffect(() => {
+    const savedFiles = localStorage.getItem('files');
+    if (savedFiles) {
+      setFiles(JSON.parse(savedFiles));
+    } else {
+      // Initialize with root folder if no files exist
+      setFiles([
+        { id: '1', name: 'root', type: 'folder', path: '/' }
+      ]);
+    }
+    setLoading(false);
+  }, []);
+
+  // Save files to localStorage whenever they change
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('files', JSON.stringify(files));
+    }
+  }, [files, loading]);
+
+  // Create a new file
+  const createFile = (name, content = '') => {
+    const id = Date.now().toString();
+    const newFile = {
+      id,
+      name,
+      type: 'file',
+      path: currentPath === '/' ? `/${name}` : `${currentPath}/${name}`,
+      content,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    setFiles(prevFiles => [...prevFiles, newFile]);
+    return newFile;
+  };
+
+  // Create a new folder
+  const createFolder = (name) => {
+    const id = Date.now().toString();
+    const folderPath = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
+    const newFolder = {
+      id,
+      name,
+      type: 'folder',
+      path: folderPath,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    setFiles(prevFiles => [...prevFiles, newFolder]);
+    return newFolder;
+  };
+
+  // Delete a file or folder
+  const deleteItem = (id) => {
+    setFiles(prevFiles => prevFiles.filter(file => file.id !== id));
+  };
+
+  // Update file content
+  const updateFile = (id, content) => {
+    setFiles(prevFiles => 
+      prevFiles.map(file => 
+        file.id === id 
+          ? { ...file, content, updatedAt: new Date().toISOString() } 
+          : file
+      )
+    );
+  };
+
+  // Rename a file or folder
+  const renameItem = (id, newName) => {
+    setFiles(prevFiles => 
+      prevFiles.map(file => {
+        if (file.id === id) {
+          const pathParts = file.path.split('/');
+          pathParts[pathParts.length - 1] = newName;
+          const newPath = pathParts.join('/');
+          
+          return { 
+            ...file, 
+            name: newName, 
+            path: newPath,
+            updatedAt: new Date().toISOString() 
+          };
+        }
+        return file;
+      })
+    );
+  };
+
+  // Get files in current directory
+  const getFilesInCurrentDirectory = () => {
+    return files.filter(file => {
+      const filePath = file.path.substring(0, file.path.lastIndexOf('/') || 1);
+      return filePath === currentPath || (currentPath === '/' && file.path.split('/').length === 2);
+    });
+  };
+
+  // Navigate to a directory
+  const navigateTo = (path) => {
+    setCurrentPath(path);
+  };
+
+  return (
+    <FileSystemContext.Provider
+      value={{
+        files,
+        currentPath,
+        loading,
+        createFile,
+        createFolder,
+        deleteItem,
+        updateFile,
+        renameItem,
+        getFilesInCurrentDirectory,
+        navigateTo
+      }}
+    >
+      {children}
+    </FileSystemContext.Provider>
+  );
+}
+
+// Custom hook to use the file system
+export function useFileSystem() {
+  const context = useContext(FileSystemContext);
+  if (!context) {
+    throw new Error('useFileSystem must be used within a FileSystemProvider');
+  }
+  return context;
+}
+File Explorer Component
+Here's a complete implementation of a file explorer component that uses the file system:
+
+jsx
+Copy Code
+// FileExplorer.jsx
+import { useState } from 'react';
+import { useFileSystem } from './FileSystem';
+
+export default function FileExplorer() {
+  const {
+    currentPath,
+    getFilesInCurrentDirectory,
+    createFile,
+    createFolder,
+    deleteItem,
+    navigateTo,
+    renameItem,
+    updateFile
+  } = useFileSystem();
+  
+  const [newItemName, setNewItemName] = useState('');
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  const files = getFilesInCurrentDirectory();
+  
+  // Handle file creation
+  const handleCreateFile = () => {
+    if (newItemName.trim()) {
+      createFile(newItemName);
+      setNewItemName('');
+      setIsCreatingFile(false);
+    }
+  };
+  
+  // Handle folder creation
+  const handleCreateFolder = () => {
+    if (newItemName.trim()) {
+      createFolder(newItemName);
+      setNewItemName('');
+      setIsCreatingFolder(false);
+    }
+  };
+  
+  // Handle file selection
+  const handleSelectFile = (file) => {
+    setSelectedFile(file);
+    if (file.type === 'file') {
+      setFileContent(file.content || '');
+    }
+  };
+  
+  // Handle navigation
+  const handleNavigate = (path) => {
+    navigateTo(path);
+    setSelectedFile(null);
+  };
+  
+  // Handle file content update
+  const handleUpdateFile = () => {
+    if (selectedFile) {
+      updateFile(selectedFile.id, fileContent);
+      setIsEditing(false);
+    }
+  };
+  
+  // Handle rename
+  const handleRename = () => {
+    if (selectedFile && newName.trim()) {
+      renameItem(selectedFile.id, newName);
+      setIsRenaming(false);
+      setNewName('');
+    }
+  };
+  
+  // Render breadcrumb navigation
+  const renderBreadcrumbs = () => {
+    const parts = currentPath.split('/').filter(Boolean);
+    return (
+      <div className="breadcrumbs">
+        <span 
+          className="breadcrumb-item" 
+          onClick={() => handleNavigate('/')}
+        >
+          Home
+        </span>
+        {parts.map((part, index) => {
+          const path = '/' + parts.slice(0, index + 1).join('/');
+          return (
+            <span key={path}>
+              <span className="separator">/</span>
+              <span 
+                className="breadcrumb-item" 
+                onClick={() => handleNavigate(path)}
+              >
+                {part}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="file-explorer">
+      <div className="file-explorer-header">
+        <h2>File Explorer</h2>
+        <div className="actions">
+          <button onClick={() => setIsCreatingFile(true)}>New File</button>
+          <button onClick={() => setIsCreatingFolder(true)}>New Folder</button>
+        </div>
+      </div>
+      
+      {renderBreadcrumbs()}
+      
+      <div className="file-explorer-content">
+        <div className="file-list">
+          {isCreatingFile && (
+            <div className="create-item">
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="File name"
+                autoFocus
+              />
+              <button onClick={handleCreateFile}>Create</button>
+              <button onClick={() => setIsCreatingFile(false)}>Cancel</button>
+            </div>
+          )}
+          
+          {isCreatingFolder && (
+            <div className="create-item">
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="Folder name"
+                autoFocus
+              />
+              <button onClick={handleCreateFolder}>Create</button>
+              <button onClick={() => setIsCreatingFolder(false)}>Cancel</button>
+            </div>
+          )}
+          
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className={`file-item ${selectedFile?.id === file.id ? 'selected' : ''}`}
+              onClick={() => handleSelectFile(file)}
+              onDoubleClick={() => file.type === 'folder' && handleNavigate(file.path)}
+            >
+              <span className="file-icon">
+                {file.type === 'folder' ? '📁' : '📄'}
+              </span>
+              {isRenaming && selectedFile?.id === file.id ? (
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  autoFocus
+                  onBlur={handleRename}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                />
+              ) : (
+                <span className="file-name">{file.name}</span>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {selectedFile && (
+          <div className="file-details">
+            <div className="file-details-header">
+              <h3>{selectedFile.name}</h3>
+              <div className="file-actions">
+                {selectedFile.type === 'file' && (
+                  <button onClick={() => setIsEditing(true)}>Edit</button>
+                )}
+                <button onClick={() => {
+                  setIsRenaming(true);
+                  setNewName(selectedFile.name);
+                }}>Rename</button>
+                <button onClick={() => {
+                  deleteItem(selectedFile.id);
+                  setSelectedFile(null);
+                }}>Delete</button>
+              </div>
+            </div>
+            
+            {selectedFile.type === 'file' && (
+              <div className="file-content">
+                {isEditing ? (
+                  <>
+                    <textarea
+                      value={fileContent}
+                      onChange={(e) => setFileContent(e.target.value)}
+                      rows={10}
+                    />
+                    <div className="edit-actions">
+                      <button onClick={handleUpdateFile}>Save</button>
+                      <button onClick={() => setIsEditing(false)}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <pre>{selectedFile.content}</pre>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+CSS Styling
+Here's the CSS to style the file explorer:
+
+css
+Copy Code
+/* FileExplorer.css */
+.file-explorer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.file-explorer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ccc;
+}
+
+.file-explorer-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.breadcrumbs {
+  padding: 8px 10px;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  color: #0066cc;
+}
+
+.breadcrumb-item:hover {
+  text-decoration: underline;
+}
+
+.separator {
+  margin: 0 5px;
+  color: #666;
+}
+
+.file-explorer-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-list {
+  width: 300px;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.file-item:hover {
+  background-color: #f5f5f5;
+}
+
+.file-item.selected {
+  background-color: #e3f2fd;
+}
+
+.file-icon {
+  margin-right: 8px;
+}
+
+.create-item {
+  display: flex;
+  margin-bottom: 10px;
+  gap: 5px;
+}
+
+.create-item input {
+  flex: 1;
+  padding: 5px;
+}
+
+.file-details {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.file-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.file-details-header h3 {
+  margin: 0;
+}
+
+.file-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.file-content {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+.file-content textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+button {
+  padding: 6px 12px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0055aa;
+}
+App.jsx - Main Component
+Here's how to use these components in your main App component:
+
+jsx
+Copy Code
+// App.jsx
+import { FileSystemProvider } from './FileSystem';
+import FileExplorer from './FileExplorer';
+import './FileExplorer.css';
+
+function App() {
+  return (
+    <div className="app">
+      <FileSystemProvider>
+        <FileExplorer />
+      </FileSystemProvider>
+    </div>
+  );
+}
+
+export default App;
+Installation Instructions
+You don't need to install any additional libraries for this implementation as it uses React's built-in features and localStorage. Just make sure you have React installed in your project:
+
+bash
+Copy Code
+npm install react react-dom
+This implementation provides:
+
+A complete file system with file and folder creation
+Reliable storage using localStorage
+File content editing
+Renaming and deletion functionality
+Navigation through folders
+A clean and intuitive UI
+The code is structured to be easy to understand and modify according to your specific needs. It focuses on reliable file operations without complex hierarchical organization, as requested.
