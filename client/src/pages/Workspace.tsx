@@ -9,6 +9,7 @@ import { File, Project, CodeGenerationResponse, Agent } from "@shared/schema";
 import { getLanguageFromFileType } from "@/lib/types";
 import Header from "@/components/Header";
 import FileExplorer from "@/components/FileExplorer";
+import { FileSystemProvider } from "@/lib/fileSystem";
 import CodeEditor from "@/components/CodeEditor";
 import CodePreview from "@/components/CodePreview";
 import ConsoleOutput from "@/components/ConsoleOutput";
