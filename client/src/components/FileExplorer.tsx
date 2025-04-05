@@ -102,18 +102,16 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
     try {
       setIsLoading(true);
 
-      // Check cache first
-      const cachedFiles = projectStorage.getProject<File[]>(projectId, 'files');
-      if (cachedFiles?.length > 0) {
-        setFiles(cachedFiles);
-      }
-
-      // Always fetch fresh data
+      // Siempre obtener datos frescos para evitar problemas de caché
       const response = await apiRequest("GET", `/api/projects/${projectId}/files`);
       if (!response.ok) throw new Error("Failed to fetch files");
 
       const data = await response.json();
+      
+      // Actualizar el estado con los nuevos datos
       setFiles(data);
+      
+      // Actualizar el caché
       projectStorage.saveProject(projectId, 'files', data);
       projectStorage.saveLastProjectId(projectId);
 
@@ -124,6 +122,8 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         });
         sounds.play('success', 0.3);
       }
+      
+      return data;
     } catch (error) {
       console.error("Error loading files:", error);
       toast({
@@ -132,6 +132,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
         variant: "destructive",
       });
       sounds.play('error', 0.3);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -264,7 +265,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       const response = await apiRequest("DELETE", `/api/files/${fileId}`);
       if (!response.ok) throw new Error("Failed to delete file");
 
+      // Actualizar el state local
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+      
+      // Recargar archivos para asegurar que el state esté actualizado
+      setTimeout(() => loadFiles(false), 300);
+      
       toast({
         title: "Éxito",
         description: "Archivo eliminado correctamente",
@@ -347,12 +353,6 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
 
       const newFile = await response.json();
 
-      // Update state
-      setFiles(prevFiles => [...prevFiles, newFile]);
-
-      // Select the new file
-      onFileSelect(newFile);
-
       // Reset form
       setNewFileName("");
       setShowNewFileDialog(false);
@@ -372,8 +372,17 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       });
       sounds.play('success', 0.4);
 
-      // Reload files to ensure the UI is updated
-      setTimeout(() => loadFiles(), 500);
+      // Reload files immediately and then select the new file
+      await loadFiles(false);
+      
+      // Find the newly created file in the updated files list and select it
+      const updatedFiles = await apiRequest("GET", `/api/projects/${projectId}/files`);
+      const filesData = await updatedFiles.json();
+      const createdFile = filesData.find(f => f.name === filePath);
+      
+      if (createdFile) {
+        onFileSelect(createdFile);
+      }
     } catch (error) {
       console.error("Error creando archivo:", error);
       toast({
@@ -433,8 +442,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId }: FileExplorerP
       });
       sounds.play('success', 0.4);
 
-      // Importante: recargar archivos para mostrar la nueva estructura
-      await loadFiles(false);
+      // Recargar archivos forzando una actualización completa
+      await loadFiles(true);
+      setFiles(prevFiles => {
+        const updatedFiles = [...prevFiles];
+        return updatedFiles;
+      });
     } catch (error) {
       console.error("Error creando carpeta:", error);
       toast({
