@@ -1206,7 +1206,6 @@ const Workspace: React.FC = () => {
               >
                 <PanelLeft className="h-5 w-5" />
               </button>
-              </button>
             </div>
 
             {/* Botón para vista previa */}
