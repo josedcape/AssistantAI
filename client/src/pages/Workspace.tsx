@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { File, Project, CodeGenerationResponse, Agent } from "@shared/schema";
 import { getLanguageFromFileType } from "@/lib/types";
 import Header from "@/components/Header";
@@ -21,8 +21,57 @@ import ProjectDeployment from "@/components/ProjectDeployment";
 import { sounds } from '@/lib/sounds';
 import PackageExplorer from "@/components/PackageExplorer";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
-import { PanelLeft } from "lucide-react"; // Added import for the icon
-
+import { 
+  PanelLeft, 
+  FolderOpen, 
+  FileText, 
+  GitBranch, 
+  Save, 
+  Plus, 
+  Upload, 
+  Download, 
+  ChevronLeft, 
+  ChevronRight, 
+  FolderPlus, 
+  FilePlus,
+  ChevronDown,
+  FolderIcon,
+  Menu,
+  X,
+  Settings,
+  Play,
+  Code,
+  MoreVertical,
+  Terminal,
+  Globe,
+  MessageSquare,
+  BookOpen,
+  Package,
+  History
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Función auxiliar para determinar el tipo de archivo basado en la extensión
 const getFileLanguage = (fileName: string): string => {
@@ -36,14 +85,27 @@ const getFileLanguage = (fileName: string): string => {
   return 'text';
 };
 
+// Definir el tipo para la estructura de carpetas
+interface FolderStructure {
+  id: string;
+  name: string;
+  path: string;
+  files: File[];
+  folders: FolderStructure[];
+  isExpanded: boolean;
+}
+
 const Workspace: React.FC = () => {
   const params = useParams<{ id: string }>();
   const projectId = parseInt(params.id);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages">("development");
+  // Estado principal
+  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -52,8 +114,30 @@ const Workspace: React.FC = () => {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [showAgentsSelector, setShowAgentsSelector] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showFileExplorer, setShowFileExplorer] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showFloatingActions, setShowFloatingActions] = useState(true);
+
+  // Estados para la estructura de carpetas
+  const [folderStructure, setFolderStructure] = useState<FolderStructure[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFileName, setNewFileName] = useState("");
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+
+  // Nuevos estados para las funcionalidades adicionales
+  const [sidebarTab, setSidebarTab] = useState<"files" | "documents" | "repository" | "projects">("files");
+  const [repoUrl, setRepoUrl] = useState("");
+  const [isLoadingRepo, setIsLoadingRepo] = useState(false);
+  const [userProjects, setUserProjects] = useState<Project[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<{name: string, type: string, size: number}[]>([]);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [fileChangesHistory, setFileChangesHistory] = useState<{
+    timestamp: Date;
+    filename: string;
+    description: string;
+  }[]>([]);
 
   const [developmentPlan, setDevelopmentPlan] = useState<{
     plan?: string[];
@@ -62,7 +146,12 @@ const Workspace: React.FC = () => {
     requirements?: string[];
   } | null>(null);
 
-  const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery<Project>({
+  // Queries para cargar datos
+  const { 
+    data: project, 
+    isLoading: isLoadingProject, 
+    error: projectError 
+  } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
     enabled: !isNaN(projectId),
   });
@@ -78,13 +167,278 @@ const Workspace: React.FC = () => {
   });
 
   const {
-    data: agentsData,
-    isLoading: isLoadingAgents,
-    error: agentsError
+    data: agentsData
   } = useQuery<Agent[]>({
     queryKey: ['/api/agents'],
   });
 
+  const {
+    data: projectsData,
+    isLoading: isLoadingProjects,
+    refetch: refetchProjects
+  } = useQuery<Project[]>({
+    queryKey: ['/api/projects'],
+  });
+
+  // Efecto para organizar archivos en estructura de carpetas
+  useEffect(() => {
+    if (filesData) {
+      const newFolderStructure: FolderStructure[] = [];
+      const rootFiles: File[] = [];
+      const folderMap: Record<string, FolderStructure> = {};
+
+      // Primero crear todas las carpetas necesarias
+      filesData.forEach(file => {
+        if (file.path) {
+          const pathParts = file.path.split('/').filter(Boolean);
+          let currentPath = '';
+
+          pathParts.forEach((part, index) => {
+            const parentPath = currentPath;
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+            if (!folderMap[currentPath]) {
+              const newFolder: FolderStructure = {
+                id: `folder-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                name: part,
+                path: currentPath,
+                files: [],
+                folders: [],
+                isExpanded: false
+              };
+
+              folderMap[currentPath] = newFolder;
+
+              if (parentPath) {
+                if (folderMap[parentPath]) {
+                  folderMap[parentPath].folders.push(newFolder);
+                }
+              } else {
+                newFolderStructure.push(newFolder);
+              }
+            }
+          });
+
+          // Añadir archivo a su carpeta correspondiente
+          if (pathParts.length > 0) {
+            const folderPath = pathParts.join('/');
+            if (folderMap[folderPath]) {
+              folderMap[folderPath].files.push(file);
+            }
+          }
+        } else {
+          // Archivos sin path van a la raíz
+          rootFiles.push(file);
+        }
+      });
+
+      // Añadir carpetas preexistentes
+      const defaultFolders: FolderStructure[] = [
+        {
+          id: 'src',
+          name: 'src',
+          path: 'src',
+          files: filesData.filter(f => !f.path && f.name.includes('.')).filter(f => !rootFiles.includes(f)),
+          folders: [
+            {
+              id: 'components',
+              name: 'components',
+              path: 'src/components',
+              files: [],
+              folders: [],
+              isExpanded: false
+            },
+            {
+              id: 'lib',
+              name: 'lib',
+              path: 'src/lib',
+              files: [],
+              folders: [],
+              isExpanded: false
+            }
+          ],
+          isExpanded: true
+        }
+      ];
+
+      // Combinar estructura predeterminada con la estructura generada
+      const combinedStructure = [...newFolderStructure];
+      defaultFolders.forEach(defaultFolder => {
+        if (!combinedStructure.some(folder => folder.path === defaultFolder.path)) {
+          combinedStructure.push(defaultFolder);
+        }
+      });
+
+      setFolderStructure(combinedStructure);
+      setFiles(filesData);
+      if (!activeFile && filesData.length > 0) {
+        setActiveFile(filesData[0]);
+      }
+    }
+  }, [filesData, activeFile]);
+
+  // Funciones para manejar la estructura de carpetas
+  const toggleFolderExpand = useCallback((folderId: string) => {
+    const updateFolderStructure = (folders: FolderStructure[]): FolderStructure[] => {
+      return folders.map(folder => {
+        if (folder.id === folderId) {
+          return { ...folder, isExpanded: !folder.isExpanded };
+        }
+        if (folder.folders.length > 0) {
+          return { ...folder, folders: updateFolderStructure(folder.folders) };
+        }
+        return folder;
+      });
+    };
+
+    setFolderStructure(prevStructure => updateFolderStructure(prevStructure));
+  }, []);
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre de la carpeta no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const parentPath = activeFolder || '';
+      const newPath = parentPath ? `${parentPath}/${newFolderName}` : newFolderName;
+
+      // Crear carpeta en el backend
+      await apiRequest("POST", `/api/projects/${projectId}/folders`, {
+        path: newPath
+      });
+
+      // Actualizar UI
+      const newFolder: FolderStructure = {
+        id: `folder-${Date.now()}`,
+        name: newFolderName,
+        path: newPath,
+        files: [],
+        folders: [],
+        isExpanded: true
+      };
+
+      const updateFolderStructure = (folders: FolderStructure[], targetPath: string | null): FolderStructure[] => {
+        if (!targetPath) {
+          return [...folders, newFolder];
+        }
+
+        return folders.map(folder => {
+          if (folder.path === targetPath) {
+            return { ...folder, folders: [...folder.folders, newFolder], isExpanded: true };
+          }
+          if (folder.folders.length > 0) {
+            return { ...folder, folders: updateFolderStructure(folder.folders, targetPath) };
+          }
+          return folder;
+        });
+      };
+
+      setFolderStructure(prevStructure => updateFolderStructure(prevStructure, activeFolder));
+      setNewFolderName("");
+      setShowNewFolderDialog(false);
+
+      // Añadir al historial
+      setFileChangesHistory(prev => [...prev, {
+        timestamp: new Date(),
+        filename: newPath,
+        description: "Carpeta creada"
+      }]);
+
+      toast({
+        title: "Carpeta creada",
+        description: `Se ha creado la carpeta ${newFolderName}`,
+        duration: 3000
+      });
+
+      sounds.play('click', 0.3);
+    } catch (error) {
+      console.error("Error al crear carpeta:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la carpeta",
+        variant: "destructive"
+      });
+    }
+  }, [newFolderName, activeFolder, projectId, toast]);
+
+  const handleCreateFile = useCallback(async () => {
+    if (!newFileName.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre del archivo no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const path = activeFolder || '';
+      const fileType = getFileLanguage(newFileName);
+
+      // Crear archivo en el backend
+      const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
+        name: newFileName,
+        path: path,
+        content: "",
+        type: fileType
+      });
+
+      const newFile = await response.json();
+
+      // Actualizar UI
+      const updateFolderStructure = (folders: FolderStructure[], targetPath: string | null): FolderStructure[] => {
+        if (!targetPath) {
+          return folders.map(folder => folder);
+        }
+
+        return folders.map(folder => {
+          if (folder.path === targetPath) {
+            return { ...folder, files: [...folder.files, newFile] };
+          }
+          if (folder.folders.length > 0) {
+            return { ...folder, folders: updateFolderStructure(folder.folders, targetPath) };
+          }
+          return folder;
+        });
+      };
+
+      setFolderStructure(prevStructure => updateFolderStructure(prevStructure, activeFolder));
+      setFiles(prevFiles => [...prevFiles, newFile]);
+      setActiveFile(newFile);
+      setNewFileName("");
+      setShowNewFileDialog(false);
+
+      // Añadir al historial
+      setFileChangesHistory(prev => [...prev, {
+        timestamp: new Date(),
+        filename: path ? `${path}/${newFileName}` : newFileName,
+        description: "Archivo creado"
+      }]);
+
+      toast({
+        title: "Archivo creado",
+        description: `Se ha creado el archivo ${newFileName}`,
+        duration: 3000
+      });
+
+      sounds.play('click', 0.3);
+    } catch (error) {
+      console.error("Error al crear archivo:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear el archivo",
+        variant: "destructive"
+      });
+    }
+  }, [newFileName, activeFolder, projectId, toast, setActiveFile, setFiles]);
+
+  // Effect hooks
   useEffect(() => {
     if (agentsData) {
       setAvailableAgents(agentsData);
@@ -92,13 +446,10 @@ const Workspace: React.FC = () => {
   }, [agentsData]);
 
   useEffect(() => {
-    if (filesData) {
-      setFiles(filesData);
-      if (!activeFile && filesData.length > 0) {
-        setActiveFile(filesData[0]);
-      }
+    if (projectsData) {
+      setUserProjects(projectsData);
     }
-  }, [filesData, activeFile]);
+  }, [projectsData]);
 
   useEffect(() => {
     if (showSuccessMessage) {
@@ -109,703 +460,1011 @@ const Workspace: React.FC = () => {
     }
   }, [showSuccessMessage]);
 
-  const handleBackToHome = () => {
-    navigate("/");
-  };
+  useEffect(() => {
+    sounds.play('laser', 0.4);
+  }, []);
 
-  const handleFileSelect = (file: File) => {
+  // Detectar scroll para ocultar/mostrar el botón flotante
+  useEffect(() => {
+    if (!isMobile) return;
+
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > lastScrollY + 10) {
+        // Scrolling down - hide button
+        setShowFloatingActions(false);
+      } else if (currentScrollY < lastScrollY - 10) {
+        // Scrolling up - show button
+        setShowFloatingActions(true);
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
+
+  // Handler functions
+  const handleBackToHome = useCallback(() => {
+    navigate("/");
+  }, [navigate]);
+
+  const handleFileSelect = useCallback((file: File) => {
     setActiveFile(file);
     if (isMobile) {
       setActiveTab("development");
+      setIsSidebarCollapsed(true);
+      setShowMobileMenu(false);
     }
-  };
+  }, [isMobile]);
 
-  const generateCode = async () => {
-    if (!aiPrompt.trim()) {
+  const selectQuickPrompt = useCallback((prompt: string) => {
+    setAiPrompt(prompt);
+  }, []);
+
+  const toggleAgentSelection = useCallback((agentName: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedAgents(prev => [...prev, agentName]);
+    } else {
+      setSelectedAgents(prev => prev.filter(name => name !== agentName));
+    }
+  }, []);
+
+  const handleFolderSelect = useCallback((folderPath: string) => {
+    setActiveFolder(folderPath);
+  }, []);
+
+  // Nuevos handlers para las funcionalidades adicionales
+  const handleDocumentUpload = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const newDocuments = Array.from(files).map(file => ({
+      name: file.name,
+      type: file.type,
+      size: file.size
+    }));
+
+    setUploadedDocuments(prev => [...prev, ...newDocuments]);
+
+    toast({
+      title: "Documentos cargados",
+      description: `Se ${files.length === 1 ? 'ha cargado 1 documento' : `han cargado ${files.length} documentos`}`,
+      duration: 3000
+    });
+
+    // Añadir al historial
+    setFileChangesHistory(prev => [...prev, {
+      timestamp: new Date(),
+      filename: files.length === 1 ? files[0].name : `${files.length} documentos`,
+      description: "Documentos cargados"
+    }]);
+
+    // Aquí iría la lógica para subir los documentos al servidor
+    // Por simplicidad, simulamos una subida exitosa
+  }, [toast]);
+
+  const handleImportFromRepo = useCallback(async () => {
+    if (!repoUrl) {
+      toast({
+        title: "URL requerida",
+        description: "Por favor ingresa la URL del repositorio",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoadingRepo(true);
+
+    try {
+      // Simulamos la llamada a la API para importar desde el repositorio
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      toast({
+        title: "Repositorio importado",
+        description: "Los archivos se han importado correctamente",
+        duration: 3000
+      });
+
+      // Añadir al historial
+      setFileChangesHistory(prev => [...prev, {
+        timestamp: new Date(),
+        filename: repoUrl,
+        description: "Repositorio importado"
+      }]);
+
+      setRepoUrl("");
+      // Refrescar la lista de archivos
+      await refetchFiles();
+    } catch (error) {
+      console.error("Error al importar repositorio:", error);
       toast({
         title: "Error",
-        description: "Por favor, describe lo que quieres crear",
+        description: "No se pudo importar el repositorio",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingRepo(false);
+    }
+  }, [repoUrl, toast, refetchFiles]);
+
+  const handleCreateProject = useCallback(async () => {
+    if (!newProjectName.trim()) {
+      toast({
+        title: "Nombre requerido",
+        description: "Por favor ingresa un nombre para el proyecto",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      setIsGenerating(true);
-      const language = activeFile ? getLanguageFromFileType(activeFile.type) : undefined;
+      const response = await apiRequest("POST", "/api/projects", {
+        name: newProjectName.trim(),
+        description: "Proyecto creado desde el workspace"
+      });
 
-      if (isNaN(projectId)) {
-        toast({
-          title: "Error",
-          description: "ID de proyecto inválido. Por favor recarga la página.",
-          variant: "destructive"
-        });
-        setIsGenerating(false);
-        return;
-      }
+      const newProject = await response.json();
 
-      const requestPayload: any = {
-        prompt: aiPrompt,
-        language,
-        projectId: Number(projectId)
-      };
+      toast({
+        title: "Proyecto creado",
+        description: `El proyecto ${newProjectName} se ha creado correctamente`,
+        duration: 3000
+      });
 
-      if (selectedAgents.length > 0) {
-        requestPayload.agents = selectedAgents;
-      }
+      setNewProjectName("");
 
-      const response = await apiRequest("POST", "/api/generate", requestPayload);
-      const result: CodeGenerationResponse = await response.json();
+      // Refrescar la lista de proyectos
+      await refetchProjects();
 
-      if (result.plan || result.architecture || result.components || result.requirements) {
-        const newPlan = {
-          plan: result.plan || [],
-          architecture: result.architecture || "",
-          components: result.components || [],
-          requirements: result.requirements || []
-        };
-        setDevelopmentPlan(newPlan);
-
-        if (projectId && !isNaN(Number(projectId))) {
-          try {
-            await apiRequest("POST", "/api/development-plans", {
-              ...newPlan,
-              projectId: Number(projectId)
-            }).catch(err => console.error("No se pudo guardar el plan:", err));
-          } catch (error) {
-            console.error("Error al guardar el plan de desarrollo:", error);
-          }
-        }
-
-        toast({
-          title: "Plan de desarrollo creado",
-          description: "Se ha generado un plan de desarrollo para tu aplicación.",
-          duration: 5000
-        });
-      }
-
-      if (result.files && result.files.length > 0) {
-        if (isNaN(projectId)) {
-          toast({
-            title: "Error",
-            description: "ID de proyecto inválido. No se pueden crear archivos.",
-            variant: "destructive"
-          });
-          setIsGenerating(false);
-          return;
-        }
-
-        const validProjectId = Number(projectId);
-        for (const file of result.files) {
-          try {
-            await apiRequest("POST", `/api/projects/${validProjectId}/files`, {
-              name: file.name,
-              content: file.content,
-              type: file.type || getFileLanguage(file.name)
-            });
-          } catch (error) {
-            console.error(`Error creating file ${file.name}:`, error);
-            toast({
-              title: `Error al crear ${file.name}`,
-              description: "No se pudo crear el archivo. Inténtalo de nuevo.",
-              variant: "destructive"
-            });
-          }
-        }
-
-        const filesResult = await refetchFiles();
-        const updatedFiles = filesResult.data || [];
-        const htmlFile = updatedFiles.find((f: File) => f.type === 'html');
-        const jsFile = updatedFiles.find((f: File) => f.type === 'javascript');
-
-        if (htmlFile) {
-          setActiveFile(htmlFile);
-        } else if (jsFile) {
-          setActiveFile(jsFile);
-        } else if (updatedFiles.length > 0) {
-          setActiveFile(updatedFiles[0]);
-        }
-      } else if (activeFile && result.code) {
-        const updateResponse = await apiRequest("PUT", `/api/files/${activeFile.id}`, {
-          content: result.code
-        });
-        const updatedFile = await updateResponse.json();
-        setFiles(files.map(file => file.id === activeFile.id ? updatedFile : file));
-        setActiveFile(updatedFile);
-      } else if (result.code) {
-        const fileType = result.language === "html" ? "html" : 
-                        result.language === "css" ? "css" : 
-                        "javascript";
-        const fileExtension = result.language === "html" ? ".html" : 
-                              result.language === "css" ? ".css" : 
-                              ".js";
-        const fileName = `generado${fileExtension}`;
-
-        const createResponse = await apiRequest("POST", `/api/projects/${projectId}/files`, {
-          name: fileName,
-          content: result.code,
-          type: fileType
-        });
-
-        const newFile = await createResponse.json();
-        await refetchFiles();
-        setActiveFile(newFile);
-      }
-
-      setShowSuccessMessage(true);
-      setAiPrompt("");
-
+      // Opcional: Navegar al nuevo proyecto
+      navigate(`/workspace/${newProject.id}`);
     } catch (error) {
-      console.error("Error generating code:", error);
+      console.error("Error al crear proyecto:", error);
       toast({
         title: "Error",
-        description: "No se pudo generar el código. Intente de nuevo.",
+        description: "No se pudo crear el proyecto",
         variant: "destructive"
       });
-    } finally {
-      setIsGenerating(false);
     }
-  };
+  }, [newProjectName, toast, refetchProjects, navigate]);
 
-  const selectQuickPrompt = (prompt: string) => {
-    setAiPrompt(prompt);
-  };
+  const handleSwitchProject = useCallback((projectId: number) => {
+    navigate(`/workspace/${projectId}`);
+  }, [navigate]);
 
-  useEffect(() => {
-    sounds.play('laser', 0.4);
+  const toggleSidebar = useCallback(() => {
+    // Asegurarse de que la barra lateral se muestre primero si está colapsada
+    if (isSidebarCollapsed) {
+      setIsSidebarCollapsed(false);
+    } else {
+      setIsSidebarCollapsed(true);
+    }
+
+    if (isMobile) {
+      setShowMobileMenu(false);
+    }
+  }, [isMobile, isSidebarCollapsed]);
+
+  const showSidebar = useCallback(() => {
+    // Función específica para mostrar la barra lateral
+    setIsSidebarCollapsed(false);
+    if (isMobile) {
+      setShowMobileMenu(false);
+    }
+  }, [isMobile]);
+
+  const toggleMobileMenu = useCallback(() => {
+    setShowMobileMenu(prev => !prev);
   }, []);
 
-  if (isLoadingProject || isLoadingFiles) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
+  const updatePreview = useCallback(() => {
+    if (isNaN(projectId) || projectId <= 0) {
+      toast({
+        title: "Error",
+        description: "ID de proyecto inválido. No se puede mostrar la vista previa.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  if (projectError || filesError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg max-w-md w-full">
-          <h2 className="text-xl font-bold mb-4 text-red-500">Error</h2>
-          <p className="mb-6">No se pudo cargar el proyecto o sus archivos.</p>
-          <Button onClick={handleBackToHome}>
-            <i className="ri-arrow-left-line mr-2"></i>
-            Volver al inicio
+    const htmlFile = files.find(f => f.type === 'html');
+    if (htmlFile) {
+      setActiveFile(htmlFile);
+      setActiveTab("preview");
+
+      setTimeout(() => {
+        const previewIframe = document.querySelector('iframe');
+        if (previewIframe && previewIframe.contentWindow) {
+          try {
+            const cssFiles = files.filter(f => f.type === 'css');
+            const jsFiles = files.filter(f => f.type === 'javascript');
+
+            const cssMap: Record<string, string> = {};
+            cssFiles.forEach(f => { cssMap[f.name] = f.content; });
+
+            const jsMap: Record<string, string> = {};
+            jsFiles.forEach(f => { jsMap[f.name] = f.content; });
+
+            previewIframe.contentWindow.postMessage({
+              type: 'refreshContent',
+              html: htmlFile.content,
+              css: cssMap,
+              js: jsMap
+            }, '*');
+
+            toast({
+              title: "Vista previa actualizada",
+              description: "Se ha actualizado la vista previa con los cambios más recientes.",
+              duration: 3000
+            });
+          } catch (e) {
+            console.error("Error al comunicarse con la vista previa:", e);
+          }
+        }
+      }, 500);
+    } else {
+      toast({
+        title: "No hay archivo HTML",
+        description: "No se encontró un archivo HTML para mostrar la aplicación",
+        variant: "destructive"
+      });
+    }
+  }, [files, projectId, toast]);
+
+  const handleApplyChanges = useCallback(async (fileUpdates: { file: string, content: string }[]) => {
+    for (const update of fileUpdates) {
+      const existingFile = files.find(f => f.name === update.file);
+
+      try {
+        if (existingFile) {
+          // Actualizar archivo existente
+          const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
+          const updatedFile = await response.json();
+          setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
+
+          if (activeFile && activeFile.id === updatedFile.id) {
+            setActiveFile(updatedFile);
+          }
+
+          // Añadir al historial
+          setFileChangesHistory(prev => [...prev, {
+            timestamp: new Date(),
+            filename: update.file,
+            description: "Archivo actualizado"
+          }]);
+        } else {
+          // Crear nuevo archivo
+          const fileType = getFileLanguage(update.file);
+          const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
+            name: update.file,
+            content: update.content,
+            type: fileType
+          });
+          const newFile = await response.json();
+          setFiles(prev => [...prev, newFile]);
+
+          // Añadir al historial
+          setFileChangesHistory(prev => [...prev, {
+            timestamp: new Date(),
+            filename: update.file,
+            description: "Archivo creado"
+          }]);
+        }
+      } catch (error) {
+        console.error(`Error al actualizar/crear archivo ${update.file}:`, error);
+        toast({
+          title: "Error",
+          description: `No se pudo actualizar/crear el archivo ${update.file}`,
+          variant: "destructive"
+        });
+      }
+    }
+
+    toast({
+      title: "Cambios aplicados",
+      description: "Se han aplicado los cambios a los archivos",
+      duration: 3000
+    });
+
+    sounds.play('success', 0.4);
+    setShowSuccessMessage(true);
+  }, [files, activeFile, projectId, toast]);
+
+  // Renderizado de la estructura de carpetas
+  const renderFolderStructure = useCallback((folders: FolderStructure[]) => {
+    return folders.map(folder => (
+      <li key={folder.id} className="mb-1">
+        <div 
+          className={`flex items-center py-1 px-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer ${activeFolder === folder.path ? 'bg-slate-200 dark:bg-slate-600' : ''}`}
+          onClick={() => handleFolderSelect(folder.path)}
+        >
+          <button 
+            className="w-5 h-5 flex items-center justify-center mr-1 text-slate-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFolderExpand(folder.id);
+            }}
+          >
+            {folder.isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+          <FolderIcon className={`w-4 h-4 mr-2 ${folder.isExpanded ? 'text-blue-500' : 'text-slate-400'}`} />
+          <span className="text-sm truncate">{folder.name}</span>
+        </div>
+
+        {folder.isExpanded && (
+          <div className="ml-4">
+            {folder.files.length > 0 && (
+              <ul className="mt-1 space-y-1">
+                {folder.files.map(file => (
+                  <li 
+                    key={file.id} 
+                    className={`flex items-center py-1 px-2 rounded text-sm cursor-pointer ${activeFile?.id === file.id ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                    onClick={() => handleFileSelect(file)}
+                  >
+                    <div className="w-5 h-5 mr-1"></div>
+                    <FileText className="w-4 h-4 mr-2 text-slate-400" />
+                    <span className="truncate">{file.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {folder.folders.length > 0 && (
+              <ul className="mt-1">
+                {renderFolderStructure(folder.folders)}
+              </ul>
+            )}
+          </div>
+        )}
+      </li>
+    ));
+  }, [activeFile, activeFolder, handleFileSelect, handleFolderSelect, toggleFolderExpand]);
+
+  // Componente de historial de cambios
+  const HistoryComponent = () => (
+    <div className="h-full overflow-y-auto p-4">
+      <h2 className="text-lg font-semibold mb-4 flex items-center">
+        <History className="w-5 h-5 mr-2" />
+        Historial de cambios
+      </h2>
+
+      {fileChangesHistory.length === 0 ? (
+        <div className="text-center py-8 text-slate-500 border rounded-lg p-6 bg-slate-50 dark:bg-slate-800">
+          <History className="h-12 w-12 mx-auto mb-3 opacity-40" />
+          <p className="text-lg mb-1">Sin historial</p>
+          <p className="text-sm">Aún no hay cambios registrados en este proyecto.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {fileChangesHistory.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((change, index) => (
+            <div key={index} className="border rounded-md p-3 bg-white dark:bg-slate-800 shadow-sm">
+              <div className="flex justify-between items-start">
+                <div className="flex items-start">
+                  {change.description.includes("creado") ? (
+                    <Plus className="w-4 h-4 mr-2 mt-0.5 text-green-500" />
+                  ) : change.description.includes("actualizado") ? (
+                    <Save className="w-4 h-4 mr-2 mt-0.5 text-blue-500" />
+                  ) : change.description.includes("importado") ? (
+                    <GitBranch className="w-4 h-4 mr-2 mt-0.5 text-purple-500" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-2 mt-0.5 text-amber-500" />
+                  )}
+                  <div>
+                    <div className="font-medium">{change.description}</div>
+                    <div className="text-sm text-slate-500">{change.filename}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400">
+                  {change.timestamp.toLocaleTimeString()} - {change.timestamp.toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Componentes para la barra lateral
+  const SidebarFiles = () => (
+    <div className="h-full overflow-y-auto">
+      <div className="flex justify-between items-center mb-2 p-2">
+        <h3 className="text-sm font-medium">Archivos</h3>
+        <div className="flex space-x-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7" 
+            title="Nueva carpeta"
+            onClick={() => setShowNewFolderDialog(true)}
+          >
+            <FolderPlus className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7" 
+            title="Nuevo archivo"
+            onClick={() => setShowNewFileDialog(true)}
+          >
+            <FilePlus className="h-4 w-4" />
           </Button>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <SidebarProvider defaultOpen={!isMobile}>
-      <div className="flex flex-col h-screen">
-        <Header />
-        <main className="flex-1 flex">
-          {/* Main content area */}
-          <div className="bg-white dark:bg-slate-800 shadow-sm border-l dark:border-slate-700 flex flex-col flex-1 overflow-hidden">
-            {/* Project header with actions */}
-            {isMobile && (
-              <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2">
-                <div className="flex items-center">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleBackToHome}
-                    className="mr-2"
-                  >
-                    <i className="ri-arrow-left-line mr-1"></i>
-                    Volver
-                  </Button>
-                  <h1 className="text-sm font-medium truncate">
-                    {project?.name || "Proyecto"}
-                  </h1>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (project && activeFile) {
-                        toast({
-                          title: "Proyecto guardado",
-                          description: "Los cambios se han guardado localmente",
-                        });
-                      }
-                    }}
-                    className="ml-auto"
-                  >
-                    <i className="ri-save-line mr-1"></i>
-                    Guardar
-                  </Button>
-                </div>
-              </div>
-            )}
+      {isLoadingFiles ? (
+        <div className="flex justify-center items-center h-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <ul className="space-y-1 p-2">
+          {renderFolderStructure(folderStructure)}
+        </ul>
+      )}
 
-            <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-14">
-                  <div className="flex overflow-x-auto scrollbar-hide space-x-1 sm:space-x-4">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                      <TabsList>
-                        <TabsTrigger value="development" className="flex items-center gap-1.5">
-                          <i className="ri-code-s-slash-line text-blue-500"></i>Desarrollo
-                        </TabsTrigger>
-                        <TabsTrigger value="preview" className="flex items-center gap-1.5">
-                          <i className="ri-eye-2-line text-green-500"></i>Vista Previa
-                        </TabsTrigger>
-                        <TabsTrigger value="console" className="flex items-center gap-1.5">
-                          <i className="ri-terminal-box-line text-purple-500"></i>Consola
-                        </TabsTrigger>
-                        <TabsTrigger value="deployment" className="flex items-center gap-1.5">
-                          <i className="ri-rocket-line text-red-500"></i>Despliegue
-                        </TabsTrigger>
-                        <TabsTrigger value="assistant-chat" className="flex items-center gap-1.5">
-                          <i className="ri-robot-line text-amber-500"></i>Asistente
-                        </TabsTrigger>
-                        {!isMobile && (
-                          <TabsTrigger value="resources" className="flex items-center gap-1.5">
-                            <i className="ri-stack-line text-teal-500"></i>Recursos
-                          </TabsTrigger>
-                        )}
-                        {!isMobile && (
-                          <TabsTrigger value="packages" className="flex items-center gap-1.5">
-                            <i className="ri-package-line text-indigo-500"></i>Paquetes
-                          </TabsTrigger>
-                        )}
-                      </TabsList>
-                    </Tabs>
-                  </div>
-
-                  <div className="flex">
-                    {developmentPlan && (
-                      <div className="flex items-center">
-                        <button 
-                          className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none relative"
-                          onClick={() => setDevelopmentPlan(null)}
-                          title="Ver plan de desarrollo"
-                        >
-                          <i className="ri-file-list-line text-lg"></i>
-                          <span className="absolute top-0 right-0 w-2 h-2 bg-primary-500 rounded-full"></span>
-                        </button>
-                        <a
-                          href="/development-plan"
-                          className="p-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 focus:outline-none"
-                          title="Ver todos los planes de desarrollo"
-                        >
-                          <i className="ri-folder-chart-line text-lg"></i>
-                        </a>
-                      </div>
-                    )}
-                    <button 
-                      className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
-                      onClick={() => {
-                        if (isNaN(projectId) || projectId <= 0) {
-                          toast({
-                            title: "Error",
-                            description: "ID de proyecto inválido. No se puede mostrar la vista previa.",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-
-                        const htmlFile = files.find(f => f.type === 'html');
-                        if (htmlFile) {
-                          setActiveFile(htmlFile);
-                          setActiveTab("preview");
-
-                          setTimeout(() => {
-                            const previewIframe = document.querySelector('iframe');
-                            if (previewIframe && previewIframe.contentWindow) {
-                              try {
-                                const cssFiles = files.filter(f => f.type === 'css');
-                                const jsFiles = files.filter(f => f.type === 'javascript');
-
-                                const cssMap = {};
-                                cssFiles.forEach(f => { cssMap[f.name] = f.content; });
-
-                                const jsMap = {};
-                                jsFiles.forEach(f => { jsMap[f.name] = f.content; });
-
-                                previewIframe.contentWindow.postMessage({
-                                  type: 'refreshContent',
-                                  html: htmlFile.content,
-                                  css: cssMap,
-                                  js: jsMap
-                                }, '*');
-
-                                toast({
-                                  title: "Vista previa actualizada",
-                                  description: "Se ha actualizado la vista previa con los cambios más recientes.",
-                                  duration: 3000
-                                });
-                              } catch (e) {
-                                console.error("Error al comunicarse con la vista previa:", e);
-                              }
-                            }
-                          }, 500);
-                        } else {
-                          toast({
-                            title: "No hay archivo HTML",
-                            description: "No se encontró un archivo HTML para mostrar la aplicación",
-                            variant: "destructive"
-                          });
-                        }
-                      }}
-                      title="Ver aplicación"
-                    >
-                      <i className="ri-play-circle-line text-lg"></i>
-                    </button>
-                    <a 
-                      href={isNaN(projectId) || projectId <= 0 ? "#" : `/api/projects/${Number(projectId)}/preview`}
-                      target="_blank"
-                      className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none"
-                      title="Abrir en nueva pestaña"
-                      onClick={(e) => {
-                        if (isNaN(projectId) || projectId <= 0) {
-                          e.preventDefault();
-                          toast({
-                            title: "Error",
-                            description: "ID de proyecto inválido. No se puede abrir la vista previa.",
-                            variant: "destructive"
-                          });
-                        } else {
-                          console.log("Abriendo vista previa para el proyecto:", projectId);
-                        }
-                      }}
-                    >
-                      <i className="ri-share-line text-lg"></i>
-                    </a>
-                    <button className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none">
-                      <i className="ri-more-2-line text-lg"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-            <div className="flex-1 flex overflow-hidden">
-              <Sidebar>
-                <SidebarContent>
-                  <div className={`${(!isMobile || (isMobile && activeTab === "files")) ? 'block' : 'hidden'} bg-white dark:bg-slate-800 w-64 border-r border-slate-200 dark:border-slate-700 overflow-y-auto shadow-md`}>
-                    <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-2 px-3 z-10">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium">Explorador</h3>
-                        {isMobile && (
-                          <button 
-                            onClick={() => setActiveTab("development")}
-                            className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                          >
-                            <i className="ri-arrow-left-line"></i>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {activeTab === "files" && (
-                      <div className="h-full">
-                        <FileExplorer
-                          projectId={projectId}
-                          files={files}
-                          onFileSelect={handleFileSelect}
-                          onFilesUpdate={refetchFiles}
-                        />
-                      </div>
-                    )}
-                    {activeTab === "packages" && (
-                      <div className="h-full">
-                        <PackageExplorer projectId={projectId} />
-                      </div>
-                    )}
-                    {activeTab === "assistant-chat" && (
-                      <div className="h-full">
-                        {/* Placeholder for assistant chat content */}
-                      </div>
-                    )}
-                  </div>
-                </SidebarContent>
-              </Sidebar>
-
-              <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                  <div className="relative">
-                    <div className="flex">
-                      <div className="grow relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <i className="ri-robot-line text-primary-400"></i>
-                        </div>
-                        <input
-                          type="text"
-                          className="block w-full pl-10 pr-12 py-2 border-0 rounded-l-lg bg-white dark:bg-slate-800 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Describe lo que quieres crear..."
-                          value={aiPrompt}
-                          onChange={(e) => setAiPrompt(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !isGenerating) {
-                              generateCode();
-                            }
-                          }}
-                        />
-                      </div>
-                      <Button
-                        onClick={generateCode}
-                        disabled={isGenerating || !aiPrompt.trim()}
-                        className="rounded-l-none bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 transition-all duration-300"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <i className="ri-loader-4-line animate-spin mr-2"></i>
-                            Generando...
-                          </>
-                        ) : "Generar"}
-                      </Button>
-                    </div>
-
-                    <div className="mt-2">
-                      <div className="flex justify-between">
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <button
-                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                            onClick={() => selectQuickPrompt("Crea una app web básica con HTML, CSS y JavaScript")}
-                          >
-                            App web básica
-                          </button>
-                          <button
-                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                            onClick={() => selectQuickPrompt("Crea un formulario de contacto con validación")}
-                          >
-                            Formulario de contacto
-                          </button>
-                          <button
-                            className="px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-                            onClick={() => selectQuickPrompt("Crea una calculadora simple")}
-                          >
-                            Calculadora
-                          </button>
-                        </div>
-
-                        <button
-                          className="px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 flex items-center text-xs"
-                          onClick={() => setShowAgentsSelector(!showAgentsSelector)}
-                        >
-                          <i className="ri-robot-line mr-1"></i>
-                          {selectedAgents.length > 0 ? `${selectedAgents.length} agentes` : "Agentes"}
-                          <i className={`ri-arrow-${showAgentsSelector ? 'up' : 'down'}-s-line ml-1`}></i>
-                        </button>
-                      </div>
-
-                      {showAgentsSelector && (
-                        <div className="mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-md">
-                          <h4 className="text-sm font-medium mb-2">Selecciona agentes especializados</h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                            Los agentes se encargarán de generar componentes específicos de tu aplicación.
-                          </p>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                            {availableAgents.map((agent) => (
-                              <div 
-                                key={agent.name}
-                                className="flex items-start"
-                              >
-                                <input
-                                  type="checkbox"
-                                  id={`agent-${agent.name}`}
-                                  checked={selectedAgents.includes(agent.name)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedAgents(prevAgents => [...prevAgents, agent.name]);
-                                    } else {
-                                      setSelectedAgents(prevAgents => prevAgents.filter(name => name !== agent.name));
-                                    }
-                                  }}
-                                  className="mr-2 mt-1"
-                                />
-                                <div>
-                                  <label 
-                                    htmlFor={`agent-${agent.name}`}
-                                    className="text-sm font-medium cursor-pointer"
-                                  >
-                                    {agent.description}
-                                  </label>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    {agent.functions.length} funciones
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {selectedAgents.length > 0 && (
-                            <div className="mt-3 flex justify-end">
-                              <button
-                                className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
-                                onClick={() => setSelectedAgents([])}
-                              >
-                                Limpiar selección
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 flex">
-                  {activeTab === "development" && activeFile && (
-                    <CodeEditor 
-                      file={activeFile}
-                      onUpdate={(updatedFile) => {
-                        setFiles(files.map(file => file.id === updatedFile.id ? updatedFile : file));
-                        setActiveFile(updatedFile);
-                      }} 
-                    />
-                  )}
-
-                  {activeTab === "preview" && activeFile && (
-                    <CodePreview 
-                      file={activeFile}
-                      allFiles={files}
-                    />
-                  )}
-
-                  {activeTab === "console" && (
-                    <ConsoleOutput 
-                      projectId={projectId}
-                      activeFileId={activeFile?.id}
-                    />
-                  )}
-
-                  {activeTab === "deployment" && (
-                    <div className="flex-1 flex flex-col">
-                      <ProjectDeployment 
-                        projectId={projectId} 
-                        files={files} 
-                        refreshFiles={refetchFiles}
-                      />
-                    </div>
-                  )}
-
-                  {activeTab === "assistant-chat" && (
-                    <div className="flex-1 flex flex-col">
-                      <AssistantChat
-                        projectId={projectId}
-                        onApplyChanges={(fileUpdates) => {
-                          fileUpdates.forEach(async (update) => {
-                            const existingFile = files.find(f => f.name === update.file);
-                            if (existingFile) {
-                              try {
-                                const response = await apiRequest("PUT", `/api/files/${existingFile.id}`, { content: update.content });
-                                const updatedFile = await response.json();
-                                setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
-                                if (activeFile && activeFile.id === updatedFile.id) {
-                                  setActiveFile(updatedFile);
-                                }
-                                toast({ title: "Archivo actualizado", description: `${update.file} ha sido actualizado` });
-                              } catch (error) {
-                                console.error("Error updating file:", error);
-                                toast({ title: "Error", description: "No se pudo actualizar el archivo", variant: "destructive" });
-                              }
-                            } else {
-                              try {
-                                const extension = update.file.split('.').pop()?.toLowerCase();
-                                let fileType = "text";
-                                if (extension === "js") fileType = "javascript";
-                                else if (extension === "html") fileType = "html";
-                                else if (extension === "css") fileType = "css";
-                                else if (extension === "json") fileType = "json";
-                                else if (extension === "md") fileType = "markdown";
-                                else if (extension === "ts" || extension === "tsx") fileType = "typescript";
-                                const response = await apiRequest("POST", `/api/projects/${projectId}/files`, { name: update.file, content: update.content, type: fileType });
-                                const newFile = await response.json();
-                                setFiles(prev => [...prev, newFile]);
-                                toast({ title: "Archivo creado", description: `${update.file} ha sido creado` });
-                              } catch (error) {
-                                console.error("Error creating file:", error);
-                                toast({ title: "Error", description: "No se pudo crear el archivo", variant: "destructive" });
-                              }
-                            }
-                          });
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {!activeFile && (
-                    <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                      <div className="text-center p-4">
-                        <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                          <i className="ri-file-line text-3xl text-slate-400"></i>
-                        </div>
-                        <h3 className="text-lg font-medium mb-2">No hay archivos abiertos</h3>
-                        <p className="text-slate-600 dark:text-slate-400 mb-4">
-                          Selecciona un archivo para comenzar a editar
-                        </p>
-                        {isMobile && (
-                          <Button
-                            variant="outline"
-                            onClick={() => setActiveTab("preview")}
-                          >
-                            Ver archivos del proyecto
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <StatusBar activeFile={activeFile || undefined} projectName={project?.name} />
-              </div>
+      <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nueva carpeta</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Input
+                id="folderName"
+                placeholder="Nombre de la carpeta"
+                className="col-span-4"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+              />
             </div>
           </div>
-        </main>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateFolder}>
+              Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {showSuccessMessage && developmentPlan && (
-          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 shadow-lg rounded-lg px-6 py-4 flex items-center z-50 border border-green-200 dark:border-green-900">
-            <div className="flex-shrink-0 bg-green-100 dark:bg-green-900 rounded-full p-2 mr-4">
-              <i className="ri-check-line text-green-600 dark:text-green-300 text-xl"></i>
+      <Dialog open={showNewFileDialog} onOpenChange={setShowNewFileDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo archivo</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Input
+                id="fileName"
+                placeholder="Nombre del archivo (con extensión)"
+                className="col-span-4"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+              />
             </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-gray-900 dark:text-white">¡Código generado con éxito!</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Se ha creado un plan para la construcción de tu aplicación.</p>
-            </div>
-            <div className="ml-4">
-              <Button
-                onClick={() => {
-                  setShowSuccessMessage(false);
-                  setDevelopmentPlan(developmentPlan);
-                }}
-              >
-                <i className="ri-eye-line mr-2"></i>
-                Ver plan
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowNewFileDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateFile}>
+              Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
+  const SidebarDocuments = () => (
+    <div className="h-full overflow-y-auto p-2">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-medium">Documentos</h3>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-8" 
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Subir
+        </Button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          multiple
+          onChange={(e) => handleDocumentUpload(e.target.files)}
+        />
+      </div>
+
+      {uploadedDocuments.length === 0 ? (
+        <div className="text-center py-8 text-slate-500">
+          <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No hay documentos cargados</p>
+          <p className="text-xs mt-1">Sube documentos para usarlos con el asistente</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {uploadedDocuments.map((doc, index) => (
+            <li key={index} className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-800">
+              <div className="flex items-center">
+                <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                <div>
+                  <p className="text-sm font-medium truncate max-w-[180px]">{doc.name}</p>
+                  <p className="text-xs text-slate-500">{(doc.size / 1024).toFixed(1)} KB</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Download className="h-4 w-4" />
               </Button>
-              <button 
-                className="ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                onClick={() => setShowSuccessMessage(false)}
-                aria-label="Cerrar"
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  const SidebarRepository = () => (
+    <div className="h-full overflow-y-auto p-2">
+      <h3 className="text-sm font-medium mb-4">Importar Repositorio</h3>
+
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="repoUrl" className="block text-sm mb-1">URL del Repositorio</label>
+          <Input
+            id="repoUrl"
+            placeholder="https://github.com/usuario/repo"
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+          />
+        </div>
+
+        <Button 
+          className="w-full" 
+          onClick={handleImportFromRepo}
+          disabled={isLoadingRepo}
+        >
+          {isLoadingRepo ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Importando...
+            </>
+          ) : (
+            <>
+              <GitBranch className="h-4 w-4 mr-2" />
+              Importar Repositorio
+            </>
+          )}
+        </Button>
+
+        <div className="border-t pt-4 mt-4">
+          <h4 className="text-sm font-medium mb-2">Repositorios Recientes</h4>
+          <ul className="space-y-2">
+            <li className="text-sm text-slate-500">No hay repositorios recientes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  const SidebarProjects = () => (
+    <div className="h-full overflow-y-auto p-2">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-medium">Proyectos</h3>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-8" 
+          onClick={() => setNewProjectName(project?.name ? `Copia de ${project.name}` : "Nuevo Proyecto")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo
+        </Button>
+      </div>
+
+      {newProjectName && (
+        <div className="mb-4 p-3 border rounded-md bg-slate-50 dark:bg-slate-800">
+          <Input
+            placeholder="Nombre del proyecto"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            className="mb-2"
+          />
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setNewProjectName("")}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleCreateProject}
+            >
+              Crear
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLoadingProjects ? (
+        <div className="flex justify-center items-center h-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </div>
+      ) : userProjects.length === 0 ? (
+        <div className="text-center py-8 text-slate-500">
+          <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No hay proyectos</p>
+          <p className="text-xs mt-1">Crea un nuevo proyecto para comenzar</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {userProjects.map(proj => (
+            <li 
+              key={proj.id} 
+              className={`p-2 rounded cursor-pointer ${proj.id === projectId ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              onClick={() => handleSwitchProject(proj.id!)}
+            >
+              <div className="flex items-center">
+                <FolderOpen className={`h-4 w-4 mr-2 ${proj.id === projectId ? 'text-blue-500' : 'text-slate-400'}`} />
+                <div>
+                  <p className="text-sm font-medium">{proj.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(proj.createdAt!).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  // Componente para la navegación de la barra lateral
+  const SidebarNavigation = () => (
+    <div className="border-b dark:border-slate-700 mb-2">
+      <Tabs 
+        value={sidebarTab} 
+        onValueChange={(value) => setSidebarTab(value as any)}
+        className="w-full"
+      >
+        <TabsList className="w-full grid grid-cols-4 h-10">
+          <TabsTrigger 
+            value="files" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Archivos"
+          >
+            <FileText className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Archivos</span>}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="documents" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Documentos"
+          >
+            <Upload className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Docs</span>}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="repository" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Repositorio"
+          >
+            <GitBranch className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Repo</span>}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="projects" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Proyectos"
+          >
+            <FolderOpen className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Proyectos</span>}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+
+  // Floating Action Button para móviles
+  const FloatingActionButton = () => {
+    if (!isMobile || !showFloatingActions) return null;
+
+    return (
+      <>
+        {/* Botón principal */}
+        <button
+          className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center transition-all duration-300 ${showMobileMenu ? 'rotate-45' : ''}`}
+          onClick={toggleMobileMenu}
+        >
+          {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+
+        {/* Menú flotante */}
+        {showMobileMenu && (
+          <div className="fixed bottom-24 right-6 z-50 flex flex-col space-y-3 items-end">
+            {/* Botón para mostrar/ocultar sidebar */}
+            <div className="flex items-center">
+              <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
+                Explorador
+              </span>
+              <button
+                className="w-10 h-10 rounded-full bg-slate-800 text-white shadow-md flex items-center justify-center"
+                onClick={showSidebar} // Cambiado a showSidebar para asegurar que siempre se muestre
               >
-                <i className="ri-close-line text-lg"></i>
+                <PanelLeft className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Botón para vista previa */}
+            <div className="flex items-center">
+              <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
+                Vista previa
+              </span>
+              <button
+                className="w-10 h-10 rounded-full bg-slate-800 text-white shadow-md flex items-center justify-center"
+                onClick={() => {
+                  setActiveTab("preview");
+                  setShowMobileMenu(false);
+                }}
+              >
+                <Play className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Botón para asistente */}
+            <div className="flex items-center">
+              <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
+                Asistente
+              </span>
+              <button
+                className="w-10 h-10 rounded-full bg-slate-800 text-white shadow-md flex items-center justify-center"
+                onClick={() => {
+                  setActiveTab("assistant-chat");
+                  setShowMobileMenu(false);
+                }}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Botón para configuración */}
+            <div className="flex items-center">
+              <span className="bg-slate-800 text-white text-sm py-1 px-3 rounded-l-md shadow-md">
+                Opciones
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white shadow-md flex items-center justify-center"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setActiveTab("development")}>
+                    Desarrollo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("console")}>
+                    Consola
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("deployment")}>
+                    Despliegue
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("resources")}>
+                    Recursos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("packages")}>
+                    Paquetes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("history")}>
+                    Historial
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         )}
+      </>
+    );
+  };
 
-        {developmentPlan && !showSuccessMessage && (
-          <DevelopmentPlan
-            plan={developmentPlan.plan}
-            architecture={developmentPlan.architecture}
-            components={developmentPlan.components}
-            requirements={developmentPlan.requirements}
-            onClose={() => setDevelopmentPlan(null)}
-          />
-        )}
+  // Renderizado principal
+  return (
+    <div className="flex flex-col h-screen bg-white dark:bg-slate-900">
+      <Header 
+        title={project?.name || "Cargando..."}
+        onBackClick={handleBackToHome}
+        loading={isLoadingProject}
+      />
 
-        {isMobile && (
-          <div className="md:hidden fixed bottom-4 left-4 z-20">
-            <SidebarTrigger className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full h-12 w-12 flex items-center justify-center shadow-lg">
-              <PanelLeft className="h-6 w-6" />
-            </SidebarTrigger>
-          </div>
-        )}
-      </div>
-    </SidebarProvider>
+      <SidebarProvider>
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar 
+            className={`border-r dark:border-slate-700 ${isSidebarCollapsed ? 'w-0 md:w-12' : 'w-full md:w-64'} transition-all duration-300 ${isMobile ? 'absolute z-40 h-[calc(100%-4rem)] bg-white dark:bg-slate-900' : ''}`}
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex justify-between items-center p-2">
+                <h2 className={`text-sm font-semibold ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
+                  Explorador
+                </h2>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7" 
+                  onClick={toggleSidebar}
+                  title={isSidebarCollapsed ? "Expandir" : "Colapsar"}
+                >
+                  {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              {!isSidebarCollapsed && (
+                <>
+                  <SidebarNavigation />
+
+                  <div className="flex-1 overflow-hidden">
+                    {sidebarTab === "files" && <SidebarFiles />}
+                    {sidebarTab === "documents" && <SidebarDocuments />}
+                    {sidebarTab === "repository" && <SidebarRepository />}
+                    {sidebarTab === "projects" && <SidebarProjects />}
+                  </div>
+                </>
+              )}
+            </div>
+          </Sidebar>
+
+          <SidebarContent className="flex-1 overflow-hidden">
+            <div className="flex flex-col h-full">
+              <div className="border-b dark:border-slate-700">
+                <Tabs 
+                  value={activeTab} 
+                  onValueChange={(value) => setActiveTab(value as any)}
+                  className="w-full"
+                >
+                  <TabsList className="h-10 w-full justify-start overflow-x-auto">
+                    <TabsTrigger value="development" className="text-xs flex items-center">
+                      <Code className="h-4 w-4 mr-1.5 text-blue-500" />
+                      Desarrollo
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="text-xs flex items-center">
+                      <Play className="h-4 w-4 mr-1.5 text-green-500" />
+                      Vista Previa
+                    </TabsTrigger>
+                    <TabsTrigger value="console" className="text-xs flex items-center">
+                      <Terminal className="h-4 w-4 mr-1.5 text-amber-500" />
+                      Consola
+                    </TabsTrigger>
+                    <TabsTrigger value="deployment" className="text-xs flex items-center">
+                      <Globe className="h-4 w-4 mr-1.5 text-cyan-500" />
+                      Despliegue
+                    </TabsTrigger>
+                    <TabsTrigger value="assistant-chat" className="text-xs flex items-center">
+                      <MessageSquare className="h-4 w-4 mr-1.5 text-purple-500" />
+                      Asistente
+                    </TabsTrigger>
+                    <TabsTrigger value="resources" className="text-xs flex items-center">
+                      <BookOpen className="h-4 w-4 mr-1.5 text-orange-500" />
+                      Recursos
+                    </TabsTrigger>
+                    <TabsTrigger value="packages" className="text-xs flex items-center">
+                      <Package className="h-4 w-4 mr-1.5 text-indigo-500" />
+                      Paquetes
+                    </TabsTrigger>
+                    <TabsTrigger value="history" className="text-xs flex items-center">
+                      <History className="h-4 w-4 mr-1.5 text-teal-500" />
+                      Historial
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                {activeTab === "development" && (
+                  <div className="h-full flex flex-col">
+                    {activeFile ? (
+                      <CodeEditor 
+                        file={activeFile} 
+                        onSave={(updatedFile) => {
+                          setFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
+                          setActiveFile(updatedFile);
+
+                          // Añadir al historial
+                          setFileChangesHistory(prev => [...prev, {
+                            timestamp: new Date(),
+                            filename: updatedFile.name,
+                            description: "Archivo actualizado manualmente"
+                          }]);
+                        }}
+                      />
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center">
+                          <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                          <h3 className="text-lg font-medium mb-2">No hay archivo seleccionado</h3>
+                          <p className="text-sm text-slate-500 max-w-md">
+                            Selecciona un archivo del explorador o crea uno nuevo para comenzar a editar.
+                          </p>
+                          <Button 
+                            className="mt-4" 
+                            onClick={() => setShowNewFileDialog(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Crear archivo
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "preview" && (
+                  <CodePreview 
+                    projectId={projectId} 
+                    files={files}
+                  />
+                )}
+
+                {activeTab === "console" && (
+                  <ConsoleOutput projectId={projectId} />
+                )}
+
+                {activeTab === "deployment" && (
+                  <ProjectDeployment 
+                    projectId={projectId} 
+                    files={files}
+                  />
+                )}
+
+                {activeTab === "assistant-chat" && (
+                  <AssistantChat 
+                    projectId={projectId}
+                    files={files}
+                    onApplyChanges={handleApplyChanges}
+                    showSuccessMessage={showSuccessMessage}
+                  />
+                )}
+
+                {activeTab === "resources" && (
+                  <DevelopmentPlan 
+                    projectId={projectId}
+                    plan={developmentPlan}
+                    onPlanChange={setDevelopmentPlan}
+                  />
+                )}
+
+                {activeTab === "packages" && (
+                  <PackageExplorer 
+                    projectId={projectId}
+                  />
+                )}
+
+                {activeTab === "history" && <HistoryComponent />}
+              </div>
+            </div>
+          </SidebarContent>
+        </div>
+      </SidebarProvider>
+
+      <StatusBar 
+        projectId={projectId} 
+        fileName={activeFile?.name} 
+        fileType={activeFile?.type}
+        onUpdatePreview={updatePreview}
+      />
+
+      {/* Botón flotante para móviles */}
+      <FloatingActionButton />
+    </div>
   );
 };
 
