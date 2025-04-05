@@ -972,7 +972,7 @@ const Workspace: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
+            <Buttontype="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
               Cancelar
             </Button>
             <Button type="button" onClick={handleCreateFolder}>
@@ -1345,11 +1345,28 @@ const Workspace: React.FC = () => {
           <FileSystemProvider projectId={projectId}>
             {(!isMobile || showMobileMenu) && (
               <div className={`${showMobileMenu ? 'absolute inset-0 z-50 bg-white dark:bg-slate-900' : 'w-64 border-r border-border'}`}>
-                <FileExplorer
+                <FileExplorer 
                   projectId={projectId}
                   onFileSelect={handleFileSelect}
                   selectedFileId={activeFile?.id}
-                  onClose={() => setShowMobileMenu(false)}
+                  onClose={isMobile ? () => setShowMobileMenu(false) : undefined}
+                  onSendToAssistant={(fileContent, fileName) => {
+                    // Navegar al asistente con el contenido del archivo
+                    if (window.confirm(`¿Quieres enviar el archivo "${fileName}" al asistente de código?`)) {
+                      // Prepara una consulta con el contenido del archivo
+                      const message = `Analiza este archivo ${fileName}:\n\`\`\`\n${fileContent}\n\`\`\``;
+
+                      // Guarda el mensaje en sessionStorage para recuperarlo en la página del asistente
+                      sessionStorage.setItem('fileToAssistant', JSON.stringify({
+                        fileName,
+                        content: fileContent,
+                        message
+                      }));
+
+                      // Navegar a la página del asistente
+                      window.location.href = `/assistant/${projectId}`;
+                    }
+                  }}
                 />
               </div>
             )}

@@ -18,7 +18,9 @@ import {
   FileCodeIcon,
   FolderPlusIcon,
   XIcon,
-  Pencil
+  Pencil,
+  Copy,
+  MessageSquare
 } from "lucide-react";
 import { 
   SidebarGroup, 
@@ -45,6 +47,7 @@ interface FileExplorerProps {
   onFileSelect: (file: File) => void;
   selectedFileId?: number;
   onClose?: () => void;
+  onSendToAssistant?: (fileContent: string, fileName: string) => void;
 }
 
 interface NewFileFormData {
@@ -60,7 +63,7 @@ interface RenameFileFormData {
   newName: string;
 }
 
-function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose }: FileExplorerProps) {
+function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSendToAssistant }: FileExplorerProps) {
   // Hooks y estados
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { toast } = useToast();
@@ -309,6 +312,51 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose }: File
     sounds.play('click', 0.1);
   };
 
+  // Función para enviar archivo al asistente
+  const handleSendToAssistant = async (file: File) => {
+    if (!onSendToAssistant) {
+      toast({
+        title: "Función no disponible",
+        description: "No se puede enviar al asistente en este contexto",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Si el contenido no está ya cargado en el objeto file, asegurarse de obtenerlo
+      let content = file.content;
+      if (!content && file.id) {
+        const response = await fetch(`/api/files/${file.id}/content`);
+        if (!response.ok) {
+          throw new Error("No se pudo obtener el contenido del archivo");
+        }
+        content = await response.text();
+      }
+
+      if (!content) {
+        throw new Error("El archivo no tiene contenido");
+      }
+
+      // Llamar a la función para enviar al asistente
+      onSendToAssistant(content, file.name);
+      
+      toast({
+        title: "Archivo enviado al asistente",
+        description: `Se ha enviado ${file.name} al chat del asistente`,
+      });
+      sounds.play('success', 0.3);
+    } catch (error) {
+      console.error("Error al enviar archivo al asistente:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo enviar el archivo al asistente",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
+    }
+  };
+
   // Get icon for file by type
   const getFileIconByType = (fileType: string) => {
     switch (fileType) {
@@ -550,6 +598,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose }: File
                             <span className="ml-1.5 truncate">{fileName}</span>
                           </div>
                           <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {onSendToAssistant && !isFolder && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSendToAssistant(file);
+                                }}
+                                title="Enviar al asistente"
+                              >
+                                <MessageSquare className="h-3 w-3 text-green-500" />
+                              </Button>
+                            )}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -621,6 +683,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose }: File
                                   <span className="ml-1.5 truncate">{file.name}</span>
                                 </div>
                                 <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {onSendToAssistant && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendToAssistant(file);
+                                      }}
+                                      title="Enviar al asistente"
+                                    >
+                                      <MessageSquare className="h-3 w-3 text-green-500" />
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 

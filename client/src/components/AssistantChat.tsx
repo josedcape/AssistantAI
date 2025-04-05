@@ -283,6 +283,27 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   }, []);
 
+  // Verificar si hay un archivo para analizar enviado desde el explorador
+  useEffect(() => {
+    const fileDataStr = sessionStorage.getItem('fileToAssistant');
+    if (fileDataStr) {
+      try {
+        const fileData = JSON.parse(fileDataStr);
+        // Cargar el contenido del archivo como mensaje inicial
+        setInput(fileData.message || `Analiza este archivo ${fileData.fileName}:\n\`\`\`\n${fileData.content}\n\`\`\``);
+        // Limpiar el storage para no mostrar el mismo archivo si se recarga la página
+        sessionStorage.removeItem('fileToAssistant');
+        
+        toast({
+          title: "Archivo cargado",
+          description: `Se ha cargado el archivo ${fileData.fileName} para análisis`,
+        });
+      } catch (error) {
+        console.error("Error al cargar archivo desde sessionStorage:", error);
+      }
+    }
+  }, [toast]);
+
   // Cargar el modelo activo al inicio
   useEffect(() => {
     const fetchActiveModel = async () => {
