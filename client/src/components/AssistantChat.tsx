@@ -129,7 +129,17 @@ export const AssistantChat: React.FC = () => {
         ...prev,
         {
           role: "assistant",
-          content: `Lo siento, ha ocurrido un error al procesar tu solicitud: ${error instanceof Error ? error.message : "Error desconocido"}. Verifica que el servidor de la API esté funcionando correctamente.`
+          content: `## ⚠️ Error en la solicitud
+
+🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
+\`\`\`
+${error instanceof Error ? error.message : "Error desconocido"}
+\`\`\`
+
+### 🔍 Posibles soluciones:
+* 🔄 Verifica que el servidor de la API esté funcionando correctamente
+* 📡 Comprueba tu conexión a internet
+* 🔧 Reinicia la aplicación si el problema persiste`
         },
       ]);
       sounds.play("error");
@@ -249,9 +259,10 @@ export const AssistantChat: React.FC = () => {
     return codes;
   };
 
-  // Función para resaltar emojis en el contenido
+  // Función para resaltar emojis en el contenido y agregar automáticamente emojis a puntos importantes
   const enhanceContentWithEmojis = (content: string) => {
-    return content.replace(/:([\w_]+):/g, (match, emojiName) => {
+    // Reemplazar etiquetas de emoji existentes
+    let enhancedContent = content.replace(/:([\w_]+):/g, (match, emojiName) => {
       const emojiMap: Record<string, string> = {
         smile: "😊",
         grinning: "😀",
@@ -266,10 +277,91 @@ export const AssistantChat: React.FC = () => {
         x: "❌",
         question: "❓",
         gear: "⚙️",
-        // Agrega más según necesites
+        star: "⭐",
+        sparkles: "✨",
+        zap: "⚡",
+        tada: "🎉",
+        trophy: "🏆",
+        heart: "❤️",
+        bell: "🔔",
+        books: "📚",
+        wrench: "🔧",
+        mag: "🔍",
+        lock: "🔒",
+        key: "🔑",
+        chart: "📊",
+        calendar: "📅",
+        clipboard: "📋",
+        package: "📦",
+        speaker: "🔊",
+        idea: "💡",
+        important: "❗",
+        info: "ℹ️",
+        tip: "💁",
+        success: "✅",
+        error: "❌",
+        alert: "🚨",
+        // Emojis adicionales
+        bookmark: "🔖",
+        target: "🎯",
+        link: "🔗",
+        tool: "🛠️",
+        folder: "📁",
+        document: "📄",
+        code: "👨‍💻",
+        database: "🗃️",
+        cloud: "☁️",
+        time: "⏱️",
+        bug: "🐛",
+        fix: "🔧"
       };
       return emojiMap[emojiName] || match;
     });
+    
+    // Añadir emojis en los puntos importantes (títulos, listas, etc.)
+    enhancedContent = enhancedContent
+      // Títulos con emojis
+      .replace(/^(#{1,3})\s+(.+)$/gm, (_, hashes, title) => {
+        if (title.includes("importante") || title.includes("atención")) 
+          return `${hashes} 🚨 ${title}`;
+        if (title.includes("nota") || title.includes("recuerda"))
+          return `${hashes} 📝 ${title}`;
+        if (title.includes("tip") || title.includes("consejo"))
+          return `${hashes} 💡 ${title}`;
+        if (title.includes("error") || title.includes("problema"))
+          return `${hashes} ⚠️ ${title}`;
+        if (title.includes("solución") || title.includes("arreglo"))
+          return `${hashes} ✅ ${title}`;
+        if (title.includes("pasos") || title.includes("procedimiento"))
+          return `${hashes} 📋 ${title}`;
+        if (title.includes("paquete") || title.includes("librería"))
+          return `${hashes} 📦 ${title}`;
+        return `${hashes} ✨ ${title}`;
+      })
+      // Elementos de lista con emojis
+      .replace(/^(\s*[-*+])\s+(.+)$/gm, (_, bullet, item) => {
+        if (item.includes("importante") || item.includes("clave"))
+          return `${bullet} 🔑 ${item}`;
+        if (item.includes("ejemplo") || item.includes("muestra"))
+          return `${bullet} 🔍 ${item}`;
+        if (item.includes("error") || item.includes("problema"))
+          return `${bullet} ⚠️ ${item}`;
+        if (item.includes("correcto") || item.includes("éxito"))
+          return `${bullet} ✅ ${item}`;
+        return `${bullet} • ${item}`;
+      })
+      // Líneas numeradas con emojis
+      .replace(/^(\s*\d+\.)\s+(.+)$/gm, (_, number, item) => {
+        if (item.includes("paso") || item.includes("etapa"))
+          return `${number} 🔄 ${item}`;
+        if (item.includes("primero") || item.includes("inicial"))
+          return `${number} 🎬 ${item}`;
+        if (item.includes("final") || item.includes("último"))
+          return `${number} 🏁 ${item}`;
+        return `${number} ▶️ ${item}`;
+      });
+      
+    return enhancedContent;
   };
 
   // Instalar paquete desde comando
@@ -295,17 +387,28 @@ export const AssistantChat: React.FC = () => {
         ...prev,
         {
           role: "assistant",
-          content: `Paquete ${packageName} instalado exitosamente.`,
+          content: `## ✅ Instalación Exitosa
+
+📦 El paquete **${packageName}** ha sido instalado correctamente.
+
+*Puntos importantes:*
+* 🔄 La lista de paquetes se actualizará automáticamente
+* 📝 Ya puedes utilizar este paquete en tu proyecto
+* 💡 Refresca la página si no ves el paquete en la lista`,
         },
       ]);
       sounds.play("success");
+      
+      // Disparar evento personalizado para actualizar la lista de paquetes
+      window.dispatchEvent(new CustomEvent('package-installed'));
+      
     } catch (error) {
       console.error("Error al instalar:", error);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Error al instalar ${packageName}. Por favor, intenta manualmente.`,
+          content: `⚠️ Error al instalar ${packageName}. Por favor, intenta manualmente.`,
         },
       ]);
       sounds.play("error");
@@ -329,7 +432,7 @@ export const AssistantChat: React.FC = () => {
                 className={`px-4 py-2 rounded-lg max-w-[80%] ${
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    : "bg-blue-900 text-white"
                 }`}
               >
                 <div className="flex justify-between items-start mb-1">
