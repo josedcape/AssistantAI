@@ -358,7 +358,19 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         // Verificar tipo de contenido antes de parsear como JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          console.warn("Respuesta no es JSON:", await response.text());
+          const responseText = await response.text();
+          console.warn("Respuesta no es JSON:", responseText.substring(0, 200));
+
+          // Verificar si contiene CODESTORM
+          if (responseText.includes('CODESTORM') || responseText.includes('BOTIDINAMIX')) {
+            console.error("Error: Respuesta contiene HTML de CODESTORM en lugar de JSON");
+            toast({
+              title: "Error de conexión",
+              description: "El servidor no está respondiendo correctamente. Intenta actualizar la página.",
+              variant: "destructive"
+            });
+          }
+
           setModelId("gpt-4o");
           return;
         }
@@ -386,7 +398,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     };
 
     fetchActiveModel();
-  }, [safeApiRequest]);
+  }, [safeApiRequest, toast]);
 
   // Autoscroll al último mensaje
   useEffect(() => {
