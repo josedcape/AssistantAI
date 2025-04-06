@@ -949,7 +949,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-grow min-h-[80px] resize-y"
+            className="flex-grow min-h-[100px] resize-y"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -958,8 +958,10 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             }}
             style={{ 
               transition: "height 0.2s ease",
-              minHeight: "80px",
-              height: `${Math.min(25 + input.split('\n').length * 18, 200)}px`
+              minHeight: "100px",
+              height: `${Math.min(25 + input.split('\n').length * 20, 250)}px`,
+              fontSize: "16px",
+              lineHeight: "1.5"
             }}
           />
         </div>
