@@ -847,8 +847,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
 
       // Si hay un mensaje de contexto, reemplazarlo con la respuesta real
-      if<replit_final_file>
-(contextMessage) {        setMessages(prev => {
+      if (contextMessage) {                setMessages(prev => {
           const newMessages = [...prev];
           const loadingIndex = newMessages.findIndex(msg => msg.content === contextMessage);
           if (loadingIndex !== -1) {
@@ -1019,6 +1018,41 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         description: "No se pudo copiar el mensaje al portapapeles.",
         variant: "destructive"
       });
+    }
+  };
+
+  // Función para crear directorios
+  const handleCreateDirectory = async (path: string) => {
+    try {
+      if (!path) return;
+
+      const response = await safeApiRequest("POST", "/api/directories/create", {
+        path
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await safeParseJson(response);
+
+      if (result.success) {
+        toast({
+          title: "Directorio creado",
+          description: `${emojiMap.folder} Se ha creado el directorio ${path}`,
+        });
+        sounds.play('success', 0.4);
+      } else {
+        throw new Error(result.error || "Error desconocido al crear directorio");
+      }
+    } catch (error) {
+      console.error("Error al crear directorio:", error);
+      toast({
+        title: "Error al crear directorio",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive"
+      });
+      sounds.play('error', 0.4);
     }
   };
 
