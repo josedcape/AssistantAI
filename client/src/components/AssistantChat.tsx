@@ -826,6 +826,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
         // Buscar comandos de instalación en bloques de código
         let codeBlockMatch;
+        const codeBlockRegex = /```(?\:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
+
         while ((codeBlockMatch = codeBlockRegex.exec(result.message)) !== null) {
           const codeContent = codeBlockMatch[1];
           let installMatch;
@@ -837,73 +839,75 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
               description: ""
             });
           }
-(?:([a-z]+))?\s*\n([\s\S]*?)\n```/g;
-          const codeBlocks: { language: string, code: string }[] = [];
+        }
 
-          let match;
-          while ((match = codeBlockRegex.exec(content)) !== null) {
-            const language = match[1] || 'txt';
-            const code = match[2];
-            codeBlocks.push({ language, code });
-          }
+        // Buscar bloques de código en el contenido
+        const codeBlocks: { language: string, code: string }[] = [];
 
-          if (codeBlocks.length === 0) {
-            toast({
-              title: "No se encontró código",
-              description: "No hay bloques de código para guardar en este mensaje.",
-              variant: "destructive"
-            });
-            return;
-          }
+        let match;
+        while ((match = codeBlockRegex.exec(content)) !== null) {
+          const language = match[1] || 'txt';
+          const code = match[2];
+          codeBlocks.push({ language, code });
+        }
 
-          // Si hay más de un bloque de código, preguntar cuál guardar o todos
-          let codeToSave: { language: string, code: string, fileName: string }[] = [];
+        if (codeBlocks.length === 0) {
+          toast({
+            title: "No se encontró código",
+            description: "No hay bloques de código para guardar en este mensaje.",
+            variant: "destructive"
+          });
+          return;
+        }
 
-          if (codeBlocks.length === 1) {
-            const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+        // Si hay más de un bloque de código, preguntar cuál guardar o todos
+        let codeToSave: { language: string, code: string, fileName: string }[] = [];
+
+        if (codeBlocks.length === 1) {
+          const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+          if (!fileName) return;
+
+          codeToSave.push({
+            ...codeBlocks[0],
+            fileName
+          });
+        } else {
+          // Mostrar diálogo con opciones
+          const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
+
+          if (saveAll) {
+            // Guardar todos
+            for (let i = 0; i < codeBlocks.length; i++) {
+              const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
+              if (fileName) {
+                codeToSave.push({
+                  ...codeBlocks[i],
+                  fileName
+                });
+              }
+            }
+          } else {
+            // Elegir uno
+            const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
+            if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
+              toast({
+                title: "Selección inválida",
+                description: "El número seleccionado está fuera de rango.",
+                variant: "destructive"
+              });
+              return;
+            }
+
+            const selectedBlock = codeBlocks[blockIndex - 1];
+            const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
             if (!fileName) return;
 
             codeToSave.push({
-              ...codeBlocks[0],
+              ...selectedBlock,
               fileName
             });
-          } else {
-            // Mostrar diálogo con opciones
-            const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
-
-            if (saveAll) {
-              // Guardar todos
-              for (let i = 0; i < codeBlocks.length; i++) {
-                const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
-                if (fileName) {
-                  codeToSave.push({
-                    ...codeBlocks[i],
-                    fileName
-                  });
-                }
-              }
-            } else {
-              // Elegir uno
-              const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
-              if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
-                toast({
-                  title: "Selección inválida",
-                  description: "El número seleccionado está fuera de rango.",
-                  variant: "destructive"
-                });
-                return;
-              }
-
-              const selectedBlock = codeBlocks[blockIndex - 1];
-              const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
-              if (!fileName) return;
-
-              codeToSave.push({
-                ...selectedBlock,
-                fileName
-              });
-            }
           }
+        }
 
           // Guardar todos los archivos seleccionados
           for (const file of codeToSave) {
