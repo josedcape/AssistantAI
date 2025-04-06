@@ -972,7 +972,7 @@ const Workspace: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Buttontype="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
+            <Button type="button" variant="outline" onClick={() => setShowNewFolderDialog(false)}>
               Cancelar
             </Button>
             <Button type="button" onClick={handleCreateFolder}>
