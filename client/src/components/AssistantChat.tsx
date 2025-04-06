@@ -80,14 +80,16 @@ export const AssistantChat: React.FC = () => {
     sounds.play("send");
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/assistant-chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [...messages, { role: "user", content: userMessage }],
-          model: modelId,
+          message: userMessage,
+          modelId: modelId,
+          history: messages,
+          projectId: null
         }),
       });
 
@@ -111,7 +113,9 @@ export const AssistantChat: React.FC = () => {
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
-      sounds.play("notification");
+      if (sounds && sounds.play) {
+        sounds.play("notification");
+      }
 
       // Detectar y sugerir paquetes
       const packages = detectPackages(assistantMessage);
