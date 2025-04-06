@@ -1090,14 +1090,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .error { color: #e74c3c; background: #ffebee; padding: 15px; border-radius: 5px; }
               pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; }
             </style>
-          </head<body>
+          </head>
+          <body>
             <div class="error">
               <h2>Error al generar la vista previa</h2>
-              <p>${error instanceof Error ? error.message : "Error desconocido"}</p</div>
+              <p>${error instanceof Error ? error.message : "Error desconocido"}</p>
+            </div>
           </body>
         </html>
       `);
     }
+  });
+  
+  return httpServer;
+}
   });
 
   // Endpoint para obtener el contenido de un documento
