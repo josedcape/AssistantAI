@@ -450,6 +450,51 @@ async function updateDependenciesCache(packageName: string, version?: string, is
   } catch (error) {
     log(`Error al actualizar package.json: ${error instanceof Error ? error.message : String(error)}`);
   }
+
+/**
+ * Crea un directorio en el proyecto
+ */
+export async function createDirectory(dirPath: string): Promise<PackageManagerResult> {
+  try {
+    // Validar la ruta del directorio
+    if (!dirPath || dirPath.trim() === '') {
+      return {
+        success: false,
+        message: 'La ruta del directorio es requerida'
+      };
+    }
+
+    // Sanitizar la ruta para prevenir inyección de comandos
+    const sanitizedPath = dirPath.replace(/[;&|`$><!\\]/g, '');
+    const absolutePath = path.join(process.cwd(), sanitizedPath);
+
+    // Verificar que la ruta esté dentro del directorio del proyecto
+    if (!absolutePath.startsWith(process.cwd())) {
+      return {
+        success: false,
+        message: 'No se permite crear directorios fuera del proyecto'
+      };
+    }
+
+    // Crear directorio de forma recursiva 
+    await fs.mkdir(absolutePath, { recursive: true });
+
+    return {
+      success: true,
+      message: `Directorio ${sanitizedPath} creado correctamente`
+    };
+
+  } catch (error: any) {
+    log(`Error creando directorio: ${error.message}`);
+
+    return {
+      success: false,
+      message: 'Error al crear el directorio',
+      error: error.message
+    };
+  }
+}
+
 }
 
 // Elimina una dependencia del package.json

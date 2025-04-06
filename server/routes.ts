@@ -5,6 +5,7 @@ import { generateCode, correctCode, getAvailableModels, getActiveModel, setActiv
 import { executeCode } from "./codeExecution";
 import { getAvailableAgents } from "./agents";
 import { processAssistantChat } from "./assistantChat";
+import { createDirectory } from "./packageManager";
 import { CodeGenerationRequest, CodeExecutionRequest, CodeCorrectionRequest } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -431,6 +432,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoints para documentos
+  // Endpoint para crear directorios
+  apiRouter.post("/create-directory", async (req: Request, res: Response) => {
+    try {
+      const { path: dirPath } = req.body;
+      
+      if (!dirPath) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "La ruta del directorio es requerida" 
+        });
+      }
+      
+      const result = await createDirectory(dirPath);
+      res.json(result);
+    } catch (error) {
+      console.error("Error al crear directorio:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error al crear directorio",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
   apiRouter.get("/projects/:projectId/documents", async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);

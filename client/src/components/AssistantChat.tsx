@@ -719,14 +719,24 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       if (userInput.match(/\b(instala|instalar|agregar|añadir|add|install|npm|yarn|pnpm)\b/i) ||
           result.message.includes("npm install") ||
           result.message.includes("yarn add") ||
-          result.message.includes("pnpm add")) {
+          result.message.includes("pnpm add") ||
+          result.message.includes("```") && result.message.includes("install")) {
 
-        // Extraer nombres de paquetes mediante regex
-        const npmInstallRegex = /\bnpm\s+install\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/g;
+        // Extraer nombres de paquetes mediante regex mejorados
+        const npmInstallRegex = /\bnpm\s+(?:i|install)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/g;
         const yarnAddRegex = /\byarn\s+add\s+([a-zA-Z0-9\-_@/.]+)(\s+--dev|\s+-D)?\b/g;
         const pnpmAddRegex = /\bpnpm\s+add\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?\b/g;
 
+        // Buscar también en bloques de código
+        const codeBlockRegex = /```(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
+        const installInCodeRegex = /(?:npm\s+(?:i|install)|yarn\s+add|pnpm\s+add)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?/g;
+
+        // Texto genérico sobre instalación de paquetes
+        const installTextRegex = /instalar?\s+(?:el\s+)?(?:paquete|módulo|librería|biblioteca|dependencia)\s+['"]?([a-zA-Z0-9\-_@/.]+)['"]?/gi;
+
         let match;
+
+        // Buscar en el texto general
         while ((match = npmInstallRegex.exec(result.message)) !== null) {
           detectedPackages.push({
             name: match[1],
@@ -751,10 +761,40 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           });
         }
 
+        // Buscar comandos de instalación en bloques de código
+        let codeBlockMatch;
+        while ((codeBlockMatch = codeBlockRegex.exec(result.message)) !== null) {
+          const codeContent = codeBlockMatch[1];
+          let installMatch;
+
+          while ((installMatch = installInCodeRegex.exec(codeContent)) !== null) {
+            detectedPackages.push({
+              name: installMatch[1],
+              isDev: !!installMatch[2],
+              description: ""
+            });
+          }
+        }
+
+        // Buscar menciones textuales de instalación de paquetes
+        while ((match = installTextRegex.exec(result.message)) !== null) {
+          detectedPackages.push({
+            name: match[1],
+            isDev: false, // Por defecto no es dev
+            description: ""
+          });
+        }
+
         // Si hay sugerencias explícitas de paquetes en la respuesta
         if (result.packageSuggestions && result.packageSuggestions.length > 0) {
           detectedPackages = [...detectedPackages, ...result.packageSuggestions];
         }
+
+        // Sanitizar nombres de paquetes (eliminar caracteres no válidos)
+        detectedPackages = detectedPackages.map(pkg => ({
+          ...pkg,
+          name: pkg.name.trim().replace(/['"`;|&<>$]/g, '')
+        }));
 
         // Eliminar duplicados
         const uniquePackages = Array.from(
@@ -765,6 +805,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
         // Si hay paquetes para instalar, mostrar diálogo de confirmación
         if (uniquePackages.length > 0) {
+          console.log("Paquetes detectados:", uniquePackages);
           setPendingPackages(uniquePackages);
 
           // Obtener descripciones para los paquetes detectados
@@ -790,6 +831,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           } catch (error) {
             console.error("Error al obtener información de paquetes:", error);
             // No interrumpir el flujo principal si falla la info de paquetes
+            // Pero mostrar un mensaje en el chat para que el usuario sepa
+            setMessages(prev => [...prev, {
+              id: generateId(),
+              role: "assistant",
+              content: `${emojiMap.warning} No pude obtener información detallada de los paquetes, pero puedes continuar con la instalación.`,
+              timestamp: new Date()
+            }]);
           }
 
           setShowPackageDialog(true);
@@ -797,8 +845,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       }
 
       // Si hay un mensaje de contexto, reemplazarlo con la respuesta real
-      if (contextMessage) {
-        setMessages(prev => {
+      if (contextMessage) {        setMessages(prev => {
           const newMessages = [...prev];
           const loadingIndex = newMessages.findIndex(msg => msg.content === contextMessage);
           if (loadingIndex !== -1) {
