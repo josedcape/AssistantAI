@@ -858,4 +858,4 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
           // Manejar la respuesta con cuidado
           if (!response.ok) {
-            throw new Error(`([a-zA-Z]*)\n([\s\S]*?)
+            throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
