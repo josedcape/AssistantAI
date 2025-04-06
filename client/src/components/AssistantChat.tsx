@@ -851,7 +851,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         setMessages(prev => [...prev, {
           id: generateId(),
           role: "assistant",
-          content: `${emojiMap.error} **Lo siento, ocurrió un error al procesar tu solicitud:**\n\n${error instanceof Error ? error.message : "Error desconocido"}.\n\nPor favor, inténtalo de nuevo.`,
+          content: `${emojiMap.error} **Lo siento, ocurrió un error al procesartu solicitud:**\n\n${error instanceof Error ? error.message : "Error desconocido"}.\n\nPor favor, inténtalo de nuevo.`,
           timestamp: new Date()
         }]);
       }
@@ -957,7 +957,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                 year: 'numeric', month: 'numeric', day: 'numeric',
                 hour: 'numeric', minute: 'numeric', second: 'numeric'
               }).format(message.timestamp)}</p>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
+
+              {message.role === "user" ? (
+                <div className="bg-blue-50 p-3 rounded border border-blue-100 mt-1 mb-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
+                </div>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
+              )}
+
               {message.fileChanges && message.fileChanges.length > 0 && (
                 <div className="mt-2">
                   <Alert variant="primary" className={message.role !== "user" ? "bg-gray-600 text-white border-gray-500" : ""}>
