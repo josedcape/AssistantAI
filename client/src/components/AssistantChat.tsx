@@ -844,6 +844,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
       }
 
+      
+
       // Si hay un mensaje de contexto, reemplazarlo con la respuesta real
       if (contextMessage) {        setMessages(prev => {
           const newMessages = [...prev];
@@ -933,49 +935,48 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       });
 
       // Formatear los comandos de instalación para el backend
-      const packageCommands = pendingPackages.map(pkg => {
-        const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
-        const devFlag = pkg.isDev ? ' --save-dev' : '';
-        return `npm install ${pkgSpec}${devFlag}`;
-      }).join(' && ');
+      //const packageCommands = pendingPackages.map(pkg => {
+      //  const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
+      //  const devFlag = pkg.isDev ? ' --save-dev' : '';
+      //  return `npm install ${pkgSpec}${devFlag}`;
+      //}).join(' && ');
 
-      const response = await safeApiRequest("POST", "/api/install-packages", {
-        projectId,
-        packages: pendingPackages.map(pkg => ({
-          name: pkg.name,
-          isDev: pkg.isDev || false,
-          version: pkg.version || "latest"
-        })),
-        command: packageCommands // Enviar comando explícito para la instalación
-      });
-
-      // Manejar la respuesta con cuidado
-      if (!response.ok) {
-        throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await safeParseJson(response);
-
-      if (result.success) {
-        toast({
-          title: "Paquetes instalados",
-          description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
+      for (const pkg of pendingPackages) {
+        const response = await safeApiRequest("POST", "/api/packages/install", {
+          packageName: pkg.name,
+          version: pkg.version || "latest",
+          isDev: pkg.isDev || false
         });
 
-        // Agregar mensaje de confirmación al chat
-        setMessages(prev => [...prev, {
-          id: generateId(),
-          role: "assistant",
-          content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg =>
-            `- \`${pkg.name}${pkg.version && pkg.version !== "latest" ? '@' + pkg.version : ''}\` ${pkg.isDev ? '(dev dependency)' : ''}`
-          ).join('\n')}\n\n¿Necesitas ayuda para usar alguno de estos paquetes?`,
-          timestamp: new Date()
-        }]);
+        // Manejar la respuesta con cuidado
+        if (!response.ok) {
+          throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
+        }
 
-        sounds.play('success', 0.4);
-      } else {
-        throw new Error(result.error || "Error desconocido al instalar paquetes");
+        const result = await safeParseJson(response);
+
+        if (!result.success) {
+          throw new Error(result.error || `Error al instalar ${pkg.name}`);
+        }
       }
+
+
+      toast({
+        title: "Paquetes instalados",
+        description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
+      });
+
+      // Agregar mensaje de confirmación al chat
+      setMessages(prev => [...prev, {
+        id: generateId(),
+        role: "assistant",
+        content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg =>
+          `- \`${pkg.name}${pkg.version && pkg.version !== "latest" ? '@' + pkg.version : ''}\` ${pkg.isDev ? '(dev dependency)' : ''}`
+        ).join('\n')}\n\n¿Necesitas ayuda para usar alguno de estos paquetes?`,
+        timestamp: new Date()
+      }]);
+
+      sounds.play('success', 0.4);
     } catch (error) {
       console.error("Error al instalar paquetes:", error);
 
