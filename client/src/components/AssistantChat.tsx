@@ -841,118 +841,100 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
 
         // Buscar menciones textuales de instalación de paquetes
-        while ((match = installTextRegex.exec(result.message)) !== null) {
-          detectedPackages.push({
-            name: match[1],
-            isDev: false,
-            description: ""
-          });
+        while ((match = installTextRegex.exec(result.message))(?:([a-z]+))?\s*\n([\s\S]*?)\n```/g;
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || 'txt';
+      const code = match[2];
+      codeBlocks.push({ language, code });
+    }
+
+    if (codeBlocks.length === 0) {
+      toast({
+        title: "No se encontró código",
+        description: "No hay bloques de código para guardar en este mensaje.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Si hay más de un bloque de código, preguntar cuál guardar o todos
+    let codeToSave: { language: string, code: string, fileName: string }[] = [];
+
+    if (codeBlocks.length === 1) {
+      const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+      if (!fileName) return;
+
+      codeToSave.push({
+        ...codeBlocks[0],
+        fileName
+      });
+    } else {
+      // Mostrar diálogo con opciones
+      const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
+
+      if (saveAll) {
+        // Guardar todos
+        for (let i = 0; i < codeBlocks.length; i++) {
+          const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
+          if (fileName) {
+            codeToSave.push({
+              ...codeBlocks[i],
+              fileName
+            });
+          }
         }
-      const codeBlocks: { language: string, code: string }[] = [];
+      } else {
+        // Elegir uno
+        const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
+        if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
+          toast({
+            title: "Selección inválida",
+            description: "El número seleccionado está fuera de rango.",
+            variant: "destructive"
+          });
+          return;
+        }
 
-      let match;
-      while ((match = codeBlockRegex.exec(content)) !== null) {
-        const language = match[1] || 'txt';
-        const code = match[2];
-        codeBlocks.push({ language, code });
-      }
-
-      if (codeBlocks.length === 0) {
-        toast({
-          title: "No se encontró código",
-          description: "No hay bloques de código para guardar en este mensaje.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Si hay más de un bloque de código, preguntar cuál guardar o todos
-      let codeToSave: { language: string, code: string, fileName: string }[] = [];
-
-      if (codeBlocks.length === 1) {
-        const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+        const selectedBlock = codeBlocks[blockIndex - 1];
+        const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
         if (!fileName) return;
 
         codeToSave.push({
-          ...codeBlocks[0],
+          ...selectedBlock,
           fileName
         });
-      } else {
-        // Mostrar diálogo con opciones
-        const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
-
-        if (saveAll) {
-          // Guardar todos
-          for (let i = 0; i < codeBlocks.length; i++) {
-            const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
-            if (fileName) {
-              codeToSave.push({
-                ...codeBlocks[i],
-                fileName
-              });
-            }
-          }
-        } else {
-          // Elegir uno
-          const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
-          if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
-            toast({
-              title: "Selección inválida",
-              description: "El número seleccionado está fuera de rango.",
-              variant: "destructive"
-            });
-            return;
-          }
-
-          const selectedBlock = codeBlocks[blockIndex - 1];
-          const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
-          if (!fileName) return;
-
-          codeToSave.push({
-            ...selectedBlock,
-            fileName
-          });
-        }
       }
+    }
 
-      // Guardar todos los archivos seleccionados
-      for (const file of codeToSave) {
-        // Verificar si hay un proyecto activo
-        if (!projectId) {
-          toast({
-            title: "Error al guardar",
-            description: "No hay un proyecto activo donde guardar el archivo.",
-            variant: "destructive"
-          });
-          continue;
-        }
-
-        // Crear el archivo en el proyecto
-        const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
-          name: file.fileName,
-          content: file.code,
-          type: getFileType(file.language)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
-        }
-
+    // Guardar todos los archivos seleccionados
+    for (const file of codeToSave) {
+      // Verificar si hay un proyecto activo
+      if (!projectId) {
         toast({
-          title: "Archivo guardado",
-          description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
+          title: "Error al guardar",
+          description: "No hay un proyecto activo donde guardar el archivo.",
+          variant: "destructive"
         });
-
-        sounds.play('save', 0.4);
+        continue;
       }
-    } catch (error) {
-      console.error("Error al guardar código:", error);
-      toast({
-        title: "Error al guardar código",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive"
+
+      // Crear el archivo en el proyecto
+      const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
+        name: file.fileName,
+        content: file.code,
+        type: getFileType(file.language)
       });
-      sounds.play('error', 0.4);
+
+      if (!response.ok) {
+        throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
+      }
+
+      toast({
+        title: "Archivo guardado",
+        description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
+      });
+
+      sounds.play('save', 0.4);
     }
   };
 
