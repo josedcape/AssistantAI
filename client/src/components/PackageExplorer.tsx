@@ -20,23 +20,38 @@ export function PackageExplorer() {
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
 
-  useEffect(() => {
-    async function fetchPackages() {
-      try {
-        setLoading(true);
-        const response = await apiRequest("GET", `/api/projects/${id}/packages`, undefined);
-        const data = await response.json();
-        setPackages(data);
-        setFilteredPackages(data);
-      } catch (error) {
-        console.error("Error al cargar paquetes:", error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      const response = await apiRequest("GET", `/api/projects/${id}/packages`, undefined);
+      const data = await response.json();
+      setPackages(data);
+      setFilteredPackages(data);
+    } catch (error) {
+      console.error("Error al cargar paquetes:", error);
+    } finally {
+      setLoading(false);
     }
-
+  };
+  
+  // Cargar paquetes al iniciar
+  useEffect(() => {
     fetchPackages();
   }, [id]);
+  
+  // Escuchar el evento de instalación de paquetes
+  useEffect(() => {
+    const handlePackageInstalled = () => {
+      console.log("Actualizando lista de paquetes...");
+      fetchPackages();
+    };
+    
+    window.addEventListener('package-installed', handlePackageInstalled);
+    
+    return () => {
+      window.removeEventListener('package-installed', handlePackageInstalled);
+    };
+  }, []);
 
   // Filtrar paquetes cuando cambie el término de búsqueda
   useEffect(() => {
@@ -57,6 +72,18 @@ export function PackageExplorer() {
         <CardTitle className="text-lg flex items-center gap-2">
           <Package size={18} />
           Paquetes Instalados
+          <button 
+            onClick={fetchPackages} 
+            className="ml-auto p-1 rounded-md hover:bg-secondary/50 text-muted-foreground"
+            title="Actualizar lista de paquetes"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 21h5v-5"/>
+            </svg>
+          </button>
         </CardTitle>
         <Input
           type="search"

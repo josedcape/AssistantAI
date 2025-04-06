@@ -142,7 +142,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     } catch (error) {
       console.error("Error al cargar mensajes guardados:", error);
     }
-    
+
     // Mensaje de bienvenida por defecto
     return [
       {
@@ -424,7 +424,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-  
+
   // Guardar mensajes en localStorage cuando cambien
   useEffect(() => {
     try {
@@ -433,7 +433,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       console.error("Error al guardar mensajes:", error);
     }
   }, [messages]);
-  
+
   // Función para limpiar el historial de mensajes
   const handleClearHistory = () => {
     if (confirm("¿Estás seguro de que deseas borrar todo el historial de conversación?")) {
@@ -654,17 +654,17 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     // Verificar si el mensaje contiene comandos de instalación de paquetes (mejorado)
     const packageInstallRegex = /\b(instala|instalar|agregar|añadir|agregar|add|install|npm\s+install|yarn\s+add)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?\b/i;
     const packageMatch = input.match(packageInstallRegex);
-    
+
     // Verificar comando npm install explícito
     const npmInstallRegex = /\bnpm\s+i(?:nstall)?\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/i;
     const npmMatch = input.match(npmInstallRegex);
-    
+
     // Si es un comando directo de instalación de paquete, ejecutar de inmediato
     if (packageMatch || npmMatch) {
       const match = packageMatch || npmMatch;
       const packageName = match[2] || match[1];
       const isDev = !!(match[3]); // --save-dev o --dev o -D
-      
+
       if (confirm(`¿Quieres instalar el paquete ${packageName}${isDev ? ' como dependencia de desarrollo' : ''}?`)) {
         await installPackageFromCommand(packageName, isDev);
         // Aún así enviar el mensaje para procesar como conversación normal
@@ -841,353 +841,16 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
 
         // Buscar menciones textuales de instalación de paquetes
-        while ((match = installTextRegex.exec(result.message)) !== null) {
-          detectedPackages.push({
-            name: match[1],
-            isDev: false, // Por defecto no es dev
-            description: ""
-          });
-        }
-
-        // Si hay sugerencias explícitas de paquetes en la respuesta
-        if (result.packageSuggestions && result.packageSuggestions.length > 0) {
-          detectedPackages = [...detectedPackages, ...result.packageSuggestions];
-        }
-
-        // Sanitizar nombres de paquetes (eliminar caracteres no válidos)
-        detectedPackages = detectedPackages.map(pkg => ({
-          ...pkg,
-          name: pkg.name.trim().replace(/['"`;|&<>$]/g, '')
-        }));
-
-        // Eliminar duplicados
-        const uniquePackages = Array.from(
-          new Set(detectedPackages.map(p => p.name))
-        ).map(name =>
-          detectedPackages.find(p => p.name === name)
-        );
-
-        // Si hay paquetes para instalar, mostrar diálogo de confirmación
-        if (uniquePackages.length > 0) {
-          console.log("Paquetes detectados:", uniquePackages);
-          setPendingPackages(uniquePackages);
-
-          // Obtener descripciones para los paquetes detectados
-          try {
-            const packagesInfo = await safeApiRequest("POST", "/api/package-info", {
-              packages: uniquePackages.map(p => p.name)
-            });
-
-            // Verificar respuesta antes de parsear
-            if (packagesInfo.ok) {
-              const packagesData = await safeParseJson(packagesInfo);
-
-              if (packagesData.packages) {
-                const enhancedPackages = uniquePackages.map(pkg => ({
-                  ...pkg,
-                  description: packagesData.packages[pkg.name]?.description || "No hay descripción disponible",
-                  version: packagesData.packages[pkg.name]?.version || "latest"
-                }));
-
-                setPendingPackages(enhancedPackages);
-              }
-            }
-          } catch (error) {
-            console.error("Error al obtener información de paquetes:", error);
-            // No interrumpir el flujo principal si falla la info de paquetes
-            // Pero mostrar un mensaje en el chat para que el usuario sepa
-            setMessages(prev => [...prev, {
-              id: generateId(),
-              role: "assistant",
-              content: `${emojiMap.warning} No pude obtener información detallada de los paquetes, pero puedes continuar con la instalación.`,
-              timestamp: new Date()
-            }]);
-          }
-
-          setShowPackageDialog(true);
-        }
-      }
-
-
-
-      // Si hay un mensaje de contexto, reemplazarlo con la respuesta real
-      if (contextMessage) {                setMessages(prev => {
-          const newMessages = [...prev];
-          const loadingIndex = newMessages.findIndex(msg => msg.content === contextMessage);
-          if (loadingIndex !== -1) {
-            newMessages[loadingIndex] = {
-              ...newMessages[loadingIndex],
-              content: enhancedMessage,
-              fileChanges: result.fileChanges || [],
-              packageSuggestions: detectedPackages.length > 0 ? detectedPackages : undefined
-            };
-          }
-          return newMessages;
-        });
-      } else {
-        // Respuesta normal
-        setMessages(prev => [...prev, {
-          id: generateId(),
-          role: "assistant",
-          content: enhancedMessage,
-          timestamp: new Date(),
-          fileChanges: result.fileChanges || [],
-          packageSuggestions: detectedPackages.length > 0 ? detectedPackages : undefined
-        }]);
-      }
-
-      // Manejo de cambios de archivo (solo mostrar confirmación si no hay pendiente diálogo de paquetes)
-      if (result.fileChanges && result.fileChanges.length > 0 && onApplyChanges && !detectedPackages.length) {
-        setTimeout(() => {
-          if (confirm(`${emojiMap.file} ¿Deseas aplicar los cambios propuestos a los archivos?`)) {
-            onApplyChanges(result.fileChanges);
-            toast({
-              title: "Cambios aplicados",
-              description: `${emojiMap.success} Se aplicaron cambios a ${result.fileChanges.length} archivo(s)`,
-            });
-          }
-        }, 500);
-      }
-    } catch (error) {
-      console.error(`Error al comunicarse con el asistente (intento ${attempt}/${maxAttempts}):`, error);
-
-      // Reintentar si no hemos alcanzado el límite de intentos
-      if (attempt < maxAttempts) {
-        setRetryCount(attempt);
-        return sendMessageWithRetry(userInput, contextMessage, attempt + 1);
-      }
-
-      // Mostrar error si ya no se puede reintentar
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo procesar tu solicitud",
-        variant: "destructive"
-      });
-
-      // Eliminar mensaje de carga y mostrar error
-      if (contextMessage) {
-        setMessages(prev => [...prev.filter(m => m.content !== contextMessage), {
-          id: generateId(),
-          role: "assistant",
-          content: `${emojiMap.error} **Lo siento, ocurrió un error al procesar tu solicitud:**\n\n${error instanceof Error ? error.message : "Error desconocido"}.\n\nPor favor, inténtalo de nuevo.`,
-          timestamp: new Date()
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          id: generateId(),
-          role: "assistant",
-          content: `${emojiMap.error} **Lo siento, ocurrió un error al procesartu solicitud:**\n\n${error instanceof Error ? error.message : "Error desconocido"}.\n\nPor favor, inténtalo de nuevo.`,
-          timestamp: new Date()
-        }]);
-      }
-    } finally {
-      setIsLoading(false);
-      setRetryCount(0);
-    }
-  };
-
-  // Función para instalar paquetes
-  const handleInstallPackages = async () => {
-    if (pendingPackages.length === 0 || isInstallingPackage) return;
-
-    setIsInstallingPackage(true);
-
-    try {
-      toast({
-        title: "Instalando paquetes",
-        description: `${emojiMap.install} Por favor espera...`,
-      });
-
-      // Mejorar el log para depuración
-      console.log("Iniciando instalación de paquetes:", pendingPackages);
-
-      // Instalar cada paquete individualmente usando el endpoint correcto
-      for (const pkg of pendingPackages) {
-        const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
-        console.log(`Instalando paquete: ${pkgSpec} ${pkg.isDev ? '(dev)' : ''}`);
-
-        // Usar un método más directo para la instalación
-        try {
-          const response = await fetch("/api/packages/install", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              packageName: pkg.name,
-              version: pkg.version || "latest",
-              isDev: pkg.isDev || false
-            })
-          });
-
-          // Verificar el tipo de contenido antes de parsear
-          const contentType = response.headers.get('content-type');
-          let result;
-
-          if (contentType && contentType.includes('application/json')) {
-            result = await response.json();
-          } else {
-            const text = await response.text();
-            console.warn("Respuesta no JSON:", text.substring(0, 100));
-            throw new Error("El servidor no respondió con formato JSON");
-          }
-
-          // Manejar la respuesta con cuidado
-          if (!response.ok || !result.success) {
-            throw new Error(result.error || result.message || `Error al instalar ${pkg.name}`);
-          }
-
-          console.log(`Paquete ${pkg.name} instalado correctamente`);
-        } catch (error) {
-          console.error(`Error al instalar paquete ${pkg.name}:`, error);
-          throw error;
-        }
-      }
-
-      toast({
-        title: "Paquetes instalados",
-        description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
-      });
-
-      // Agregar mensaje de confirmación al chat
-      setMessages(prev => [...prev, {
-        id: generateId(),
-        role: "assistant",
-        content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg =>
-          `- \`${pkg.name}${pkg.version && pkg.version !== "latest" ? '@' + pkg.version : ''}\` ${pkg.isDev ? '(dev dependency)' : ''}`
-        ).join('\n')}\n\n¿Necesitas ayuda para usar alguno de estos paquetes?`,
-        timestamp: new Date()
-      }]);
-
-      sounds.play('success', 0.4);
-    } catch (error) {
-      console.error("Error al instalar paquetes:", error);
-
-      // Agregar mensaje de error al chat
-      setMessages(prev => [...prev, {
-        id: generateId(),
-        role: "assistant",
-        content: `${emojiMap.error} **Error al instalar paquetes**\n\n${error instanceof Error ? error.message : "Error desconocido"}\n\nIntenta instalar los paquetes manualmente ejecutando:\n\n\`\`\`bash\nnpm install ${pendingPackages.map(p => p.name).join(' ')}\n\`\`\``,
-        timestamp: new Date()
-      }]);
-
-      toast({
-        title: "Error al instalar paquetes",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive"
-      });
-
-      sounds.play('error', 0.4);
-    } finally {
-      setIsInstallingPackage(false);
-      setShowPackageDialog(false);
-      setPendingPackages([]);
-    }
-  };
-  
-  // Función para instalar directamente un paquete desde un comando
-  const installPackageFromCommand = async (packageName: string, isDev: boolean = false) => {
-    if (!packageName || isInstallingPackage) return;
-    
-    setIsInstallingPackage(true);
-    
-    try {
-      toast({
-        title: "Instalando paquete",
-        description: `${emojiMap.install} Instalando ${packageName}...`,
-      });
-      
-      console.log(`Instalando paquete desde comando: ${packageName} ${isDev ? '(dev)' : ''}`);
-      
-      const response = await fetch("/api/packages/install", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          packageName: packageName,
-          isDev: isDev
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || result.message || `Error al instalar ${packageName}`);
-      }
-      
-      toast({
-        title: "Paquete instalado",
-        description: `${emojiMap.success} ${packageName} se instaló correctamente.`,
-      });
-      
-      setMessages(prev => [...prev, {
-        id: generateId(),
-        role: "assistant",
-        content: `${emojiMap.success} **Paquete instalado correctamente**\n\nSe ha instalado \`${packageName}\` ${isDev ? 'como dependencia de desarrollo' : ''}.`,
-        timestamp: new Date()
-      }]);
-      
-      sounds.play('success', 0.4);
-    } catch (error) {
-      console.error("Error al instalar paquete:", error);
-      
-      setMessages(prev => [...prev, {
-        id: generateId(),
-        role: "assistant",
-        content: `${emojiMap.error} **Error al instalar paquete**\n\n${error instanceof Error ? error.message : "Error desconocido"}`,
-        timestamp: new Date()
-      }]);
-      
-      toast({
-        title: "Error al instalar paquete",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive"
-      });
-      
-      sounds.play('error', 0.4);
-    } finally {
-      setIsInstallingPackage(false);
-    }
-  };
-
-  const handleClosePackageDialog = () => {
-    setShowPackageDialog(false);
-    setPendingPackages([]);
-  };
-
-  // Función para copiar mensaje al portapapeles
-  const handleCopyMessage = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-      toast({
-        title: "Copiado",
-        description: "El mensaje ha sido copiado al portapapeles.",
-      });
-    } catch (error) {
-      console.error("Error al copiar al portapapeles:", error);
-      toast({
-        title: "Error al copiar",
-        description: "No se pudo copiar el mensaje al portapapeles.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Extraer código de un mensaje y guardar como archivo
-  const handleSaveCode = async (content: string, messageId: string) => {
-    try {
-      // Detectar bloques de código
-      const codeBlockRegex = /```([\w-]*)\n([\s\S]*?)\n```/g;
+        while ((match = install([\w-]*)\n([\s\S]*?)\n```/g;
       const codeBlocks: { language: string, code: string }[] = [];
-      
+
       let match;
       while ((match = codeBlockRegex.exec(content)) !== null) {
         const language = match[1] || 'txt';
         const code = match[2];
         codeBlocks.push({ language, code });
       }
-      
+
       if (codeBlocks.length === 0) {
         toast({
           title: "No se encontró código",
@@ -1196,14 +859,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         });
         return;
       }
-      
+
       // Si hay más de un bloque de código, preguntar cuál guardar o todos
       let codeToSave: { language: string, code: string, fileName: string }[] = [];
-      
+
       if (codeBlocks.length === 1) {
         const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
         if (!fileName) return;
-        
+
         codeToSave.push({
           ...codeBlocks[0],
           fileName
@@ -1211,7 +874,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       } else {
         // Mostrar diálogo con opciones
         const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
-        
+
         if (saveAll) {
           // Guardar todos
           for (let i = 0; i < codeBlocks.length; i++) {
@@ -1234,18 +897,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             });
             return;
           }
-          
+
           const selectedBlock = codeBlocks[blockIndex - 1];
           const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
           if (!fileName) return;
-          
+
           codeToSave.push({
             ...selectedBlock,
             fileName
           });
         }
       }
-      
+
       // Guardar todos los archivos seleccionados
       for (const file of codeToSave) {
         // Verificar si hay un proyecto activo
@@ -1257,23 +920,23 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           });
           continue;
         }
-        
+
         // Crear el archivo en el proyecto
         const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
           name: file.fileName,
           content: file.code,
           type: getFileType(file.language)
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
         }
-        
+
         toast({
           title: "Archivo guardado",
           description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
         });
-        
+
         sounds.play('save', 0.4);
       }
     } catch (error) {
@@ -1286,7 +949,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       sounds.play('error', 0.4);
     }
   };
-  
+
   // Función para generar nombre de archivo predeterminado según el lenguaje
   const getDefaultFileName = (language: string, index: number = 1): string => {
     const timestamp = new Date().getTime();
@@ -1340,7 +1003,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         return `file_${index}_${timestamp}.txt`;
     }
   };
-  
+
   // Función para determinar el tipo de archivo según el lenguaje
   const getFileType = (language: string): string => {
     switch(language.toLowerCase()) {
@@ -1446,135 +1109,5 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                     <TooltipContent>Copiar al portapapeles</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                
-                {message.role === "assistant" && message.content.includes("```") && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSaveCode(message.content, message.id)}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Guardar código como archivo</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-              <p className={`text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}`}>
-                {new Intl.DateTimeFormat('es-ES', {
-                  year: 'numeric', month: 'numeric', day: 'numeric',
-                  hour: 'numeric', minute: 'numeric', second: 'numeric'
-                }).format(message.timestamp)}
-              </p>
 
-              {message.role === "user" ? (
-                <div className="bg-blue-50 p-3 rounded border border-blue-100 mt-1 mb-1 text-black">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
-                </div>
-              ) : (
-                <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
-              )}
-
-              {message.fileChanges && message.fileChanges.length > 0 && (
-                <div className="mt-2">
-                  <Alert variant="primary" className={message.role !== "user" ? "bg-gray-600 text-white border-gray-500" : ""}>
-                    <AlertTitle className={message.role !== "user" ? "text-white" : ""}>Cambios en los archivos</AlertTitle>
-                    <AlertDescription className={message.role !== "user" ? "text-gray-200" : ""}>
-                      Se detectaron cambios en {message.fileChanges.length} archivo(s).
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
-      <div className="p-2 border-t border-gray-200 flex flex-col">
-        <div className="flex items-center space-x-2 mb-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleClearHistory} variant="outline" size="icon">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Borrar historial</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <ModelSelector selectedModel={modelId} onChange={setModelId} />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={toggleSpeechRecognition} variant={isListening ? "destructive" : "default"} size="icon">
-                  {isListening ? <MicOff /> : <Mic />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{isListening ? "Desactivar micrófono" : "Activar micrófono"}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <Textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Escribe tu mensaje..."
-            className="flex-grow"
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-          />
-          
-          <Button onClick={handleSendMessage} disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Send />}
-          </Button>
-        </div>
-      </div>
-
-      {/* Diálogo para confirmar la instalación de paquetes */}
-      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Instalar paquetes</DialogTitle>
-            <DialogDescription>
-              Se han detectado los siguientes paquetes para instalar:
-            </DialogDescription>
-          </DialogHeader>
-          <ul className="space-y-2">
-            {pendingPackages.map(pkg => (
-              <li key={pkg.name} className="flex items-center space-x-2">
-                <Badge variant="secondary">{pkg.name}</Badge>
-                <span>{pkg.description}</span>
-                {pkg.version && <span className="text-xs text-gray-500">({pkg.version})</span>}
-              </li>
-            ))}
-          </ul>
-          <DialogFooter>
-            <Button variant="default" onClick={handleClosePackageDialog}>
-              Cancelar
-            </Button>
-            <Button onClick={handleInstallPackages} disabled={isInstallingPackage}>
-              {isInstallingPackage ? (
-                <Loader2 className="animate-spin h-4 w-4" />
-              ) : (
-                "Instalar"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default AssistantChat;
+                {message.role === "assistant" && message.content.includes("
