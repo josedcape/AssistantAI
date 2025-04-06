@@ -859,3 +859,123 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           // Manejar la respuesta con cuidado
           if (!response.ok) {
             throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
+          }
+
+          const result = await safeParseJson(response);
+
+          if (result.success) {
+            success = true;
+            toast({
+              title: "Paquetes instalados",
+              description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
+            });
+          } else {
+            lastError = result.error || "Error desconocido al instalar paquetes";
+            throw new Error(lastError);
+          }
+        } catch (error) {
+          retryCount++;
+          lastError = error instanceof Error ? error.message : "Error desconocido";
+          console.error(`Error al instalar paquetes (intento ${retryCount}/${maxRetries + 1}):`, error);
+        }
+      }
+
+      if (!success) {
+        throw new Error(`Falló la instalación de paquetes después de ${maxRetries + 1} intentos: ${lastError}`);
+      }
+    } catch (error) {
+      console.error("Error al instalar paquetes:", error);
+      toast({
+        title: "Error al instalar paquetes",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive"
+      });
+    } finally {
+      setIsInstallingPackage(false);
+    }
+  };
+
+  const handleClosePackageDialog = () => {
+    setShowPackageDialog(false);
+    setPendingPackages([]);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <ScrollArea className="flex-grow overflow-y-auto">
+        <div className="flex flex-col space-y-2 p-4">
+          {messages.map(message => (
+            <div key={message.id} className={`p-4 rounded-lg ${message.role === "user" ? "bg-gray-100" : "bg-gray-50"}`}>
+              <p className="text-sm text-gray-600">{new Intl.DateTimeFormat('es-ES', {
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric'
+              }).format(message.timestamp)}</p>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
+              {message.fileChanges && message.fileChanges.length > 0 && (
+                <div className="mt-2">
+                  <Alert variant="primary">
+                    <AlertTitle>Cambios en los archivos</AlertTitle>
+                    <AlertDescription>
+                      Se detectaron cambios en {message.fileChanges.length} archivo(s).
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+      <div className="p-4 border-t border-gray-200 flex items-center space-x-4">
+        <Button onClick={toggleSpeechRecognition} variant={isListening ? "destructive" : "default"} size="icon">
+          {isListening ? <MicOff /> : <Mic />}
+        </Button>
+        <Textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Escribe tu mensaje..."
+          className="flex-grow"
+        />
+        <Button onClick={handleSendMessage} disabled={isLoading} >
+          {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Send />}
+        </Button>
+        <ModelSelector selectedModel={modelId} onChange={setModelId} />
+      </div>
+
+      {/* Diálogo para confirmar la instalación de paquetes */}
+      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+        <DialogHeader>
+          <DialogTitle>Instalar paquetes</DialogTitle>
+          <DialogDescription>
+            Se han detectado los siguientes paquetes para instalar:
+          </DialogDescription>
+        </DialogHeader>
+        <DialogContent>
+          <ul className="space-y-2">
+            {pendingPackages.map(pkg => (
+              <li key={pkg.name} className="flex items-center space-x-2">
+                <Badge variant="secondary">{pkg.name}</Badge>
+                <span>{pkg.description}</span>
+                {pkg.version && <span className="text-xs text-gray-500">({pkg.version})</span>}
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="default" onClick={handleClosePackageDialog}>
+            Cancelar
+          </Button>
+          <Button onClick={handleInstallPackages} disabled={isInstallingPackage}>
+            {isInstallingPackage ? (
+              <Loader2 className="animate-spin h-4 w-4" />
+            ) : (
+              "Instalar"
+            )}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
+  );
+};
+
+export default AssistantChat;
