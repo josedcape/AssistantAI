@@ -841,7 +841,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
 
         // Buscar menciones textuales de instalación de paquetes
-        while ((match = install([\w-]*)\n([\s\S]*?)\n```/g;
+        while ((match = installTextRegex.exec(result.message)) !== null) {
+          detectedPackages.push({
+            name: match[1],
+            isDev: false,
+            description: ""
+          });
+        }
       const codeBlocks: { language: string, code: string }[] = [];
 
       let match;
