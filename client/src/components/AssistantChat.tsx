@@ -749,9 +749,6 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             (refreshButton as HTMLButtonElement).click();
           }
         }
-      }, 1000); as HTMLButtonElement).click();
-          }
-        }
       }, 1000);
       
     } catch (error) {
