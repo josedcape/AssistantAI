@@ -1102,8 +1102,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  return httpServer;
-}
   });
 
   // Endpoint para obtener el contenido de un documento
@@ -1446,13 +1444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      try {
-        const httpServer = createServer(app);
-        return httpServer;
-      } catch (error) {
-        console.error("Error al configurar las rutas:", error);
-        throw error;
-      }
+      const httpServer = createServer(app);
+      return httpServer;
     } catch (error) {
       console.error("Error al configurar las rutas:", error);
       throw error;
