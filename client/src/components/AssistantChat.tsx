@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ModelSelector } from "./ModelSelector";
 import CodeBlock from "./CodeBlock";
 import { sounds } from '@/lib/sounds';
-import { Loader2, Mic, MicOff, Send, RefreshCw, Copy } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, RefreshCw, Copy, Trash2, Save, Download } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -127,14 +127,34 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   onApplyChanges,
   showSuccessMessage
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "system",
-      content: "# ¡Bienvenido a tu Asistente de Código! 👋\n\nPuedo ayudarte con las siguientes capacidades:\n\n- 💻 Crear o modificar archivos de código\n- 📦 Instalar paquetes y dependencias\n- 🔍 Analizar la estructura del proyecto\n- 🔗 Integrar nuevos componentes\n- 📚 Explicar conceptos de programación\n\n**¿En qué puedo ayudarte hoy?**",
-      timestamp: new Date()
+  // Cargar mensajes del localStorage si existen
+  const loadSavedMessages = (): Message[] => {
+    try {
+      const savedMessages = localStorage.getItem('chatMessages');
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages);
+        // Convertir las cadenas de fecha a objetos Date
+        return parsedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      }
+    } catch (error) {
+      console.error("Error al cargar mensajes guardados:", error);
     }
-  ]);
+    
+    // Mensaje de bienvenida por defecto
+    return [
+      {
+        id: "welcome",
+        role: "system",
+        content: "# ¡Bienvenido a tu Asistente de Código! 👋\n\nPuedo ayudarte con las siguientes capacidades:\n\n- 💻 Crear o modificar archivos de código\n- 📦 Instalar paquetes y dependencias\n- 🔍 Analizar la estructura del proyecto\n- 🔗 Integrar nuevos componentes\n- 📚 Explicar conceptos de programación\n\n**¿En qué puedo ayudarte hoy?**",
+        timestamp: new Date()
+      }
+    ];
+  };
+
+  const [messages, setMessages] = useState<Message[]>(loadSavedMessages());
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [modelId, setModelId] = useState<string>("gpt-4o");
@@ -404,6 +424,34 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+  
+  // Guardar mensajes en localStorage cuando cambien
+  useEffect(() => {
+    try {
+      localStorage.setItem('chatMessages', JSON.stringify(messages));
+    } catch (error) {
+      console.error("Error al guardar mensajes:", error);
+    }
+  }, [messages]);
+  
+  // Función para limpiar el historial de mensajes
+  const handleClearHistory = () => {
+    if (confirm("¿Estás seguro de que deseas borrar todo el historial de conversación?")) {
+      setMessages([
+        {
+          id: "welcome",
+          role: "system",
+          content: "# ¡Historial borrado! 👋\n\n¿En qué puedo ayudarte ahora?",
+          timestamp: new Date()
+        }
+      ]);
+      sounds.play('click', 0.3);
+      toast({
+        title: "Historial borrado",
+        description: "Se ha borrado todo el historial de conversación",
+      });
+    }
+  };
 
   // Notificación cuando se aplican cambios
   useEffect(() => {
@@ -603,9 +651,25 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Verificar si el mensaje contiene comandos de instalación de paquetes
-    const packageInstallRegex = /\b(instala|instalar|agregar|añadir|agregar|add|install|npm\s+install|yarn\s+add)\s+([a-zA-Z0-9\-_@/]+)(\s+--save-dev|\s+--dev|\s+-D)?\b/i;
+    // Verificar si el mensaje contiene comandos de instalación de paquetes (mejorado)
+    const packageInstallRegex = /\b(instala|instalar|agregar|añadir|agregar|add|install|npm\s+install|yarn\s+add)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?\b/i;
     const packageMatch = input.match(packageInstallRegex);
+    
+    // Verificar comando npm install explícito
+    const npmInstallRegex = /\bnpm\s+i(?:nstall)?\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/i;
+    const npmMatch = input.match(npmInstallRegex);
+    
+    // Si es un comando directo de instalación de paquete, ejecutar de inmediato
+    if (packageMatch || npmMatch) {
+      const match = packageMatch || npmMatch;
+      const packageName = match[2] || match[1];
+      const isDev = !!(match[3]); // --save-dev o --dev o -D
+      
+      if (confirm(`¿Quieres instalar el paquete ${packageName}${isDev ? ' como dependencia de desarrollo' : ''}?`)) {
+        await installPackageFromCommand(packageName, isDev);
+        // Aún así enviar el mensaje para procesar como conversación normal
+      }
+    }
 
     let contextMessage = "";
 
@@ -934,26 +998,49 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         description: `${emojiMap.install} Por favor espera...`,
       });
 
+      // Mejorar el log para depuración
+      console.log("Iniciando instalación de paquetes:", pendingPackages);
+
       // Instalar cada paquete individualmente usando el endpoint correcto
       for (const pkg of pendingPackages) {
         const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
         console.log(`Instalando paquete: ${pkgSpec} ${pkg.isDev ? '(dev)' : ''}`);
 
-        const response = await safeApiRequest("POST", "/api/packages/install", {
-          packageName: pkg.name,
-          version: pkg.version || "latest",
-          isDev: pkg.isDev || false
-        });
+        // Usar un método más directo para la instalación
+        try {
+          const response = await fetch("/api/packages/install", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              packageName: pkg.name,
+              version: pkg.version || "latest",
+              isDev: pkg.isDev || false
+            })
+          });
 
-        // Manejar la respuesta con cuidado
-        if (!response.ok) {
-          throw new Error(`Error instalando ${pkg.name}: ${response.status} ${response.statusText}`);
-        }
+          // Verificar el tipo de contenido antes de parsear
+          const contentType = response.headers.get('content-type');
+          let result;
 
-        const result = await safeParseJson(response);
+          if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+          } else {
+            const text = await response.text();
+            console.warn("Respuesta no JSON:", text.substring(0, 100));
+            throw new Error("El servidor no respondió con formato JSON");
+          }
 
-        if (!result.success) {
-          throw new Error(result.error || result.message || `Error al instalar ${pkg.name}`);
+          // Manejar la respuesta con cuidado
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || result.message || `Error al instalar ${pkg.name}`);
+          }
+
+          console.log(`Paquete ${pkg.name} instalado correctamente`);
+        } catch (error) {
+          console.error(`Error al instalar paquete ${pkg.name}:`, error);
+          throw error;
         }
       }
 
@@ -997,6 +1084,72 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       setPendingPackages([]);
     }
   };
+  
+  // Función para instalar directamente un paquete desde un comando
+  const installPackageFromCommand = async (packageName: string, isDev: boolean = false) => {
+    if (!packageName || isInstallingPackage) return;
+    
+    setIsInstallingPackage(true);
+    
+    try {
+      toast({
+        title: "Instalando paquete",
+        description: `${emojiMap.install} Instalando ${packageName}...`,
+      });
+      
+      console.log(`Instalando paquete desde comando: ${packageName} ${isDev ? '(dev)' : ''}`);
+      
+      const response = await fetch("/api/packages/install", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          packageName: packageName,
+          isDev: isDev
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || `Error al instalar ${packageName}`);
+      }
+      
+      toast({
+        title: "Paquete instalado",
+        description: `${emojiMap.success} ${packageName} se instaló correctamente.`,
+      });
+      
+      setMessages(prev => [...prev, {
+        id: generateId(),
+        role: "assistant",
+        content: `${emojiMap.success} **Paquete instalado correctamente**\n\nSe ha instalado \`${packageName}\` ${isDev ? 'como dependencia de desarrollo' : ''}.`,
+        timestamp: new Date()
+      }]);
+      
+      sounds.play('success', 0.4);
+    } catch (error) {
+      console.error("Error al instalar paquete:", error);
+      
+      setMessages(prev => [...prev, {
+        id: generateId(),
+        role: "assistant",
+        content: `${emojiMap.error} **Error al instalar paquete**\n\n${error instanceof Error ? error.message : "Error desconocido"}`,
+        timestamp: new Date()
+      }]);
+      
+      toast({
+        title: "Error al instalar paquete",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive"
+      });
+      
+      sounds.play('error', 0.4);
+    } finally {
+      setIsInstallingPackage(false);
+    }
+  };
 
   const handleClosePackageDialog = () => {
     setShowPackageDialog(false);
@@ -1018,6 +1171,222 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         description: "No se pudo copiar el mensaje al portapapeles.",
         variant: "destructive"
       });
+    }
+  };
+  
+  // Extraer código de un mensaje y guardar como archivo
+  const handleSaveCode = async (content: string, messageId: string) => {
+    try {
+      // Detectar bloques de código
+      const codeBlockRegex = /```([\w-]*)\n([\s\S]*?)\n```/g;
+      const codeBlocks: { language: string, code: string }[] = [];
+      
+      let match;
+      while ((match = codeBlockRegex.exec(content)) !== null) {
+        const language = match[1] || 'txt';
+        const code = match[2];
+        codeBlocks.push({ language, code });
+      }
+      
+      if (codeBlocks.length === 0) {
+        toast({
+          title: "No se encontró código",
+          description: "No hay bloques de código para guardar en este mensaje.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Si hay más de un bloque de código, preguntar cuál guardar o todos
+      let codeToSave: { language: string, code: string, fileName: string }[] = [];
+      
+      if (codeBlocks.length === 1) {
+        const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+        if (!fileName) return;
+        
+        codeToSave.push({
+          ...codeBlocks[0],
+          fileName
+        });
+      } else {
+        // Mostrar diálogo con opciones
+        const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
+        
+        if (saveAll) {
+          // Guardar todos
+          for (let i = 0; i < codeBlocks.length; i++) {
+            const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
+            if (fileName) {
+              codeToSave.push({
+                ...codeBlocks[i],
+                fileName
+              });
+            }
+          }
+        } else {
+          // Elegir uno
+          const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
+          if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
+            toast({
+              title: "Selección inválida",
+              description: "El número seleccionado está fuera de rango.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          const selectedBlock = codeBlocks[blockIndex - 1];
+          const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
+          if (!fileName) return;
+          
+          codeToSave.push({
+            ...selectedBlock,
+            fileName
+          });
+        }
+      }
+      
+      // Guardar todos los archivos seleccionados
+      for (const file of codeToSave) {
+        // Verificar si hay un proyecto activo
+        if (!projectId) {
+          toast({
+            title: "Error al guardar",
+            description: "No hay un proyecto activo donde guardar el archivo.",
+            variant: "destructive"
+          });
+          continue;
+        }
+        
+        // Crear el archivo en el proyecto
+        const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
+          name: file.fileName,
+          content: file.code,
+          type: getFileType(file.language)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
+        }
+        
+        toast({
+          title: "Archivo guardado",
+          description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
+        });
+        
+        sounds.play('save', 0.4);
+      }
+    } catch (error) {
+      console.error("Error al guardar código:", error);
+      toast({
+        title: "Error al guardar código",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive"
+      });
+      sounds.play('error', 0.4);
+    }
+  };
+  
+  // Función para generar nombre de archivo predeterminado según el lenguaje
+  const getDefaultFileName = (language: string, index: number = 1): string => {
+    const timestamp = new Date().getTime();
+    switch(language.toLowerCase()) {
+      case 'js':
+      case 'javascript':
+        return `script_${timestamp}.js`;
+      case 'ts':
+      case 'typescript':
+        return `script_${timestamp}.ts`;
+      case 'jsx':
+        return `component_${timestamp}.jsx`;
+      case 'tsx':
+        return `component_${timestamp}.tsx`;
+      case 'html':
+        return `page_${timestamp}.html`;
+      case 'css':
+        return `styles_${timestamp}.css`;
+      case 'py':
+      case 'python':
+        return `script_${timestamp}.py`;
+      case 'java':
+        return `Class_${timestamp}.java`;
+      case 'cpp':
+      case 'c++':
+        return `program_${timestamp}.cpp`;
+      case 'c':
+        return `program_${timestamp}.c`;
+      case 'php':
+        return `script_${timestamp}.php`;
+      case 'ruby':
+      case 'rb':
+        return `script_${timestamp}.rb`;
+      case 'go':
+        return `main_${timestamp}.go`;
+      case 'rust':
+      case 'rs':
+        return `main_${timestamp}.rs`;
+      case 'sh':
+      case 'bash':
+      case 'shell':
+        return `script_${timestamp}.sh`;
+      case 'sql':
+        return `query_${timestamp}.sql`;
+      case 'json':
+        return `data_${timestamp}.json`;
+      case 'yaml':
+      case 'yml':
+        return `config_${timestamp}.yml`;
+      default:
+        return `file_${index}_${timestamp}.txt`;
+    }
+  };
+  
+  // Función para determinar el tipo de archivo según el lenguaje
+  const getFileType = (language: string): string => {
+    switch(language.toLowerCase()) {
+      case 'js':
+      case 'javascript':
+      case 'ts':
+      case 'typescript':
+      case 'jsx':
+      case 'tsx':
+        return 'javascript';
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'py':
+      case 'python':
+        return 'python';
+      case 'java':
+        return 'java';
+      case 'cpp':
+      case 'c++':
+      case 'c':
+        return 'c';
+      case 'php':
+        return 'php';
+      case 'ruby':
+      case 'rb':
+        return 'ruby';
+      case 'go':
+        return 'go';
+      case 'rust':
+      case 'rs':
+        return 'rust';
+      case 'sh':
+      case 'bash':
+      case 'shell':
+        return 'bash';
+      case 'sql':
+        return 'sql';
+      case 'json':
+        return 'json';
+      case 'yaml':
+      case 'yml':
+        return 'yaml';
+      default:
+        return 'text';
     }
   };
 
@@ -1062,7 +1431,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         <div className="flex flex-col space-y-2 p-4">
           {messages.map(message => (
             <div key={message.id} className={`p-4 rounded-lg relative ${message.role === "user" ? "bg-gray-100" : "bg-gray-700 text-white"}`}>
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2 right-2 flex space-x-1">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1077,6 +1446,23 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                     <TooltipContent>Copiar al portapapeles</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                
+                {message.role === "assistant" && message.content.includes("```") && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSaveCode(message.content, message.id)}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Guardar código como archivo</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
               <p className={`text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}`}>
                 {new Intl.DateTimeFormat('es-ES', {
@@ -1108,20 +1494,51 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="p-4 border-t border-gray-200 flex items-center space-x-4">
-        <Button onClick={toggleSpeechRecognition} variant={isListening ? "destructive" : "default"} size="icon">
-          {isListening ? <MicOff /> : <Mic />}
-        </Button>
-        <Textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Escribe tu mensaje..."
-          className="flex-grow"
-        />
-        <Button onClick={handleSendMessage} disabled={isLoading} >
-          {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Send />}
-        </Button>
-        <ModelSelector selectedModel={modelId} onChange={setModelId} />
+      <div className="p-2 border-t border-gray-200 flex flex-col">
+        <div className="flex items-center space-x-2 mb-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleClearHistory} variant="outline" size="icon">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Borrar historial</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <ModelSelector selectedModel={modelId} onChange={setModelId} />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={toggleSpeechRecognition} variant={isListening ? "destructive" : "default"} size="icon">
+                  {isListening ? <MicOff /> : <Mic />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isListening ? "Desactivar micrófono" : "Activar micrófono"}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <Textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Escribe tu mensaje..."
+            className="flex-grow"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          />
+          
+          <Button onClick={handleSendMessage} disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Send />}
+          </Button>
+        </div>
       </div>
 
       {/* Diálogo para confirmar la instalación de paquetes */}
