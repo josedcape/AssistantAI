@@ -905,17 +905,17 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       <ScrollArea className="flex-grow overflow-y-auto">
         <div className="flex flex-col space-y-2 p-4">
           {messages.map(message => (
-            <div key={message.id} className={`p-4 rounded-lg ${message.role === "user" ? "bg-gray-100" : "bg-gray-50"}`}>
-              <p className="text-sm text-gray-600">{new Intl.DateTimeFormat('es-ES', {
+            <div key={message.id} className={`p-4 rounded-lg ${message.role === "user" ? "bg-gray-100" : "bg-gray-700 text-white"}`}>
+              <p className="text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}">{new Intl.DateTimeFormat('es-ES', {
                 year: 'numeric', month: 'numeric', day: 'numeric',
                 hour: 'numeric', minute: 'numeric', second: 'numeric'
               }).format(message.timestamp)}</p>
               <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
               {message.fileChanges && message.fileChanges.length > 0 && (
                 <div className="mt-2">
-                  <Alert variant="primary">
-                    <AlertTitle>Cambios en los archivos</AlertTitle>
-                    <AlertDescription>
+                  <Alert variant="primary" className={message.role !== "user" ? "bg-gray-600 text-white border-gray-500" : ""}>
+                    <AlertTitle className={message.role !== "user" ? "text-white" : ""}>Cambios en los archivos</AlertTitle>
+                    <AlertDescription className={message.role !== "user" ? "text-gray-200" : ""}>
                       Se detectaron cambios en {message.fileChanges.length} archivo(s).
                     </AlertDescription>
                   </Alert>

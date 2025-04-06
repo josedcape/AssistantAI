@@ -79,6 +79,14 @@ html.dark * {
     line-height: 1.5;
   }
 
+  /* Mejor contraste para bloques de código en chat oscuro */
+  .bg-gray-700 pre, .bg-gray-700 code {
+    background-color: #2d2d2d !important;
+    color: #f8f8f8 !important;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+  }
+
   .token-line {
     display: table-row;
   }
