@@ -55,11 +55,63 @@ export const AssistantChat: React.FC = () => {
   const [showPackageDialog, setShowPackageDialog] = useState(false);
   const [isInstallingPackage, setIsInstallingPackage] = useState(false);
 
-  // Reconocimiento de voz (Simplified - No actual voice recognition)
+  // Reconocimiento de voz con la API Web Speech
   useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      console.log("🎤 Reconocimiento de voz no soportado en este navegador");
+      return;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'es-ES';
+    
+    let finalTranscript = '';
+    
+    recognition.onstart = () => {
+      console.log("🎤 Reconocimiento de voz iniciado");
+      finalTranscript = '';
+    };
+    
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      
+      // Actualizar el campo de entrada con la transcripción
+      if (finalTranscript) {
+        setInput(finalTranscript.trim());
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      console.error("🎤 Error en reconocimiento de voz:", event.error);
+      setIsListening(false);
+    };
+    
+    recognition.onend = () => {
+      console.log("🎤 Reconocimiento de voz finalizado");
+      setIsListening(false);
+    };
+    
+    // Iniciar/detener reconocimiento según el estado
+    if (isListening) {
+      recognition.start();
+    }
+    
     return () => {
       if (isListening) {
-        // Limpieza (Placeholder - No actual cleanup needed in this simplified version)
+        recognition.stop();
       }
     };
   }, [isListening]);
@@ -364,7 +416,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     return enhancedContent;
   };
 
-  // Instalar paquete desde comando
+  // Instalar paquete desde comando con actualización automática
   const installPackageFromCommand = async (packageName: string, isDev: boolean) => {
     setIsInstallingPackage(true);
     try {
@@ -383,6 +435,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         throw new Error("Error al instalar el paquete");
       }
 
+      const result = await response.json();
+
       setMessages((prev) => [
         ...prev,
         {
@@ -392,15 +446,35 @@ ${error instanceof Error ? error.message : "Error desconocido"}
 📦 El paquete **${packageName}** ha sido instalado correctamente.
 
 *Puntos importantes:*
-* 🔄 La lista de paquetes se actualizará automáticamente
+* 🔄 La lista de paquetes se actualiza automáticamente
 * 📝 Ya puedes utilizar este paquete en tu proyecto
-* 💡 Refresca la página si no ves el paquete en la lista`,
+* 💻 Versión instalada: \`${result.packageDetails?.version || 'latest'}\`
+* 🛠️ Tipo: ${isDev ? 'Dependencia de desarrollo' : 'Dependencia de producción'}`,
         },
       ]);
       sounds.play("success");
       
       // Disparar evento personalizado para actualizar la lista de paquetes
-      window.dispatchEvent(new CustomEvent('package-installed'));
+      const packageEvent = new CustomEvent('package-installed', { 
+        detail: { 
+          name: packageName, 
+          version: result.packageDetails?.version || 'latest',
+          isDev: isDev
+        } 
+      });
+      window.dispatchEvent(packageEvent);
+      
+      // Actualizar la lista de paquetes después de 1 segundo para dar tiempo a que se actualice package.json
+      setTimeout(() => {
+        // Buscar y actualizar el explorador de paquetes si existe
+        const packageExplorer = document.querySelector('[data-component="package-explorer"]');
+        if (packageExplorer) {
+          const refreshButton = packageExplorer.querySelector('button[aria-label="Refrescar"]');
+          if (refreshButton) {
+            (refreshButton as HTMLButtonElement).click();
+          }
+        }
+      }, 1000);
       
     } catch (error) {
       console.error("Error al instalar:", error);
@@ -408,7 +482,14 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         ...prev,
         {
           role: "assistant",
-          content: `⚠️ Error al instalar ${packageName}. Por favor, intenta manualmente.`,
+          content: `## ⚠️ Error de Instalación
+
+❌ Ha ocurrido un problema al instalar **${packageName}**.
+
+*Posibles soluciones:*
+* 🔄 Intenta instalar manualmente con \`npm install ${isDev ? '--save-dev ' : ''}${packageName}\`
+* 🔍 Verifica que el nombre del paquete sea correcto
+* 📦 Comprueba si hay problemas de conectividad con el registro de npm`,
         },
       ]);
       sounds.play("error");
@@ -493,15 +574,20 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
           <Textarea
-            placeholder="Escribe un mensaje..."
+            placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-grow"
+            className="flex-grow min-h-[80px] resize-y"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
+            }}
+            style={{ 
+              transition: "height 0.2s ease",
+              minHeight: "80px",
+              height: `${Math.min(25 + input.split('\n').length * 18, 200)}px`
             }}
           />
         </div>

@@ -24,7 +24,7 @@ export function PackageExplorer() {
     try {
       setLoading(true);
       const response = await apiRequest("GET", `/api/projects/${id}/packages`, undefined);
-      
+
       // Verificar el tipo de contenido antes de intentar parsear como JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
@@ -32,7 +32,7 @@ export function PackageExplorer() {
         console.error("Respuesta no JSON:", text);
         throw new Error("La respuesta del servidor no es JSON válido");
       }
-      
+
       const data = await response.json();
       setPackages(data);
       setFilteredPackages(data);
@@ -42,21 +42,19 @@ export function PackageExplorer() {
       setLoading(false);
     }
   };
-  
-  // Cargar paquetes al iniciar
+
+  // Cargar paquetes al iniciar y cuando se instale un nuevo paquete
   useEffect(() => {
     fetchPackages();
-  }, [id]);
-  
-  // Escuchar el evento de instalación de paquetes
-  useEffect(() => {
+
+    // Escuchar evento de instalación de paquete
     const handlePackageInstalled = () => {
-      console.log("Actualizando lista de paquetes...");
+      console.log("📦 Detectada instalación de paquete, actualizando lista...");
       fetchPackages();
     };
-    
+
     window.addEventListener('package-installed', handlePackageInstalled);
-    
+
     return () => {
       window.removeEventListener('package-installed', handlePackageInstalled);
     };
@@ -76,7 +74,7 @@ export function PackageExplorer() {
   }, [searchTerm, packages]);
 
   return (
-    <Card className="w-full h-full overflow-hidden flex flex-col">
+    <Card className="w-full" data-component="package-explorer">
       <CardHeader className="py-3 px-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <Package size={18} />

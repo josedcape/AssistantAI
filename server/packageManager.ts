@@ -98,12 +98,32 @@ export async function installPackage(options: PackageInstallOptions): Promise<Pa
     // Actualizar package.json si no es global
     if (!global) {
       await updateDependenciesCache(sanitizedPackageName, sanitizedVersion, isDev);
+      
+      // Emitir evento para SSE o WebSocket si estuviera disponible
+      try {
+        const eventData = {
+          type: "package_installed",
+          package: sanitizedPackageName,
+          version: sanitizedVersion || "latest",
+          isDev: isDev
+        };
+        
+        log(`🔔 Notificando instalación de paquete: ${JSON.stringify(eventData)}`);
+        // Aquí podría añadirse código para emitir un evento SSE o WebSocket
+      } catch (error) {
+        log(`Error al notificar instalación: ${error}`);
+      }
     }
 
     return {
       success: true,
       message: `Paquete ${sanitizedPackageName}${sanitizedVersion ? `@${sanitizedVersion}` : ''} instalado correctamente`,
-      output: stdout
+      output: stdout,
+      packageDetails: {
+        name: sanitizedPackageName,
+        version: sanitizedVersion || "latest",
+        isDev: isDev
+      }
     };
 
   } catch (error: any) {
