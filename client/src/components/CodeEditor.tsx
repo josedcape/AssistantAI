@@ -9,11 +9,11 @@ import CodeCorrectionModal from "./CodeCorrectionModal";
 
 // Local storage utility
 const projectStorage = {
-  saveFileContent: (fileId: string, content: string) => {
-    localStorage.setItem(fileId, content);
+  saveFileContent: (fileId: string | number, content: string) => {
+    localStorage.setItem(`file_${fileId}`, content);
   },
-  loadFileContent: (fileId: string) => {
-    return localStorage.getItem(fileId);
+  loadFileContent: (fileId: string | number) => {
+    return localStorage.getItem(`file_${fileId}`);
   }
 };
 
@@ -374,4 +374,4 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   );
 };
 
-export default CodeEditor;
+export default CodeEditor;t CodeEditor;

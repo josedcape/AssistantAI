@@ -369,24 +369,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Request body for code correction:", 
         Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]} ${key === 'content' ? `(length: ${req.body.content?.length || 0})` : ''}`));
 
-      const requestSchema = z.object({
-        fileId: z.number(),
-        content: z.string().min(1, "El contenido del código no puede estar vacío"),
-        instructions: z.string().min(1, "Las instrucciones no pueden estar vacías"),
-        language: z.string().optional(),
-        projectId: z.number().optional()
-      });
-
-      // Validar de manera explícita antes de procesar
+      // Validar de manera explícita antes de procesar los datos
       if (!req.body.content || req.body.content.trim() === '') {
         return res.status(400).json({
-          message: "El contenido del código no puede estar vacío",
-          errors: [{ path: ["content"], message: "El contenido del código no puede estar vacío" }]
+          message: "Invalid request data",
+          errors: [{ code: "too_small", path: ["content"], message: "El contenido del código no puede estar vacío" }]
         });
       }
 
-      const validatedData = requestSchema.parse(req.body) as CodeCorrectionRequest;
+      if (!req.body.instructions || req.body.instructions.trim() === '') {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: [{ code: "too_small", path: ["instructions"], message: "Las instrucciones no pueden estar vacías" }]
+        });
+      }
 
+      // Verificar el fileId
+      const fileId = req.body.fileId;
+      if (typeof fileId !== 'number' || isNaN(fileId) || fileId <= 0) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: [{ code: "invalid_type", path: ["fileId"], message: "ID de archivo inválido" }]
+        });
+      }
+
+      // Verificar projectId si está presente
+      if (req.body.projectId !== undefined && (typeof req.body.projectId !== 'number' || isNaN(req.body.projectId) || req.body.projectId <= 0)) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: [{ code: "invalid_type", path: ["projectId"], message: "ID de proyecto inválido" }]
+        });
+      }
+
+      const requestSchema = z.object({
+        fileId: z.number().positive(),
+        content: z.string().min(1, "El contenido del código no puede estar vacío"),
+        instructions: z.string().min(1, "Las instrucciones no pueden estar vacías"),
+        language: z.string().optional(),
+        projectId: z.number().positive().optional()
+      });
+
+      const validatedData = requestSchema.parse(req.body) as CodeCorrectionRequest;
       const correctionResult = await correctCode(validatedData);
       res.json(correctionResult);
     } catch (error) {

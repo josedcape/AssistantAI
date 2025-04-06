@@ -48,15 +48,25 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
       return;
     }
 
+    // Verificar que el contenido del archivo no esté vacío
+    if (!file.content || file.content.trim() === '') {
+      toast({
+        title: "Error",
+        description: "El contenido del archivo está vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
 
       const response = await apiRequest("POST", "/api/correct", {
-        fileId: file.id,
+        fileId: Number(file.id), // Asegurar que fileId sea un número
         content: file.content,
         instructions,
         language: getLanguageFromType(file.type),
-        projectId
+        projectId: projectId ? Number(projectId) : undefined // Asegurar que projectId sea un número
       });
 
       const result: CodeCorrectionResponse = await response.json();
