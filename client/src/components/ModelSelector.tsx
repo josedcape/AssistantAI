@@ -16,7 +16,7 @@ interface ModelSelectorProps {
   onModelChange?: (modelId: string) => void;
 }
 
-export function ModelSelector({ onModelChange }: ModelSelectorProps) {
+function ModelSelector({ onModelChange }: ModelSelectorProps) {
   const [models, setModels] = useState<Record<string, string>>({});
   const [currentModel, setCurrentModel] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -144,3 +144,5 @@ export function ModelSelector({ onModelChange }: ModelSelectorProps) {
     </Select>
   );
 }
+
+export default ModelSelector;
