@@ -977,37 +977,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   };
 
-  // Función para guardar contenido en un archivo
-  const handleSaveToFile = async (fileName: string, content: string) => {
-    try {
-      const response = await fetch("/api/files/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileName, content, path: currentPath }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Archivo guardado",
-          description: `El código se guardó en ${fileName}`,
-        });
-        sounds.play('success', 0.3);
-      } else {
-        throw new Error("Error al guardar el archivo");
-      }
-    } catch (error) {
-      console.error("Error al guardar el archivo:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el archivo.",
-        variant: "destructive",
-      });
-      sounds.play('error', 0.3);
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow overflow-y-auto">
