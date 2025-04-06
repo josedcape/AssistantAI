@@ -787,16 +787,16 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           result.message.includes("```") && result.message.includes("install")) {
 
         // Extraer nombres de paquetes mediante regex mejorados
-        const npmInstallRegex = /\bnpm\s+(?:i|install)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/g;
+        const npmInstallRegex = /\bnpm\s+(?\:i|install)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+-D)?\b/g;
         const yarnAddRegex = /\byarn\s+add\s+([a-zA-Z0-9\-_@/.]+)(\s+--dev|\s+-D)?\b/g;
         const pnpmAddRegex = /\bpnpm\s+add\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?\b/g;
 
         // Buscar también en bloques de código
         const codeBlockRegex = /```(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
-        const installInCodeRegex = /(?:npm\s+(?:i|install)|yarn\s+add|pnpm\s+add)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?/g;
+        const installInCodeRegex = /(?\:npm\s+(?\:i|install)|yarn\s+add|pnpm\s+add)\s+([a-zA-Z0-9\-_@/.]+)(\s+--save-dev|\s+--dev|\s+-D)?/g;
 
         // Texto genérico sobre instalación de paquetes
-        const installTextRegex = /instalar?\s+(?:el\s+)?(?:paquete|módulo|librería|biblioteca|dependencia)\s+['"]?([a-zA-Z0-9\-_@/.]+)['"]?/gi;
+        const installTextRegex = /instalar?\s+(?\:el\s+)?(?\:paquete|módulo|librería|biblioteca|dependencia)\s+['"]?([a-zA-Z0-9\-_@/.]+)['"]?/gi;
 
         let match;
 
@@ -824,10 +824,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             description: ""
           });
         }
+
         // Buscar comandos de instalación en bloques de código
         let codeBlockMatch;
-        const codeBlockRegex = /```(?\:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
-
         while ((codeBlockMatch = codeBlockRegex.exec(result.message)) !== null) {
           const codeContent = codeBlockMatch[1];
           let installMatch;
@@ -841,114 +840,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           }
         }
 
-        // Buscar bloques de código en el contenido
-        const codeBlocks: { language: string, code: string }[] = [];
-
-        let match;
-        while ((match = codeBlockRegex.exec(content)) !== null) {
-          const language = match[1] || 'txt';
-          const code = match[2];
-          codeBlocks.push({ language, code });
-        }
-
-        if (codeBlocks.length === 0) {
-          toast({
-            title: "No se encontró código",
-            description: "No hay bloques de código para guardar en este mensaje.",
-            variant: "destructive"
+        // Buscar menciones textuales de instalación de paquetes
+        while ((match = installTextRegex.exec(result.message)) !== null) {
+          detectedPackages.push({
+            name: match[1],
+            isDev: false,
+            description: ""
           });
-          return;
         }
-
-        // Si hay más de un bloque de código, preguntar cuál guardar o todos
-        let codeToSave: { language: string, code: string, fileName: string }[] = [];
-
-        if (codeBlocks.length === 1) {
-          const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
-          if (!fileName) return;
-
-          codeToSave.push({
-            ...codeBlocks[0],
-            fileName
-          });
-        } else {
-          // Mostrar diálogo con opciones
-          const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
-
-          if (saveAll) {
-            // Guardar todos
-            for (let i = 0; i < codeBlocks.length; i++) {
-              const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
-              if (fileName) {
-                codeToSave.push({
-                  ...codeBlocks[i],
-                  fileName
-                });
-              }
-            }
-          } else {
-            // Elegir uno
-            const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
-            if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
-              toast({
-                title: "Selección inválida",
-                description: "El número seleccionado está fuera de rango.",
-                variant: "destructive"
-              });
-              return;
-            }
-
-            const selectedBlock = codeBlocks[blockIndex - 1];
-            const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
-            if (!fileName) return;
-
-            codeToSave.push({
-              ...selectedBlock,
-              fileName
-            });
-          }
-        }
-
-          // Guardar todos los archivos seleccionados
-          for (const file of codeToSave) {
-            // Verificar si hay un proyecto activo
-            if (!projectId) {
-              toast({
-                title: "Error al guardar",
-                description: "No hay un proyecto activo donde guardar el archivo.",
-                variant: "destructive"
-              });
-              continue;
-            }
-
-            // Crear el archivo en el proyecto
-            const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
-              name: file.fileName,
-              content: file.code,
-              type: getFileType(file.language)
-            });
-
-            if (!response.ok) {
-              throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
-            }
-
-            toast({
-              title: "Archivo guardado",
-              description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
-            });
-
-            sounds.play('save', 0.4);
-          }
-        } catch (error) {
-          console.error("Error al guardar código:", error);
-          toast({
-            title: "Error al guardar código",
-            description: error instanceof Error ? error.message : "Error desconocido",
-            variant: "destructive"
-          });
-          sounds.play('error', 0.4);
-        }
-      };
+      }
 
       const assistantMessage: Message = {
         id: generateId(),
@@ -1036,6 +936,209 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   };
 
+  const handleSaveCode = async (content: string) => {
+    const codeBlockRegex = /```(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
+    const codeBlocks: { language: string, code: string }[] = [];
+
+    let match;
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || 'txt';
+      const code = match[2];
+      codeBlocks.push({ language, code });
+    }
+
+    if (codeBlocks.length === 0) {
+      toast({
+        title: "No se encontró código",
+        description: "No hay bloques de código para guardar en este mensaje.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Si hay más de un bloque de código, preguntar cuál guardar o todos
+    let codeToSave: { language: string, code: string, fileName: string }[] = [];
+
+    if (codeBlocks.length === 1) {
+      const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(codeBlocks[0].language));
+      if (!fileName) return;
+
+      codeToSave.push({
+        ...codeBlocks[0],
+        fileName
+      });
+    } else {
+      // Mostrar diálogo con opciones
+      const saveAll = confirm(`Se encontraron ${codeBlocks.length} bloques de código. ¿Quieres guardar todos?\nPresiona OK para guardar todos, o Cancelar para seleccionar uno.`);
+
+      if (saveAll) {
+        // Guardar todos
+        for (let i = 0; i < codeBlocks.length; i++) {
+          const fileName = prompt(`Nombre para el archivo ${i+1} (${codeBlocks[i].language}):`, getDefaultFileName(codeBlocks[i].language, i+1));
+          if (fileName) {
+            codeToSave.push({
+              ...codeBlocks[i],
+              fileName
+            });
+          }
+        }
+      } else {
+        // Elegir uno
+        const blockIndex = parseInt(prompt(`Elige el número del bloque a guardar (1-${codeBlocks.length}):`, "1") || "1");
+        if (isNaN(blockIndex) || blockIndex < 1 || blockIndex > codeBlocks.length) {
+          toast({
+            title: "Selección inválida",
+            description: "El número seleccionado está fuera de rango.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const selectedBlock = codeBlocks[blockIndex - 1];
+        const fileName = prompt("Nombre del archivo a guardar:", getDefaultFileName(selectedBlock.language));
+        if (!fileName) return;
+
+        codeToSave.push({
+          ...selectedBlock,
+          fileName
+        });
+      }
+    }
+
+    // Guardar todos los archivos seleccionados
+    for (const file of codeToSave) {
+      // Verificar si hay un proyecto activo
+      if (!projectId) {
+        toast({
+          title: "Error al guardar",
+          description: "No hay un proyecto activo donde guardar el archivo.",
+          variant: "destructive"
+        });
+        continue;
+      }
+
+      // Crear el archivo en el proyecto
+      const response = await safeApiRequest("POST", `/api/projects/${projectId}/files`, {
+        name: file.fileName,
+        content: file.code,
+        type: getFileType(file.language)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al guardar el archivo: ${response.status} ${response.statusText}`);
+      }
+
+      toast({
+        title: "Archivo guardado",
+        description: `${emojiMap.file} Se ha guardado el archivo ${file.fileName}`,
+      });
+
+      sounds.play('save', 0.4);
+    }
+  };
+
+  const getDefaultFileName = (language: string, index: number = 1): string => {
+    const timestamp = new Date().getTime();
+    switch(language.toLowerCase()) {
+      case 'js':
+      case 'javascript':
+        return `script_${timestamp}.js`;
+      case 'ts':
+      case 'typescript':
+        return `script_${timestamp}.ts`;
+      case 'jsx':
+        return `component_${timestamp}.jsx`;
+      case 'tsx':
+        return `component_${timestamp}.tsx`;
+      case 'html':
+        return `page_${timestamp}.html`;
+      case 'css':
+        return `styles_${timestamp}.css`;
+      case 'py':
+      case 'python':
+        return `script_${timestamp}.py`;
+      case 'java':
+        return `Class_${timestamp}.java`;
+      case 'cpp':
+      case 'c++':
+        return `program_${timestamp}.cpp`;
+      case 'c':
+        return `program_${timestamp}.c`;
+      case 'php':
+        return `script_${timestamp}.php`;
+      case 'ruby':
+      case 'rb':
+        return `script_${timestamp}.rb`;
+      case 'go':
+        return `main_${timestamp}.go`;
+      case 'rust':
+      case 'rs':
+        return `main_${timestamp}.rs`;
+      case 'sh':
+      case 'bash':
+      case 'shell':
+        return `script_${timestamp}.sh`;
+      case 'sql':
+        return `query_${timestamp}.sql`;
+      case 'json':
+        return `data_${timestamp}.json`;
+      case 'yaml':
+      case 'yml':
+        return `config_${timestamp}.yml`;
+      default:
+        return `file_${index}_${timestamp}.txt`;
+    }
+  };
+
+  // Función para determinar el tipo de archivo según el lenguaje
+  const getFileType = (language: string): string => {
+    switch(language.toLowerCase()) {
+      case 'js':
+      case 'javascript':
+      case 'ts':
+      case 'typescript':
+      case 'jsx':
+      case 'tsx':
+        return 'javascript';
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'py':
+      case 'python':
+        return 'python';
+      case 'java':
+        return 'java';
+      case 'cpp':
+      case 'c++':
+      case 'c':
+        return 'c';
+      case 'php':
+        return 'php';
+      case 'ruby':
+      case 'rb':
+        return 'ruby';
+      case 'go':
+        return 'go';
+      case 'rust':
+      case 'rs':
+        return 'rust';
+      case 'sh':
+      case 'bash':
+      case 'shell':
+        return 'bash';
+      case 'sql':
+        return 'sql';
+      case 'json':
+        return 'json';
+      case 'yaml':
+      case 'yml':
+        return 'yaml';
+      default:
+        return 'text';
+    }
+  };
+
   const handleCopyMessage = (content: string) => {
     navigator.clipboard.writeText(content).then(() => {
       toast({
@@ -1053,7 +1156,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       sounds.play('error', 0.3);
     });
   };
-
 
   return (
     <div className="flex flex-col h-full">
