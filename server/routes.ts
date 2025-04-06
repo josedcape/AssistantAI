@@ -2577,28 +2577,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register API routes
   app.use("/api", apiRouter);
 
-  // Obtener paquetes instalados
-  apiRouter.get('/api/projects/:id/packages', async (req, res) => {
-    try {
-      // Ignoramos el ID del proyecto por ahora, solo obtenemos los paquetes del proyecto actual
-      const packages = await getInstalledPackages();
-
-      // Ordenar paquetes por nombre para mejor visualización
-      packages.sort((a, b) => {
-        // Primero por tipo (dependencias normales primero)
-        if (a.isDevDependency !== b.isDevDependency) {
-          return a.isDevDependency ? 1 : -1;
-        }
-        // Luego por nombre
-        return a.name.localeCompare(b.name);
-      });
-
-      res.json(packages);
-    } catch (error) {
-      console.log(`Error obteniendo paquetes instalados: ${error}`);
-      res.status(500).json({ error: "Error obteniendo paquetes instalados" });
-    }
-  });
+  // Endpoint para obtener paquetes instalados ya está definido arriba
+  // en "/projects/:projectId/packages", así que no necesitamos este duplicado
 
   try {
     const httpServer = createServer(app);

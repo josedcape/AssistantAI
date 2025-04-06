@@ -24,6 +24,15 @@ export function PackageExplorer() {
     try {
       setLoading(true);
       const response = await apiRequest("GET", `/api/projects/${id}/packages`, undefined);
+      
+      // Verificar el tipo de contenido antes de intentar parsear como JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Respuesta no JSON:", text);
+        throw new Error("La respuesta del servidor no es JSON válido");
+      }
+      
       const data = await response.json();
       setPackages(data);
       setFilteredPackages(data);
