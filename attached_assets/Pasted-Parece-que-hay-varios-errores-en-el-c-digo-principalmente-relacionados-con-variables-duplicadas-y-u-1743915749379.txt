@@ -1,0 +1,56 @@
+Parece que hay varios errores en el código, principalmente relacionados con variables duplicadas y un bloque catch inesperado. Aquí te doy algunas sugerencias para corregirlos:
+
+Duplicación de la declaración de codeBlockRegex: La variable codeBlockRegex está siendo declarada más de una vez, lo que está causando el error. Asegúrate de declarar esta variable solo una vez. Elimina las declaraciones repetidas. En tu código actual, una está en la línea 795 y otra en la línea 829.
+
+Duplicación de la variable match: La variable match también está siendo declarada más de una vez. Cambia el nombre de una de las variables para evitar la colisión. Por ejemplo, puedes renombrarla como match1 en una de las declaraciones.
+
+Error de catch inesperado: Este error se debe probablemente a una incorrecta estructura de bloques de código. Asegúrate de que el bloque catch está dentro de una función asíncrona o un bloque de manejo de promesas correctamente. Si tienes un catch en un bloque que no es adecuado, cámbialo para que esté dentro de un contexto válido.
+
+Aquí tienes una versión corregida del código:
+
+ts
+Copiar
+// Declaración única de codeBlockRegex
+const codeBlockRegex = /```(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
+
+// Renombrar la variable match para evitar duplicación
+let match1;
+while ((match1 = codeBlockRegex.exec(result.message)) !== null) {
+  const codeContent = match1[1];
+  let installMatch;
+
+  // Buscar paquetes en el bloque de código
+  while ((installMatch = installInCodeRegex.exec(codeContent)) !== null) {
+    detectedPackages.push({
+      name: installMatch[1],
+      isDev: !!installMatch[2],
+      description: ""
+    });
+  }
+}
+
+try {
+  // Aquí va el código que puede generar un error
+} catch (error) {
+  // Manejo de errores
+  console.error("Error al enviar mensaje:", error);
+  setIsLoading(false);
+  setRetryCount(prevCount => prevCount + 1);
+
+  if (retryCount < maxAttempts) {
+    sendMessageWithRetry(userInput, contextMessage, attempt + 1);
+  } else {
+    toast({
+      title: "Error al conectar con el servidor",
+      description: error instanceof Error ? error.message : "Error desconocido",
+      variant: "destructive"
+    });
+    sounds.play('error', 0.4);
+  }
+}
+Cambios realizados:
+codeBlockRegex: Solo se declara una vez para evitar la colisión.
+
+match renombrado a match1: Evitar duplicación de la variable match.
+
+Estructura del bloque catch: Asegúrate de que esté correctamente ubicado dentro de una función.
