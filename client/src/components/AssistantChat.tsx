@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Mic, MicOff, Send, Save, Copy, Check } from "lucide-react";
 import ModelSelector from "./ModelSelector";
-import { playSound } from "@/lib/sounds";
+import * as sounds from "@/lib/sounds"; //Import sounds module
+
 
 // Tipos para mensajes y paquetes
 interface Message {
@@ -76,7 +77,7 @@ export const AssistantChat: React.FC = () => {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
-    playSound("send");
+    sounds.play("send");
 
     try {
       const response = await fetch("/api/chat", {
@@ -98,7 +99,7 @@ export const AssistantChat: React.FC = () => {
       const assistantMessage = data.message;
 
       setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
-      playSound("notification");
+      sounds.play("notification");
 
       // Detectar y sugerir paquetes
       const packages = detectPackages(assistantMessage);
@@ -115,7 +116,7 @@ export const AssistantChat: React.FC = () => {
           content: "Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, intenta de nuevo más tarde."
         },
       ]);
-      playSound("error");
+      sounds.play("error");
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +125,7 @@ export const AssistantChat: React.FC = () => {
   // Función para activar/desactivar reconocimiento de voz
   const toggleSpeechRecognition = () => {
     setIsListening(!isListening);
-    playSound("click");
+    sounds.play("click");
   };
 
   // Detectar paquetes mencionados en el mensaje
@@ -193,7 +194,7 @@ export const AssistantChat: React.FC = () => {
       }
     }
 
-    playSound("save");
+    sounds.play("save");
     // Esta función debería implementar la lógica para guardar el código en un archivo
     // Por ahora solo mostramos un mensaje de éxito
     setMessages((prev) => [
@@ -281,7 +282,7 @@ export const AssistantChat: React.FC = () => {
           content: `Paquete ${packageName} instalado exitosamente.`,
         },
       ]);
-      playSound("success");
+      sounds.play("success");
     } catch (error) {
       console.error("Error al instalar:", error);
       setMessages((prev) => [
@@ -291,7 +292,7 @@ export const AssistantChat: React.FC = () => {
           content: `Error al instalar ${packageName}. Por favor, intenta manualmente.`,
         },
       ]);
-      playSound("error");
+      sounds.play("error");
     } finally {
       setIsInstallingPackage(false);
     }
