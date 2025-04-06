@@ -824,7 +824,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             description: ""
           });
         }
-
         // Buscar comandos de instalación en bloques de código
         let codeBlockMatch;
         while ((codeBlockMatch = codeBlockRegex.exec(result.message)) !== null) {
@@ -841,21 +840,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
 
         // Buscar menciones textuales de instalación de paquetes
-        while ((match = installTextRegex.exec(result.message))(?:([a-z]+))?\s*\n([\s\S]*?)\n```/g;
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const language = match[1] || 'txt';
-      const code = match[2];
-      codeBlocks.push({ language, code });
-    }
-
-    if (codeBlocks.length === 0) {
-      toast({
-        title: "No se encontró código",
-        description: "No hay bloques de código para guardar en este mensaje.",
-        variant: "destructive"
-      });
-      return;
-    }
+        const installTextRegex = /instalar?\s+(?:el\s+)?(?:paquete|módulo|librería|biblioteca|dependencia)\s+['"]?([a-zA-Z0-9\-_@/.]+)['"]?/gi;
+        let match;
+        while ((match = installTextRegex.exec(result.message)) !== null) {
+          detectedPackages.push({
+            name: match[1],
+            isDev: false,
+            description: ""
+          });
+        }
 
     // Si hay más de un bloque de código, preguntar cuál guardar o todos
     let codeToSave: { language: string, code: string, fileName: string }[] = [];
