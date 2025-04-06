@@ -154,6 +154,15 @@ export async function correctCode(request: CodeCorrectionRequest): Promise<CodeC
   const { content, instructions, language = "javascript" } = request;
 
   try {
+    // Validar entradas
+    if (!content || content.trim() === '') {
+      throw new Error("El contenido del código no puede estar vacío");
+    }
+
+    if (!instructions || instructions.trim() === '') {
+      throw new Error("Las instrucciones para la corrección no pueden estar vacías");
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
     }

@@ -47,10 +47,10 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       const response = await apiRequest("POST", "/api/correct", {
         fileId: file.id,
         content: file.content,
@@ -58,7 +58,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
         language: getLanguageFromType(file.type),
         projectId
       });
-      
+
       const result: CodeCorrectionResponse = await response.json();
       setCorrectionResult(result);
     } catch (error) {
@@ -76,7 +76,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
   // Función para aplicar los cambios al archivo
   const handleApplyChanges = async () => {
     if (!correctionResult) return;
-    
+
     try {
       await onApplyChanges(correctionResult.correctedCode);
       toast({
@@ -103,7 +103,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
       'typescript': 'typescript',
       'json': 'json',
     };
-    
+
     return typeToLanguage[type] || 'text';
   };
 
@@ -120,7 +120,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
             <i className="ri-close-line text-xl"></i>
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           {!correctionResult ? (
             <div className="flex flex-col gap-4">
@@ -133,7 +133,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
                   className="min-h-[100px]"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Código actual:</label>
                 <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[300px] text-sm whitespace-pre-wrap">
@@ -156,26 +156,38 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
                   </Button>
                 </div>
               </div>
-              
+
               {diffView ? (
                 <div>
                   <h4 className="text-sm font-medium mb-2">Cambios realizados:</h4>
-                  <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md">
-                    {correctionResult.changes.map((change, idx) => (
-                      <div key={idx} className="mb-3 border-l-2 border-primary-500 pl-2">
-                        <p className="font-medium text-sm">{change.description}</p>
-                        {change.lineNumbers && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Líneas: {change.lineNumbers.join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {correctionResult.explanation && (
+                  <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[400px]">
+                    {correctionResult.changes && correctionResult.changes.length > 0 ? (
+                      correctionResult.changes.map((change, idx) => (
+                        <div key={idx} className="mb-3 border-l-2 border-blue-500 pl-2">
+                          <p className="font-medium text-sm">{change.description}</p>
+                          {change.lineNumbers && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Líneas: {change.lineNumbers.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm italic text-slate-600 dark:text-slate-400">
+                        No se especificaron cambios detallados.
+                      </p>
+                    )}
+
+                    {correctionResult.explanation ? (
                       <div className="mt-4 pt-4 border-t border-slate-300 dark:border-slate-700">
                         <h4 className="text-sm font-medium mb-2">Explicación general:</h4>
                         <p className="text-sm whitespace-pre-wrap">{correctionResult.explanation}</p>
+                      </div>
+                    ) : (
+                      <div className="mt-4 pt-4 border-t border-slate-300 dark:border-slate-700">
+                        <p className="text-sm italic text-slate-600 dark:text-slate-400">
+                          No se proporcionó una explicación detallada.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -183,15 +195,23 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
               ) : (
                 <div>
                   <h4 className="text-sm font-medium mb-2">Código corregido:</h4>
-                  <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[400px] text-sm whitespace-pre-wrap">
-                    {correctionResult.correctedCode}
-                  </pre>
+                  {correctionResult.correctedCode ? (
+                    <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[400px] text-sm whitespace-pre-wrap">
+                      {correctionResult.correctedCode}
+                    </pre>
+                  ) : (
+                    <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md">
+                      <p className="text-sm italic text-slate-600 dark:text-slate-400">
+                        No se pudo generar el código corregido.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
-        
+
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
           {!correctionResult ? (
             <>

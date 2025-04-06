@@ -365,13 +365,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para la corrección de código
   apiRouter.post("/correct", async (req: Request, res: Response) => {
     try {
+      // Log del cuerpo de la solicitud para depuración
+      console.log("Request body for code correction:", 
+        Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]} ${key === 'content' ? `(length: ${req.body.content?.length || 0})` : ''}`));
+
       const requestSchema = z.object({
         fileId: z.number(),
-        content: z.string().min(1),
-        instructions: z.string().min(1),
+        content: z.string().min(1, "El contenido del código no puede estar vacío"),
+        instructions: z.string().min(1, "Las instrucciones no pueden estar vacías"),
         language: z.string().optional(),
         projectId: z.number().optional()
       });
+
+      // Validar de manera explícita antes de procesar
+      if (!req.body.content || req.body.content.trim() === '') {
+        return res.status(400).json({
+          message: "El contenido del código no puede estar vacío",
+          errors: [{ path: ["content"], message: "El contenido del código no puede estar vacío" }]
+        });
+      }
 
       const validatedData = requestSchema.parse(req.body) as CodeCorrectionRequest;
 
@@ -385,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors: error.errors
         });
       }
-      res.status(500).json({
+      res.status(error instanceof Error && error.message.includes("empty") ? 400 : 500).json({
         message: "Error correcting code",
         error: error instanceof Error ? error.message : "Unknown error"
       });

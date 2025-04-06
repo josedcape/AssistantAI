@@ -39,35 +39,35 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
 
   // Función para actualizar el archivo con el código corregido
   const handleApplyCorrections = async (correctedCode: string) => {
-    setContent(correctedCode);
-    setIsDirty(true);
-
-    // Si el usuario quiere guardar inmediatamente
-    const shouldSaveImmediately = true; // Puedes hacer esto configurable
-    if (shouldSaveImmediately) {
-      try {
-        setIsSaving(true);
-
-        const response = await apiRequest("PUT", `/api/files/${file.id}`, {
-          content: correctedCode
-        });
-
-        const updatedFile = await response.json();
-        setIsDirty(false);
-
-        if (onUpdate) {
-          onUpdate(updatedFile);
-        }
-        return Promise.resolve();
-      } catch (error) {
-        console.error("Error saving corrected code:", error);
-        return Promise.reject(error);
-      } finally {
-        setIsSaving(false);
-      }
+    if (!file || !correctedCode) {
+      toast({
+        title: "Error",
+        description: "No se pudo aplicar la corrección: código vacío o inválido.",
+        variant: "destructive"
+      });
+      return;
     }
 
-    return Promise.resolve();
+    try {
+      // Primero actualizamos la interfaz del editor
+      setContent(correctedCode);
+      setIsDirty(true);
+
+      // Luego guardamos el archivo (esto ejecutará handleSave)
+      await handleSave(correctedCode);
+
+      toast({
+        title: "Correcciones aplicadas",
+        description: "Los cambios se han aplicado y guardado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error al aplicar correcciones:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron aplicar las correcciones. Intente nuevamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   useEffect(() => {
@@ -136,14 +136,15 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     }
   };
 
-  const saveFile = async () => {
+  const saveFile = async (correctedCode?: string) => {
     if (!isDirty) return;
 
     try {
       setIsSaving(true);
 
+      const sendContent = correctedCode || content;
       const response = await apiRequest("PUT", `/api/files/${file.id}`, {
-        content
+        content: sendContent
       });
 
       const updatedFile = await response.json();
