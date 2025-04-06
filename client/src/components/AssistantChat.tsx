@@ -92,11 +92,23 @@ export const AssistantChat: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Error al comunicarse con el asistente");
+        throw new Error(`Error al comunicarse con el asistente: ${response.status} ${response.statusText}`);
+      }
+
+      // Verificar el tipo de contenido antes de intentar parsear como JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Respuesta no JSON:", text);
+        throw new Error("La respuesta del servidor no es JSON válido");
       }
 
       const data = await response.json();
       const assistantMessage = data.message;
+
+      if (!assistantMessage) {
+        throw new Error("El formato de respuesta es incorrecto");
+      }
 
       setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
       sounds.play("notification");
@@ -113,7 +125,7 @@ export const AssistantChat: React.FC = () => {
         ...prev,
         {
           role: "assistant",
-          content: "Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, intenta de nuevo más tarde."
+          content: `Lo siento, ha ocurrido un error al procesar tu solicitud: ${error instanceof Error ? error.message : "Error desconocido"}. Verifica que el servidor de la API esté funcionando correctamente.`
         },
       ]);
       sounds.play("error");
