@@ -156,6 +156,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Generar un ID único para cada mensaje
+  const generateId = () => Math.random().toString(36).substring(2, 9);
+
   // Inicializar reconocimiento de voz
   useEffect(() => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
@@ -289,20 +292,62 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     if (fileDataStr) {
       try {
         const fileData = JSON.parse(fileDataStr);
-        // Cargar el contenido del archivo como mensaje inicial
-        setInput(fileData.message || `Analiza este archivo ${fileData.fileName}:\n\`\`\`\n${fileData.content}\n\`\`\``);
-        // Limpiar el storage para no mostrar el mismo archivo si se recarga la página
+
+        // Agregar el archivo como mensaje del asistente para fácil visualización
+        const fileExtension = fileData.fileName.split('.').pop().toLowerCase();
+        const language = fileExtension || 'text';
+
+        // Crear un mensaje específico según el tipo de archivo
+        const fileMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: `# ${emojiMap.file} Archivo cargado: ${fileData.fileName}\n\n\`\`\`${language}\n${fileData.content}\n\`\`\`\n\n${getFileAnalysisPrompt(fileData.fileName, fileExtension)}`,
+          timestamp: new Date()
+        };
+
+        // Agregar mensaje al chat
+        setMessages(prev => [...prev, fileMessage]);
+
+        // Preparar una sugerencia de análisis en el input
+        setInput(`Analiza este archivo y explícame qué hace.`);
+
+        // Limpiar storage para evitar duplicados
         sessionStorage.removeItem('fileToAssistant');
 
         toast({
           title: "Archivo cargado",
           description: `Se ha cargado el archivo ${fileData.fileName} para análisis`,
         });
+
+        sounds.play('pop', 0.3);
       } catch (error) {
         console.error("Error al cargar archivo desde sessionStorage:", error);
       }
     }
   }, [toast]);
+
+  // Función para generar análisis inicial según tipo de archivo
+  const getFileAnalysisPrompt = (fileName: string, extension: string): string => {
+    switch(extension) {
+      case 'js':
+      case 'jsx':
+        return "Este archivo contiene código JavaScript. ¿Quieres que analice su funcionalidad, optimice el código o busque problemas?";
+      case 'ts':
+      case 'tsx':
+        return "Este archivo contiene código TypeScript. ¿Quieres que revise los tipos, busque mejoras o analice la estructura?";
+      case 'css':
+      case 'scss':
+        return "Este archivo contiene estilos. ¿Necesitas ayuda para optimizar el CSS, mejorar la responsividad o solucionar problemas visuales?";
+      case 'html':
+        return "Este archivo contiene HTML. ¿Quieres que analice la estructura, mejore la accesibilidad o integre con JavaScript?";
+      case 'json':
+        return "Este archivo contiene datos JSON. ¿Necesitas validar su estructura, extraer información o transformar los datos?";
+      case 'md':
+        return "Este archivo contiene Markdown. ¿Necesitas ayuda para mejorar la documentación o convertirla a otro formato?";
+      default:
+        return "¿Qué te gustaría hacer con este archivo?";
+    }
+  };
 
   // Cargar el modelo activo al inicio
   useEffect(() => {
@@ -398,8 +443,6 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       }
     }
   }, [files]);
-
-  const generateId = () => Math.random().toString(36).substring(2, 9);
 
   // Función para mejorar el contenido con emoticonos basados en el tema
   const enhanceContentWithEmojis = useCallback((content: string) => {
@@ -830,68 +873,72 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         description: `${emojiMap.install} Por favor espera...`,
       });
 
-      // Intentar hasta 3 veces con espera entre intentos
-      let retryCount = 0;
-      const maxRetries = 2;
-      let success = false;
-      let lastError;
+      // Formatear los comandos de instalación para el backend
+      const packageCommands = pendingPackages.map(pkg => {
+        const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
+        const devFlag = pkg.isDev ? ' --save-dev' : '';
+        return `npm install ${pkgSpec}${devFlag}`;
+      }).join(' && ');
 
-      while (retryCount <= maxRetries && !success) {
-        try {
-          if (retryCount > 0) {
-            toast({
-              title: "Reintentando",
-              description: `${emojiMap.loading} Intento ${retryCount + 1} de ${maxRetries + 1}...`
-            });
-            // Esperar antes de reintentar (1s, 3s)
-            await new Promise(r => setTimeout(r, retryCount * 2000 + 1000));
-          }
+      const response = await safeApiRequest("POST", "/api/install-packages", {
+        projectId,
+        packages: pendingPackages.map(pkg => ({
+          name: pkg.name,
+          isDev: pkg.isDev || false,
+          version: pkg.version || "latest"
+        })),
+        command: packageCommands // Enviar comando explícito para la instalación
+      });
 
-          const response = await safeApiRequest("POST", "/api/install-packages", {
-            projectId,
-            packages: pendingPackages.map(pkg => ({
-              name: pkg.name,
-              isDev: pkg.isDev || false,
-              version: pkg.version || "latest"
-            }))
-          });
-
-          // Manejar la respuesta con cuidado
-          if (!response.ok) {
-            throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
-          }
-
-          const result = await safeParseJson(response);
-
-          if (result.success) {
-            success = true;
-            toast({
-              title: "Paquetes instalados",
-              description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
-            });
-          } else {
-            lastError = result.error || "Error desconocido al instalar paquetes";
-            throw new Error(lastError);
-          }
-        } catch (error) {
-          retryCount++;
-          lastError = error instanceof Error ? error.message : "Error desconocido";
-          console.error(`Error al instalar paquetes (intento ${retryCount}/${maxRetries + 1}):`, error);
-        }
+      // Manejar la respuesta con cuidado
+      if (!response.ok) {
+        throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
       }
 
-      if (!success) {
-        throw new Error(`Falló la instalación de paquetes después de ${maxRetries + 1} intentos: ${lastError}`);
+      const result = await safeParseJson(response);
+
+      if (result.success) {
+        toast({
+          title: "Paquetes instalados",
+          description: `${emojiMap.success} Los paquetes se instalaron correctamente.`,
+        });
+
+        // Agregar mensaje de confirmación al chat
+        setMessages(prev => [...prev, {
+          id: generateId(),
+          role: "assistant",
+          content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg => 
+            `- \`${pkg.name}${pkg.version && pkg.version !== "latest" ? '@' + pkg.version : ''}\` ${pkg.isDev ? '(dev dependency)' : ''}`
+          ).join('\n')}\n\n¿Necesitas ayuda para usar alguno de estos paquetes?`,
+          timestamp: new Date()
+        }]);
+
+        sounds.play('success', 0.4);
+      } else {
+        throw new Error(result.error || "Error desconocido al instalar paquetes");
       }
     } catch (error) {
       console.error("Error al instalar paquetes:", error);
+
+      // Agregar mensaje de error al chat
+      setMessages(prev => [...prev, {
+        id: generateId(),
+        role: "assistant",
+        content: `${emojiMap.error} **Error al instalar paquetes**\n\n${error instanceof Error ? error.message : "Error desconocido"}\n\nIntenta instalar los paquetes manualmente ejecutando:\n\n\`\`\`bash\nnpm install ${pendingPackages.map(p => p.name).join(' ')}\n\`\`\``,
+        timestamp: new Date()
+      }]);
+
       toast({
         title: "Error al instalar paquetes",
         description: error instanceof Error ? error.message : "Error desconocido",
         variant: "destructive"
       });
+
+      sounds.play('error', 0.4);
     } finally {
       setIsInstallingPackage(false);
+      setShowPackageDialog(false);
+      setPendingPackages([]);
     }
   };
 
@@ -944,13 +991,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
       {/* Diálogo para confirmar la instalación de paquetes */}
       <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
-        <DialogHeader>
-          <DialogTitle>Instalar paquetes</DialogTitle>
-          <DialogDescription>
-            Se han detectado los siguientes paquetes para instalar:
-          </DialogDescription>
-        </DialogHeader>
         <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Instalar paquetes</DialogTitle>
+            <DialogDescription>
+              Se han detectado los siguientes paquetes para instalar:
+            </DialogDescription>
+          </DialogHeader>
           <ul className="space-y-2">
             {pendingPackages.map(pkg => (
               <li key={pkg.name} className="flex items-center space-x-2">
@@ -960,19 +1007,19 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
               </li>
             ))}
           </ul>
+          <DialogFooter>
+            <Button variant="default" onClick={handleClosePackageDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={handleInstallPackages} disabled={isInstallingPackage}>
+              {isInstallingPackage ? (
+                <Loader2 className="animate-spin h-4 w-4" />
+              ) : (
+                "Instalar"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogFooter>
-          <Button variant="default" onClick={handleClosePackageDialog}>
-            Cancelar
-          </Button>
-          <Button onClick={handleInstallPackages} disabled={isInstallingPackage}>
-            {isInstallingPackage ? (
-              <Loader2 className="animate-spin h-4 w-4" />
-            ) : (
-              "Instalar"
-            )}
-          </Button>
-        </DialogFooter>
       </Dialog>
     </div>
   );
