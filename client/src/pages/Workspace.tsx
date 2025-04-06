@@ -1350,22 +1350,26 @@ const Workspace: React.FC = () => {
                   onFileSelect={handleFileSelect}
                   selectedFileId={activeFile?.id}
                   onClose={isMobile ? () => setShowMobileMenu(false) : undefined}
-                  onSendToAssistant={(fileContent, fileName) => {
-                    // Navegar al asistente con el contenido del archivo
-                    if (window.confirm(`¿Quieres enviar el archivo "${fileName}" al asistente de código?`)) {
-                      // Prepara una consulta con el contenido del archivo
-                      const message = `Analiza este archivo ${fileName}:\n\`\`\`\n${fileContent}\n\`\`\``;
-
-                      // Guarda el mensaje en sessionStorage para recuperarlo en la página del asistente
-                      sessionStorage.setItem('fileToAssistant', JSON.stringify({
-                        fileName,
-                        content: fileContent,
-                        message
-                      }));
-
-                      // Navegar a la página del asistente
-                      window.location.href = `/assistant/${projectId}`;
-                    }
+                  onSendToAssistant={(fileContent, fileName, message) => {
+                    // Cambiar a la pestaña del asistente y enviar el contenido del archivo
+                    const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
+                    
+                    // Cambiar a la pestaña del asistente
+                    setActiveTab("assistant-chat");
+                    
+                    // Enviar el contenido al componente AssistantChat (simulado aquí)
+                    // Esta parte depende de cómo implementes la comunicación entre componentes
+                    // Una opción es usar un evento personalizado
+                    const event = new CustomEvent('sendToAssistant', { 
+                      detail: { content: formattedMessage, fileName } 
+                    });
+                    window.dispatchEvent(event);
+                    
+                    toast({
+                      title: "Archivo enviado al asistente",
+                      description: `${fileName} enviado al asistente`,
+                      duration: 3000
+                    });
                   }}
                 />
               </div>
