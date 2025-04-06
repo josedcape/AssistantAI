@@ -20,7 +20,9 @@ import {
   XIcon,
   Pencil,
   Copy,
-  MessageSquare
+  MessageSquare,
+  Download,
+  Archive
 } from "lucide-react";
 import { 
   SidebarGroup, 
@@ -41,6 +43,13 @@ import { sounds } from "@/lib/sounds";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useForm } from "react-hook-form";
 import { File } from "@shared/schema";
+
+// Extender el objeto Window para incluir JSZip
+declare global {
+  interface Window {
+    JSZip: any;
+  }
+}
 
 interface FileExplorerProps {
   projectId: number;
@@ -312,6 +321,140 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
     sounds.play('click', 0.1);
   };
 
+  // Función para descargar un solo archivo
+  const handleDownloadFile = async (file: File) => {
+    try {
+      // Si el contenido no está ya cargado en el objeto file, asegurarse de obtenerlo
+      let content = file.content;
+      if (!content && file.id) {
+        const response = await fetch(`/api/files/${file.id}/content`);
+        if (!response.ok) {
+          throw new Error("No se pudo obtener el contenido del archivo");
+        }
+        content = await response.text();
+      }
+
+      if (!content) {
+        throw new Error("El archivo no tiene contenido");
+      }
+
+      // Crear blob y enlace de descarga
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpiar
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast({
+        title: "Descarga iniciada",
+        description: `Descargando ${file.name}`,
+      });
+      sounds.play('success', 0.3);
+    } catch (error) {
+      console.error("Error al descargar archivo:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo descargar el archivo",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
+    }
+  };
+
+  // Función para descargar todos los archivos como ZIP
+  const handleDownloadAllFiles = async () => {
+    try {
+      // Verificar si JSZip está disponible, si no, cargarlo dinámicamente
+      let JSZip;
+      if (typeof window.JSZip === 'undefined') {
+        const jsZipScript = document.createElement('script');
+        jsZipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        jsZipScript.async = true;
+
+        // Promesa para esperar a que el script se cargue
+        await new Promise((resolve, reject) => {
+          jsZipScript.onload = resolve;
+          jsZipScript.onerror = reject;
+          document.head.appendChild(jsZipScript);
+        });
+        
+        JSZip = window.JSZip;
+      } else {
+        JSZip = window.JSZip;
+      }
+
+      toast({
+        title: "Preparando archivos",
+        description: "Generando archivo ZIP con todos los archivos",
+      });
+
+      const zip = new JSZip();
+      
+      // Cargar contenido de todos los archivos y añadirlos al ZIP
+      for (const file of files) {
+        // Solo agregar archivos reales (no carpetas)
+        if (!file.name.includes('/') || file.name.endsWith('/.gitkeep')) {
+          let content = file.content;
+          
+          if (!content && file.id) {
+            try {
+              const response = await fetch(`/api/files/${file.id}/content`);
+              if (response.ok) {
+                content = await response.text();
+              } else {
+                console.warn(`No se pudo obtener el contenido de ${file.name}`);
+                content = `// No se pudo cargar el contenido de ${file.name}`;
+              }
+            } catch (err) {
+              console.warn(`Error cargando ${file.name}:`, err);
+              content = `// Error cargando el contenido de ${file.name}`;
+            }
+          }
+          
+          // Añadir archivo al ZIP manteniendo la estructura de directorios
+          zip.file(file.name, content || "");
+        }
+      }
+      
+      // Generar el ZIP y descargarlo
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proyecto_${projectId}_files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpiar
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast({
+        title: "Descarga completada",
+        description: "El archivo ZIP se ha generado correctamente",
+      });
+      sounds.play('success', 0.3);
+    } catch (error) {
+      console.error("Error al generar ZIP:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo generar el archivo ZIP",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
+    }
+  };
+
   // Función para enviar archivo al asistente
   const handleSendToAssistant = async (file: File) => {
     if (!onSendToAssistant) {
@@ -467,6 +610,16 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               disabled={loading}
             >
               <FolderPlusIcon className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleDownloadAllFiles} 
+              title="Descargar todos los archivos"
+              className="h-7 w-7"
+              disabled={loading || files.length === 0}
+            >
+              <Archive className="h-4 w-4" />
             </Button>
           </div>
         </SidebarGroupLabel>
@@ -710,6 +863,30 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                                     title="Renombrar"
                                   >
                                     <Pencil className="h-3 w-3 text-blue-500" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadFile(file);
+                                    }}
+                                    title="Descargar"
+                                  >
+                                    <Download className="h-3 w-3 text-green-500" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadFile(file);
+                                    }}
+                                    title="Descargar"
+                                  >
+                                    <Download className="h-3 w-3 text-green-500" />
                                   </Button>
                                   <Button 
                                     variant="ghost" 
