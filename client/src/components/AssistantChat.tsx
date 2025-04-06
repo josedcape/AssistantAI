@@ -605,7 +605,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             f.name === "index.html" || 
             f.name === "index.js" || 
             f.name === "package.json" ||
-            f.name === "App.jsx" ||
+            f.name === "App.jsx" || 
             f.name === "App.tsx" ||
             f.name === "main.js" ||
             f.name === "main.ts"
