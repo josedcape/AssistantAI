@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { ScrollArea } from "./ui/scroll-area";
@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ModelSelector } from "./ModelSelector";
 import CodeBlock from "./CodeBlock";
 import { sounds } from '@/lib/sounds';
-import { Loader2, Mic, MicOff, Send, RefreshCw } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, RefreshCw, Copy } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -121,11 +121,11 @@ const emojiMap = {
   ai: "🧠"
 };
 
-const AssistantChat: React.FC<AssistantChatProps> = ({ 
-  projectId, 
-  files, 
+const AssistantChat: React.FC<AssistantChatProps> = ({
+  projectId,
+  files,
   onApplyChanges,
-  showSuccessMessage 
+  showSuccessMessage
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -265,7 +265,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      return await apiRequest(method, url, data, { 
+      return await apiRequest(method, url, data, {
         signal: abortControllerRef.current.signal,
         timeout: 30000 // 30 segundos timeout
       });
@@ -529,7 +529,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       }},
 
       // Secciones clave con emojis (párrafos que comienzan con palabras clave)
-      { regex: /^(\s*)(Nota|Note|Importante|Important|Atención|Attention|Tip|Consejo|Advertencia|Warning):\s+(.+)$/gim, 
+      { regex: /^(\s*)(Nota|Note|Importante|Important|Atención|Attention|Tip|Consejo|Advertencia|Warning):\s+(.+)$/gim,
         replacement: (match, space, keyword, content) => {
           let emoji = "";
 
@@ -559,11 +559,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       const text = await response.text();
 
       // Verificar si es HTML (respuesta de error o redirección)
-      if (text.includes('<!DOCTYPE') || text.includes('<html') || 
+      if (text.includes('<!DOCTYPE') || text.includes('<html') ||
           (!contentType || !contentType.includes('application/json'))) {
 
         // Comprobar si es un error de autenticación
-        if (text.includes('login') || text.includes('sign in') || 
+        if (text.includes('login') || text.includes('sign in') ||
             text.includes('iniciar sesión') || response.status === 401) {
           throw new Error("Sesión expirada. Por favor, vuelve a iniciar sesión.");
         }
@@ -578,11 +578,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           return JSON.parse(text);
         } catch {
           // Extraer mensaje de error del HTML (si existe)
-          const errorMatch = text.match(/<h1[^>]*>(.*?)<\/h1>/i) || 
+          const errorMatch = text.match(/<h1[^>]*>(.*?)<\/h1>/i) ||
                              text.match(/<title[^>]*>(.*?)<\/title>/i);
 
-          throw new Error(errorMatch ? 
-            `Error: ${errorMatch[1]}` : 
+          throw new Error(errorMatch ?
+            `Error: ${errorMatch[1]}` :
             "El servidor respondió con un formato inesperado. Contacta al soporte técnico.");
         }
       }
@@ -610,8 +610,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     let contextMessage = "";
 
     // Si es un análisis de proyecto o una petición relacionada con la estructura
-    if (input.toLowerCase().includes("analiza") || 
-        input.toLowerCase().includes("estructura") || 
+    if (input.toLowerCase().includes("analiza") ||
+        input.toLowerCase().includes("estructura") ||
         input.toLowerCase().includes("proyecto") ||
         input.toLowerCase().includes("arquitectura") ||
         input.toLowerCase().includes("organización")) {
@@ -655,12 +655,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         structure: projectStructure,
         fileCount: files.length,
         fileTypes: [...new Set(files.filter(f => f && f.type).map(f => f.type))],
-        mainFiles: files.filter(f => 
+        mainFiles: files.filter(f =>
           f && (
-            f.name === "index.html" || 
-            f.name === "index.js" || 
+            f.name === "index.html" ||
+            f.name === "index.js" ||
             f.name === "package.json" ||
-            f.name === "App.jsx" || 
+            f.name === "App.jsx" ||
             f.name === "App.tsx" ||
             f.name === "main.js" ||
             f.name === "main.ts"
@@ -670,8 +670,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
       // Añadir más información del contexto
       const packageJson = files.find(f => f && f.name === "package.json");
-      const packageInfo = packageJson && packageJson.content ? 
-        (typeof packageJson.content === 'string' ? 
+      const packageInfo = packageJson && packageJson.content ?
+        (typeof packageJson.content === 'string' ?
           JSON.parse(packageJson.content) : packageJson.content) : null;
 
       // Si es reintento, mostrar notificación
@@ -716,8 +716,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       // Verificar si hay recomendaciones de paquetes
       let detectedPackages: any[] = [];
 
-      if (userInput.match(/\b(instala|instalar|agregar|añadir|add|install|npm|yarn|pnpm)\b/i) || 
-          result.message.includes("npm install") || 
+      if (userInput.match(/\b(instala|instalar|agregar|añadir|add|install|npm|yarn|pnpm)\b/i) ||
+          result.message.includes("npm install") ||
           result.message.includes("yarn add") ||
           result.message.includes("pnpm add")) {
 
@@ -759,7 +759,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         // Eliminar duplicados
         const uniquePackages = Array.from(
           new Set(detectedPackages.map(p => p.name))
-        ).map(name => 
+        ).map(name =>
           detectedPackages.find(p => p.name === name)
         );
 
@@ -919,7 +919,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         setMessages(prev => [...prev, {
           id: generateId(),
           role: "assistant",
-          content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg => 
+          content: `${emojiMap.success} **Paquetes instalados correctamente**\n\nSe han instalado los siguientes paquetes:\n\n${pendingPackages.map(pkg =>
             `- \`${pkg.name}${pkg.version && pkg.version !== "latest" ? '@' + pkg.version : ''}\` ${pkg.isDev ? '(dev dependency)' : ''}`
           ).join('\n')}\n\n¿Necesitas ayuda para usar alguno de estos paquetes?`,
           timestamp: new Date()
@@ -959,19 +959,86 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
     setPendingPackages([]);
   };
 
+  // Función para copiar mensaje al portapapeles
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({
+        title: "Copiado",
+        description: "El mensaje ha sido copiado al portapapeles.",
+      });
+    } catch (error) {
+      console.error("Error al copiar al portapapeles:", error);
+      toast({
+        title: "Error al copiar",
+        description: "No se pudo copiar el mensaje al portapapeles.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Función para guardar contenido en un archivo
+  const handleSaveToFile = async (fileName: string, content: string) => {
+    try {
+      const response = await fetch("/api/files/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileName, content, path: currentPath }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Archivo guardado",
+          description: `El código se guardó en ${fileName}`,
+        });
+        sounds.play('success', 0.3);
+      } else {
+        throw new Error("Error al guardar el archivo");
+      }
+    } catch (error) {
+      console.error("Error al guardar el archivo:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el archivo.",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow overflow-y-auto">
         <div className="flex flex-col space-y-2 p-4">
           {messages.map(message => (
-            <div key={message.id} className={`p-4 rounded-lg ${message.role === "user" ? "bg-gray-100" : "bg-gray-700 text-white"}`}>
-              <p className={`text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}`}>{new Intl.DateTimeFormat('es-ES', {
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: 'numeric', minute: 'numeric', second: 'numeric'
-              }).format(message.timestamp)}</p>
+            <div key={message.id} className={`p-4 rounded-lg relative ${message.role === "user" ? "bg-gray-100" : "bg-gray-700 text-white"}`}>
+              <div className="absolute top-2 right-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleCopyMessage(message.content)}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copiar al portapapeles</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className={`text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}`}>
+                {new Intl.DateTimeFormat('es-ES', {
+                  year: 'numeric', month: 'numeric', day: 'numeric',
+                  hour: 'numeric', minute: 'numeric', second: 'numeric'
+                }).format(message.timestamp)}
+              </p>
 
               {message.role === "user" ? (
-                <div className="bg-blue-50 p-3 rounded border border-blue-100 mt-1 mb-1">
+                <div className="bg-blue-50 p-3 rounded border border-blue-100 mt-1 mb-1 text-black">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} children={message.content} />
                 </div>
               ) : (
