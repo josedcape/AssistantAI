@@ -869,7 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Determinar si hay archivos específicos
       const mainHtml = htmlFile.name;
-      const mainCss = cssFiles.length > 0 ? cssFiles[0].name : null;
+      const mainCss = cssFiles.length > 0? cssFiles[0].name : null;
       const mainJs = jsFiles.length > 0 ? jsFiles[0].name : null;
 
       console.log(`Ejecutando múltiples archivos: { html: '${mainHtml}', css: '${mainCss}', js: '${mainJs}' }`);
@@ -1440,9 +1440,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      const httpServer = createServer(app);
-      return httpServer;
+      try {
+        const httpServer = createServer(app);
+        return httpServer;
+      } catch (error) {
+        console.error("Error al configurar las rutas:", error);
+        throw error;
+      }
     } catch (error) {
       console.error("Error al configurar las rutas:", error);
       throw error;
     }
+  }
