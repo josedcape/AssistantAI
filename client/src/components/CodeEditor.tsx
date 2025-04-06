@@ -374,4 +374,4 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   );
 };
 
-export default CodeEditor;t CodeEditor;
+export default CodeEditor;
