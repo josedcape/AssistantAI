@@ -366,8 +366,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post("/correct", async (req: Request, res: Response) => {
     try {
       // Log del cuerpo de la solicitud para depuración
-      console.log("Request body for code correction:", 
-        Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]} ${key === 'content' ? `(length: ${req.body.content?.length || 0})` : ''}`));
+      console.log("Request body for code correction:", {
+        fileId: req.body.fileId,
+        contentLength: req.body.content?.length || 0,
+        instructions: req.body.instructions?.substring(0, 50) + "...",
+        language: req.body.language,
+        projectId: req.body.projectId
+      });
 
       // Validar de manera explícita antes de procesar los datos
       if (!req.body.content || req.body.content.trim() === '') {
@@ -384,12 +389,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Verificar el fileId
+      // Verificar el fileId - aceptar tanto string como number
       const fileId = req.body.fileId;
-      if (typeof fileId !== 'number' || isNaN(fileId) || fileId <= 0) {
+      // Permitir que fileId sea string o número, solo verificamos que sea válido
+      if (!fileId || (typeof fileId === 'number' && isNaN(fileId))) {
         return res.status(400).json({
           message: "Invalid request data",
-          errors: [{ code: "invalid_type", path: ["fileId"], message: "ID de archivo inválido" }]
+          errors: [{ code: "invalid_type", path: ["fileId"], message: "ID de archivo inválido o no especificado" }]
         });
       }
 

@@ -61,12 +61,23 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
     try {
       setIsLoading(true);
 
+      // Verificar que file.id es válido antes de la solicitud
+      if (!file.id) {
+        throw new Error("ID de archivo inválido o no especificado");
+      }
+      
+      console.log("Enviando solicitud de corrección:", {
+        fileId: file.id,
+        contentLength: file.content?.length || 0,
+        language: getLanguageFromType(file.type)
+      });
+
       const response = await apiRequest("POST", "/api/correct", {
-        fileId: Number(file.id), // Asegurar que fileId sea un número
+        fileId: file.id, // Enviar el ID como está para evitar conversiones innecesarias
         content: file.content,
         instructions,
         language: getLanguageFromType(file.type),
-        projectId: projectId ? Number(projectId) : undefined // Asegurar que projectId sea un número
+        projectId: projectId // Mantener projectId como está
       });
 
       const result: CodeCorrectionResponse = await response.json();

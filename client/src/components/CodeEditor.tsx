@@ -49,12 +49,19 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     }
 
     try {
+      console.log("Aplicando correcciones al archivo:", {
+        fileId: file.id,
+        fileName: file.name,
+        originalLength: content.length,
+        correctedLength: correctedCode.length
+      });
+      
       // Primero actualizamos la interfaz del editor
       setContent(correctedCode);
       setIsDirty(true);
 
       // Luego guardamos el archivo (esto ejecutará handleSave)
-      await handleSave(correctedCode);
+      await saveFile(correctedCode);
 
       toast({
         title: "Correcciones aplicadas",
@@ -194,7 +201,23 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
         <div className="flex space-x-1">
           <button
             className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
-            onClick={() => setShowCorrectionModal(true)}
+            onClick={() => {
+              // Verificar que el archivo tiene un ID válido
+              if (!file || !file.id) {
+                toast({
+                  title: "Error",
+                  description: "No se puede corregir: archivo inválido o no guardado.",
+                  variant: "destructive"
+                });
+                return;
+              }
+              console.log("Abriendo modal de corrección para archivo:", {
+                id: file.id, 
+                name: file.name, 
+                contentLength: content.length
+              });
+              setShowCorrectionModal(true);
+            }}
             aria-label="Corregir código con IA"
             title="Corregir código con IA"
           >
