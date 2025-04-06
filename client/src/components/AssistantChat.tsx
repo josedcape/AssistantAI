@@ -1077,4 +1077,94 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                   </Tooltip>
                 </TooltipProvider>
 
-                {message.role === "assistant" && message.content.includes("
+                {message.role === "assistant" && message.content.includes("```") && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSaveCode(message.content)}
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Guardar código</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+      <div className="flex items-center justify-between p-4 border-t">
+        <div className="flex items-center space-x-2">
+          <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost">
+            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </Button>
+          <Textarea
+            placeholder="Escribe un mensaje..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="flex-grow"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                handleSendMessage();
+              }
+            }}
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <ModelSelector modelId={modelId} onModelChange={setModelId} />
+          <Button onClick={handleSendMessage} disabled={isLoading} className="bg-sky-500 hover:bg-sky-600">
+            {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
+          </Button>
+        </div>
+      </div>
+      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+        <DialogHeader>
+          <DialogTitle>Paquetes sugeridos</DialogTitle>
+          <DialogDescription>
+            Se han encontrado los siguientes paquetes que se podrían usar. ¿Quieres instalarlos?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogContent>
+          <ul className="space-y-2">
+            {pendingPackages.map((pkg, index) => (
+              <li key={index} className="flex items-center">
+                <Badge>{pkg.name}</Badge>
+                <span className="ml-2">{pkg.description}</span>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+        <DialogFooter>
+          <Button onClick={() => {
+            setShowPackageDialog(false);
+            setPendingPackages([]);
+          }} variant="secondary">
+            Cancelar
+          </Button>
+          <Button onClick={async () => {
+            setShowPackageDialog(false);
+            setPendingPackages([]);
+            await Promise.all(pendingPackages.map(async (pkg) => {
+              await installPackageFromCommand(pkg.name, pkg.isDev || false);
+            }));
+          }} disabled={isInstallingPackage}>
+            {isInstallingPackage ? (
+              <Loader2 className="animate-spin w-5 h-5" />
+            ) : (
+              "Instalar paquetes"
+            )}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
+  );
+};
+
+export default AssistantChat;
