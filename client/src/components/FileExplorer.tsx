@@ -56,7 +56,7 @@ interface FileExplorerProps {
   onFileSelect: (file: File) => void;
   selectedFileId?: number;
   onClose?: () => void;
-  onSendToAssistant?: (fileContent: string, fileName: string) => void;
+  onSendToAssistant?: (fileContent: string, fileName: string, message?: string) => void;
 }
 
 interface NewFileFormData {
@@ -469,7 +469,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
     try {
       // Si el contenido no está ya cargado en el objeto file, asegurarse de obtenerlo
       let content = file.content;
-      if (!content && file.id) {
+      if (!content && file.id && file.id > 0) {
         const response = await fetch(`/api/files/${file.id}/content`);
         if (!response.ok) {
           throw new Error("No se pudo obtener el contenido del archivo");
@@ -481,8 +481,11 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
         throw new Error("El archivo no tiene contenido");
       }
 
+      // Preparar mensaje predeterminado para el asistente
+      const message = `Analiza este archivo ${file.name}:\n`;
+      
       // Llamar a la función para enviar al asistente
-      onSendToAssistant(content, file.name);
+      onSendToAssistant(content, file.name, message);
       
       toast({
         title: "Archivo enviado al asistente",
@@ -863,18 +866,6 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                                     title="Renombrar"
                                   >
                                     <Pencil className="h-3 w-3 text-blue-500" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDownloadFile(file);
-                                    }}
-                                    title="Descargar"
-                                  >
-                                    <Download className="h-3 w-3 text-green-500" />
                                   </Button>
                                   <Button 
                                     variant="ghost" 
