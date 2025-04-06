@@ -906,7 +906,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         <div className="flex flex-col space-y-2 p-4">
           {messages.map(message => (
             <div key={message.id} className={`p-4 rounded-lg ${message.role === "user" ? "bg-gray-100" : "bg-gray-700 text-white"}`}>
-              <p className="text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}">{new Intl.DateTimeFormat('es-ES', {
+              <p className={`text-sm ${message.role === "user" ? "text-gray-600" : "text-gray-300"}`}>{new Intl.DateTimeFormat('es-ES', {
                 year: 'numeric', month: 'numeric', day: 'numeric',
                 hour: 'numeric', minute: 'numeric', second: 'numeric'
               }).format(message.timestamp)}</p>
