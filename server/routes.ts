@@ -1442,4 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const httpServer = createServer(app);
       return httpServer;
+    } catch (error) {
+      console.error("Error al configurar las rutas:", error);
+      throw error;
     }
