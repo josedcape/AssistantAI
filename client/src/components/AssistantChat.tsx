@@ -14,9 +14,23 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Mic, MicOff, Send, Save, Copy, Check } from "lucide-react";
+import { 
+  Loader2, Mic, MicOff, Send, Save, Copy, Check, 
+  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List
+} from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import * as sounds from "@/lib/sounds"; //Import sounds module
+import { ConversationList } from "./ConversationList";
+import { 
+  saveConversation, 
+  getConversation, 
+  setActiveConversation,
+  getActiveConversation,
+  generateConversationId,
+  generateConversationTitle,
+  Conversation,
+  Message as ConversationMessage
+} from "@/lib/conversationStorage";
 
 
 // Tipos para mensajes y paquetes
@@ -54,6 +68,12 @@ export const AssistantChat: React.FC = () => {
   const [pendingPackages, setPendingPackages] = useState<Package[]>([]);
   const [showPackageDialog, setShowPackageDialog] = useState(false);
   const [isInstallingPackage, setIsInstallingPackage] = useState(false);
+  
+  // Estado para conversaciones
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showConversations, setShowConversations] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedStatus, setSavedStatus] = useState<'unsaved' | 'saving' | 'saved'>('unsaved');
 
   // Reconocimiento de voz con la API Web Speech
   useEffect(() => {
@@ -116,10 +136,115 @@ export const AssistantChat: React.FC = () => {
     };
   }, [isListening]);
 
+  // Cargar conversación activa al iniciar
+  useEffect(() => {
+    const activeConversationId = getActiveConversation();
+    if (activeConversationId) {
+      const conversation = getConversation(activeConversationId);
+      if (conversation) {
+        setMessages(conversation.messages as Message[]);
+        setModelId(conversation.modelId);
+        setCurrentConversationId(activeConversationId);
+        setSavedStatus('saved');
+      } else {
+        startNewConversation();
+      }
+    } else {
+      startNewConversation();
+    }
+  }, []);
+
   // Scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    
+    // Marca la conversación como no guardada cuando cambian los mensajes
+    // excepto durante la carga inicial
+    if (currentConversationId && messages.length > 2) {
+      setSavedStatus('unsaved');
+    }
   }, [messages]);
+  
+  // Guardar cambios automáticamente cuando hay cambios
+  useEffect(() => {
+    if (savedStatus === 'unsaved' && currentConversationId) {
+      const saveTimer = setTimeout(() => {
+        saveCurrentConversation();
+      }, 2000); // Guardar después de 2 segundos de inactividad
+      
+      return () => clearTimeout(saveTimer);
+    }
+  }, [messages, savedStatus, currentConversationId]);
+  
+  // Iniciar una nueva conversación
+  const startNewConversation = () => {
+    const initialMessages = [
+      {
+        role: "system",
+        content: "Soy un asistente de IA diseñado para ayudarte con tu proyecto."
+      },
+      {
+        role: "assistant",
+        content: "¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy con tu proyecto?"
+      }
+    ];
+    
+    setMessages(initialMessages);
+    setCurrentConversationId(null);
+    setActiveConversation(null);
+    setSavedStatus('unsaved');
+    sounds.play("click");
+  };
+  
+  // Guardar la conversación actual
+  const saveCurrentConversation = () => {
+    if (messages.length <= 2) {
+      // No guardar si solo tiene los mensajes iniciales
+      return;
+    }
+    
+    setIsSaving(true);
+    setSavedStatus('saving');
+    
+    try {
+      // Si no hay ID de conversación, crear uno nuevo
+      const conversationId = currentConversationId || generateConversationId();
+      const title = generateConversationTitle(messages);
+      const now = new Date();
+      
+      const conversation: Conversation = {
+        id: conversationId,
+        title,
+        messages: messages as ConversationMessage[],
+        modelId,
+        createdAt: currentConversationId 
+          ? (getConversation(conversationId)?.createdAt || now) 
+          : now,
+        updatedAt: now
+      };
+      
+      saveConversation(conversation);
+      setActiveConversation(conversationId);
+      setCurrentConversationId(conversationId);
+      setSavedStatus('saved');
+      sounds.play("save");
+    } catch (error) {
+      console.error("Error guardando conversación:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Cargar una conversación guardada
+  const loadConversation = (conversation: Conversation) => {
+    setMessages(conversation.messages as Message[]);
+    setModelId(conversation.modelId);
+    setCurrentConversationId(conversation.id);
+    setActiveConversation(conversation.id);
+    setShowConversations(false);
+    setSavedStatus('saved');
+    sounds.play("notification");
+  };
 
   // Función para enviar mensajes
   const handleSendMessage = async () => {
@@ -168,6 +293,9 @@ export const AssistantChat: React.FC = () => {
       if (sounds && sounds.play) {
         sounds.play("notification");
       }
+      
+      // Marcar como no guardado para activar el guardado automático
+      setSavedStatus('unsaved');
 
       // Detectar y sugerir paquetes
       const packages = detectPackages(assistantMessage);
@@ -499,8 +627,105 @@ ${error instanceof Error ? error.message : "Error desconocido"}
   };
 
   return (
-    <div className="flex flex-col h-full border rounded-lg overflow-hidden bg-background">
-      <ScrollArea className="flex-grow p-4">
+    <div className="flex h-full border rounded-lg overflow-hidden bg-background">
+      {/* Panel lateral de conversaciones (visible/oculto según estado) */}
+      {showConversations && (
+        <div className="w-64 border-r">
+          <ConversationList 
+            onSelect={loadConversation} 
+            onNew={startNewConversation}
+            activeConversationId={currentConversationId}
+          />
+        </div>
+      )}
+      
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Barra de herramientas de conversación */}
+        <div className="flex items-center justify-between px-4 py-2 border-b">
+          <div className="flex items-center">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setShowConversations(!showConversations)}
+                  >
+                    {showConversations ? <PanelLeft className="h-5 w-5" /> : <List className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showConversations ? 'Ocultar conversaciones' : 'Mostrar conversaciones'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <div className="ml-2 text-sm">
+              {currentConversationId ? (
+                <div className="flex items-center">
+                  <FileText className="h-4 w-4 mr-1" />
+                  <span className="truncate max-w-[200px] font-medium">
+                    {getConversation(currentConversationId)?.title || 'Conversación actual'}
+                  </span>
+                </div>
+              ) : (
+                <span>Nueva conversación</span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            {/* Indicador de guardado */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={saveCurrentConversation}
+                      disabled={savedStatus === 'saved' || messages.length <= 2}
+                    >
+                      {savedStatus === 'saving' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : savedStatus === 'saved' ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <SaveIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {savedStatus === 'saving' 
+                    ? 'Guardando...' 
+                    : savedStatus === 'saved' 
+                      ? 'Guardado' 
+                      : 'Guardar conversación'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={startNewConversation}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Nueva conversación
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+        
+        <ScrollArea className="flex-grow p-4">
         <div className="space-y-4">
           {messages.map((message, index) => (
             <div
@@ -637,6 +862,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           </Button>
         </DialogFooter>
       </Dialog>
+      </div>
     </div>
   );
 };

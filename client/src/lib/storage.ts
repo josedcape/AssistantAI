@@ -9,6 +9,13 @@ const STORAGE_PREFIX = 'devEditorApp_';
 // Main storage functions
 export const localStorageUtils = {
   /**
+   * Get the full storage key with prefix
+   */
+  getFullKey: (key: string): string => {
+    return `${STORAGE_PREFIX}${key}`;
+  },
+
+  /**
    * Save data to localStorage with the given key
    */
   saveData: <T>(key: string, data: T): void => {
