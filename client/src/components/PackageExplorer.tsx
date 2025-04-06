@@ -83,6 +83,7 @@ export function PackageExplorer() {
             onClick={fetchPackages} 
             className="ml-auto p-1 rounded-md hover:bg-secondary/50 text-muted-foreground"
             title="Actualizar lista de paquetes"
+            aria-label="Refrescar"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>

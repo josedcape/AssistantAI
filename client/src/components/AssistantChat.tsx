@@ -744,9 +744,12 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         // Buscar y actualizar el explorador de paquetes si existe
         const packageExplorer = document.querySelector('[data-component="package-explorer"]');
         if (packageExplorer) {
-          const refreshButton = packageExplorer.querySelector('button[aria-label="Refrescar"]');
+          const refreshButton = packageExplorer.querySelector('button[title="Actualizar lista de paquetes"]');
           if (refreshButton) {
             (refreshButton as HTMLButtonElement).click();
+          }
+        }
+      }, 1000); as HTMLButtonElement).click();
           }
         }
       }, 1000);
