@@ -46,6 +46,7 @@
     "@types/jsdom": "^21.1.7",
     "adm-zip": "^0.5.16",
     "botbuilder": "4.23.2",
+    "botpress": "10.51.10",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
