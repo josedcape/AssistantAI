@@ -450,6 +450,7 @@ async function updateDependenciesCache(packageName: string, version?: string, is
   } catch (error) {
     log(`Error al actualizar package.json: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
 
 /**
  * Crea un directorio en el proyecto
@@ -493,8 +494,6 @@ export async function createDirectory(dirPath: string): Promise<PackageManagerRe
       error: error.message
     };
   }
-}
-
 }
 
 // Elimina una dependencia del package.json

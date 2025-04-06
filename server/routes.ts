@@ -621,8 +621,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validatedData = packageSchema.parse(req.body);
+      log(`Instalando paquete: ${JSON.stringify(validatedData)}`);
+      
       const result = await installPackage(validatedData);
-
+      
+      log(`Resultado instalación: ${JSON.stringify(result)}`);
       res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
       console.error("Error instalando paquete:", error);
@@ -636,6 +639,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false,
         message: "Error al instalar paquete",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+  
+  // Endpoint para crear directorios
+  apiRouter.post("/directories/create", async (req: Request, res: Response) => {
+    try {
+      const schema = z.object({
+        path: z.string().min(1)
+      });
+
+      const { path: dirPath } = schema.parse(req.body);
+      const result = await createDirectory(dirPath);
+
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      console.error("Error creando directorio:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Datos inválidos para crear directorio", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: "Error al crear directorio",
         error: error instanceof Error ? error.message : "Error desconocido"
       });
     }

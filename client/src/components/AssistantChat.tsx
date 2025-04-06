@@ -844,10 +844,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         }
       }
 
-      
+
 
       // Si hay un mensaje de contexto, reemplazarlo con la respuesta real
-      if (contextMessage) {        setMessages(prev => {
+      if<replit_final_file>
+(contextMessage) {        setMessages(prev => {
           const newMessages = [...prev];
           const loadingIndex = newMessages.findIndex(msg => msg.content === contextMessage);
           if (loadingIndex !== -1) {
@@ -934,14 +935,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         description: `${emojiMap.install} Por favor espera...`,
       });
 
-      // Formatear los comandos de instalación para el backend
-      //const packageCommands = pendingPackages.map(pkg => {
-      //  const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
-      //  const devFlag = pkg.isDev ? ' --save-dev' : '';
-      //  return `npm install ${pkgSpec}${devFlag}`;
-      //}).join(' && ');
-
+      // Instalar cada paquete individualmente usando el endpoint correcto
       for (const pkg of pendingPackages) {
+        const pkgSpec = pkg.version && pkg.version !== "latest" ? `${pkg.name}@${pkg.version}` : pkg.name;
+        console.log(`Instalando paquete: ${pkgSpec} ${pkg.isDev ? '(dev)' : ''}`);
+
         const response = await safeApiRequest("POST", "/api/packages/install", {
           packageName: pkg.name,
           version: pkg.version || "latest",
@@ -950,16 +948,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
         // Manejar la respuesta con cuidado
         if (!response.ok) {
-          throw new Error(`Error en la respuesta: ${response.status} ${response.statusText}`);
+          throw new Error(`Error instalando ${pkg.name}: ${response.status} ${response.statusText}`);
         }
 
         const result = await safeParseJson(response);
 
         if (!result.success) {
-          throw new Error(result.error || `Error al instalar ${pkg.name}`);
+          throw new Error(result.error || result.message || `Error al instalar ${pkg.name}`);
         }
       }
-
 
       toast({
         title: "Paquetes instalados",
