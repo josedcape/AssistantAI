@@ -1,0 +1,126 @@
+// Inicializar reconocimiento de voz
+  useEffect(() => {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      console.warn("El reconocimiento de voz no está soportado en este navegador");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+
+    if (recognitionRef.current) {
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join('');
+
+        setInput(transcript);
+      };
+
+      recognitionRef.current.onend = () => {
+        if (isListening) {
+          // Si queremos seguir escuchando pero se detuvo, reiniciar
+          try {
+            recognitionRef.current?.start();
+          } catch (e) {
+            console.error("Error al reiniciar reconocimiento:", e);
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error("Error de reconocimiento de voz:", event.error);
+        setIsListening(false);
+
+        if (event.error !== "no-speech") {
+          toast({
+            title: "Error de reconocimiento",
+            description: `No se pudo activar el micrófono: ${event.error}`,
+            variant: "destructive"
+          });
+        }
+      };
+    }
+
+    // Cleanup
+    return () => {
+      try {
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      } catch (e) {
+        console.error("Error al detener reconocimiento:", e);
+      }
+    };
+  }, [toast]);
+
+  // Función para alternar el reconocimiento de voz
+  const toggleSpeechRecognition = useCallback(() => {
+    if (!recognitionRef.current) {
+      toast({
+        title: "No soportado",
+        description: "El reconocimiento de voz no está soportado en este navegador",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+        sounds.play('click', 0.2);
+      } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast({
+          title: "Micrófono activado",
+          description: "Hable ahora. El texto aparecerá en el chat.",
+        });
+        sounds.play('pop', 0.3);
+      }
+    } catch (error) {
+      console.error("Error al alternar reconocimiento de voz:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo activar el reconocimiento de voz",
+        variant: "destructive"
+      });
+      setIsListening(false);
+    }
+  }, [isListening, toast]);
+
+  // Función segura para interactuar con la API
+  const safeApiRequest = useCallback(async (method: string, url: string, data?: any) => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
+    try {
+      return await apiRequest(method, url, data, {
+        signal: abortControllerRef.current.signal,
+        timeout: 30000 // 30 segundos timeout
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        // Si es un error de abort, es intencional (no alertar)
+        if (error.name === 'AbortError') {
+          console.log('Petición cancelada');
+          throw new Error('Petición cancelada por el usuario');
+        }
+
+        // Si es un error de timeout
+        if (error.message.includes('timeout')) {
+          throw new Error('La petición tomó demasiado tiempo. Verifica tu conexión a internet.');
+        }
+      }
+      throw error;
+    }
+  }, []);
