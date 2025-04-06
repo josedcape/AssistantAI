@@ -75,66 +75,70 @@ export const AssistantChat: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [savedStatus, setSavedStatus] = useState<'unsaved' | 'saving' | 'saved'>('unsaved');
 
-  // Reconocimiento de voz con la API Web Speech
+  // Referencias para el reconocimiento de voz
+  const recognitionRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Inicializar reconocimiento de voz
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      console.log("🎤 Reconocimiento de voz no soportado en este navegador");
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      console.warn("El reconocimiento de voz no está soportado en este navegador");
       return;
     }
-    
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'es-ES';
-    
-    let finalTranscript = '';
-    
-    recognition.onstart = () => {
-      console.log("🎤 Reconocimiento de voz iniciado");
-      finalTranscript = '';
-    };
-    
-    recognition.onresult = (event) => {
-      let interimTranscript = '';
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+
+    if (recognitionRef.current) {
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('');
+
+        setInput(transcript);
+      };
+
+      recognitionRef.current.onend = () => {
+        if (isListening) {
+          // Si queremos seguir escuchando pero se detuvo, reiniciar
+          try {
+            recognitionRef.current?.start();
+          } catch (e) {
+            console.error("Error al reiniciar reconocimiento:", e);
+            setIsListening(false);
+          }
         } else {
-          interimTranscript += transcript;
+          setIsListening(false);
         }
-      }
-      
-      // Actualizar el campo de entrada con la transcripción
-      if (finalTranscript) {
-        setInput(finalTranscript.trim());
-      }
-    };
-    
-    recognition.onerror = (event) => {
-      console.error("🎤 Error en reconocimiento de voz:", event.error);
-      setIsListening(false);
-    };
-    
-    recognition.onend = () => {
-      console.log("🎤 Reconocimiento de voz finalizado");
-      setIsListening(false);
-    };
-    
-    // Iniciar/detener reconocimiento según el estado
-    if (isListening) {
-      recognition.start();
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Error de reconocimiento de voz:", event.error);
+        setIsListening(false);
+
+        if (event.error !== "no-speech") {
+          // Mostrar error con toast cuando sea implementado
+          console.error(`No se pudo activar el micrófono: ${event.error}`);
+        }
+      };
     }
-    
+
+    // Cleanup
     return () => {
-      if (isListening) {
-        recognition.stop();
+      try {
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      } catch (e) {
+        console.error("Error al detener reconocimiento:", e);
       }
     };
-  }, [isListening]);
+  }, []);
 
   // Cargar conversación activa al iniciar
   useEffect(() => {
@@ -328,11 +332,29 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     }
   };
 
-  // Función para activar/desactivar reconocimiento de voz
-  const toggleSpeechRecognition = () => {
-    setIsListening(!isListening);
-    sounds.play("click");
-  };
+  // Función para alternar el reconocimiento de voz
+  const toggleSpeechRecognition = useCallback(() => {
+    if (!recognitionRef.current) {
+      console.error("No soportado: El reconocimiento de voz no está soportado en este navegador");
+      return;
+    }
+
+    try {
+      if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+        sounds.play('click', 0.2);
+      } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+        console.log("Micrófono activado. Hable ahora. El texto aparecerá en el chat.");
+        sounds.play('pop', 0.3);
+      }
+    } catch (error) {
+      console.error("Error al alternar reconocimiento de voz:", error);
+      setIsListening(false);
+    }
+  }, [isListening]);
 
   // Detectar paquetes mencionados en el mensaje
   const detectPackages = (content: string) => {
@@ -378,38 +400,163 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     return suggestedPackages;
   };
 
-  // Guardar código de un mensaje
+  // Guardar código de un mensaje y crear archivo automáticamente
   const handleSaveCode = async (content: string) => {
-    const codeBlockRegex = /```(?:\w+)?\s*\n([\s\S]*?)\n```/g;
-    const codeBlocks: { language: string, code: string }[] = [];
-
+    const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
     let match;
+    let savedCount = 0;
+    let firstSavedFilePath = "";
+    
+    // Extraer todos los bloques de código
+    const codeBlocks: { language: string, code: string }[] = [];
     while ((match = codeBlockRegex.exec(content)) !== null) {
-      const codeContent = match[1];
-      // Detectar paquetes en el código
-      const installInCodeRegex = /npm\s+(?:install|add)\s+([^-\s]+)(?:\s+(-D|--save-dev))?/g;
-      let installMatch;
-      const detectedPackages: Package[] = [];
-
-      while ((installMatch = installInCodeRegex.exec(codeContent)) !== null) {
-        detectedPackages.push({
-          name: installMatch[1],
-          isDev: !!installMatch[2],
-          description: ""
-        });
-      }
+      const language = match[1] || "js";
+      const codeContent = match[2];
+      codeBlocks.push({ language, code: codeContent });
+    }
+    
+    if (codeBlocks.length === 0) {
+      console.warn("No se encontraron bloques de código para guardar");
+      return;
     }
 
-    sounds.play("save");
-    // Esta función debería implementar la lógica para guardar el código en un archivo
-    // Por ahora solo mostramos un mensaje de éxito
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: "El código ha sido guardado exitosamente."
-      },
-    ]);
+    // Preparar para guardar archivos
+    try {
+      for (const [index, codeBlock] of codeBlocks.entries()) {
+        // Determinar la extensión del archivo basada en el lenguaje
+        let fileExtension = ".js"; // Predeterminado a JavaScript
+        
+        switch (codeBlock.language.toLowerCase()) {
+          case "javascript":
+          case "js":
+            fileExtension = ".js";
+            break;
+          case "typescript":
+          case "ts":
+            fileExtension = ".ts";
+            break;
+          case "html":
+            fileExtension = ".html";
+            break;
+          case "css":
+            fileExtension = ".css";
+            break;
+          case "json":
+            fileExtension = ".json";
+            break;
+          case "jsx":
+            fileExtension = ".jsx";
+            break;
+          case "tsx":
+            fileExtension = ".tsx";
+            break;
+          case "python":
+          case "py":
+            fileExtension = ".py";
+            break;
+          // Añadir más lenguajes según sea necesario
+        }
+        
+        // Generar nombre de archivo único basado en el contenido o tipo de código
+        let fileName = `generated_code_${index + 1}${fileExtension}`;
+        
+        // Intentar detectar un mejor nombre basado en patrones en el código
+        // Por ejemplo, para un componente React, usar el nombre del componente
+        if (codeBlock.code.includes("export default") && codeBlock.code.includes("function")) {
+          const componentMatch = codeBlock.code.match(/export\s+default\s+function\s+(\w+)/);
+          if (componentMatch && componentMatch[1]) {
+            fileName = `${componentMatch[1]}${fileExtension}`;
+          }
+        } else if (codeBlock.code.includes("class") && codeBlock.code.includes("extends")) {
+          const classMatch = codeBlock.code.match(/class\s+(\w+)\s+extends/);
+          if (classMatch && classMatch[1]) {
+            fileName = `${classMatch[1]}${fileExtension}`;
+          }
+        }
+        
+        // Enviar solicitud para crear el archivo
+        const response = await fetch("/api/files/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileName,
+            content: codeBlock.code,
+            path: "", // Guardar en la ruta actual
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error al guardar el archivo ${fileName}`);
+        }
+        
+        savedCount++;
+        if (savedCount === 1) {
+          firstSavedFilePath = fileName;
+        }
+      }
+      
+      sounds.play("save");
+      
+      // Mensaje de éxito con información sobre los archivos guardados
+      let successMessage = "";
+      if (savedCount === 1) {
+        successMessage = `## ✅ Código guardado exitosamente
+
+📝 Se ha creado el archivo **${firstSavedFilePath}** con el código proporcionado.
+
+🔄 El explorador de archivos se actualizará automáticamente para mostrar el nuevo archivo.`;
+      } else {
+        successMessage = `## ✅ Código guardado exitosamente
+
+📝 Se han creado **${savedCount} archivos** con el código proporcionado.
+
+🔄 El explorador de archivos se actualizará automáticamente para mostrar los nuevos archivos.`;
+      }
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: successMessage
+        },
+      ]);
+      
+      // Disparar evento para actualizar el explorador de archivos
+      const fileEvent = new CustomEvent('files-updated');
+      window.dispatchEvent(fileEvent);
+      
+      // Buscar y actualizar el explorador de archivos si existe
+      setTimeout(() => {
+        const fileExplorer = document.querySelector('[data-component="file-explorer"]');
+        if (fileExplorer) {
+          const refreshButton = fileExplorer.querySelector('button[aria-label="Refrescar"]');
+          if (refreshButton) {
+            (refreshButton as HTMLButtonElement).click();
+          }
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error al guardar archivos:", error);
+      sounds.play("error");
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## ⚠️ Error al guardar el código
+
+❌ No se pudieron guardar los archivos debido a un error:
+\`\`\`
+${error instanceof Error ? error.message : "Error desconocido"}
+\`\`\`
+
+*Por favor, intenta nuevamente o crea los archivos manualmente.*`
+        },
+      ]);
+    }
   };
 
   // Función para copiar código al portapapeles
