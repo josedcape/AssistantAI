@@ -831,7 +831,59 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           const codeContent = codeBlockMatch[1];
           let installMatch;
 
-          while ((installMatch = installInCodeRegex(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
+          while ((installMatch = installInCodeRegex.exec(codeContent)) !== null) {
+            detectedPackages.push({
+              name: installMatch[1],
+              isDev: !!installMatch[2],
+              description: ""
+            });
+          }
+        }
+
+        // Buscar paquetes en texto genérico
+        while (((?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
+    let match;
+    const suggestedPackages: { name: string; isDev: boolean; description: string }[] = [];
+
+    while ((match = installCommandRegex.exec(content)) !== null) {
+      const installCommand = match[1].trim();
+
+      // Extraer paquetes del comando
+      if (installCommand.includes('npm install') || installCommand.includes('npm add')) {
+        const parts = installCommand.split(/\s+/);
+        const devFlag = parts.includes('--save-dev') || parts.includes('-D');
+
+        // Obtener nombres de paquetes
+        for (let i = 2; i < parts.length; i++) {
+          const part = parts[i];
+          if (!part.startsWith('-') && part !== 'install' && part !== 'add' && part !== '--save-dev' && part !== '-D') {
+            suggestedPackages.push({
+              name: part,
+              isDev: devFlag,
+              description: 'Sugerido por asistente'
+            });
+          }
+        }
+      }
+    }
+
+    // Buscar paquetes mencionados con formato específico
+    const packageSuggestionRegex = /debes?\s+instalar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi;
+    const codeBlockRegex = /```[^\n]*\n([\s\S]*?)```/g;
+
+    let packageMatch;
+    while ((packageMatch = packageSuggestionRegex.exec(content)) !== null) {
+      suggestedPackages.push({
+        name: packageMatch[1].trim(),
+        isDev: false,
+        description: 'Mencionado en la respuesta'
+      });
+    }
+    return suggestedPackages;
+  };
+
+  const handleSaveCode = async (content: string) => {
+    const codeBlockRegex = /```(?:bash|sh|shell|zsh|console)?\s*\n([\s\S]*?)\n```/g;
     const codeBlocks: { language: string, code: string }[] = [];
 
     let match;
