@@ -12,7 +12,7 @@ interface DocumentUploaderProps {
   onUploadComplete?: (documents: any[]) => void;
 }
 
-export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUploaderProps) {
+export function DocumentUploader({ projectId, onDocumentUploaded, onUploadComplete }: DocumentUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [urlToFetch, setUrlToFetch] = useState("");
