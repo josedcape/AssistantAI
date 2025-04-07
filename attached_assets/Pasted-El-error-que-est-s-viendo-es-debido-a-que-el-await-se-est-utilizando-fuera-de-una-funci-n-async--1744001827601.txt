@@ -1,0 +1,105 @@
+El error que estás viendo es debido a que el `await` se está utilizando fuera de una función `async`. En JavaScript o TypeScript, el operador `await` solo puede usarse dentro de funciones que están marcadas con `async`.
+
+### Solución:
+Para corregir este error, debes asegurarte de que la función en la que estás utilizando `await` esté marcada como `async`. Esto permitirá que el `await` funcione correctamente.
+
+En tu código, parece que estás usando `await` dentro de una función normal. Para corregir esto, debes asegurarte de que la función que envuelve el `await` sea una función asincrónica (`async`).
+
+### Ajuste:
+
+```tsx
+// Guardar código de un mensaje y crear archivo automáticamente
+const handleSaveCode = async (content: string) => { // Asegúrate de que la función es 'async'
+  const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
+  let match;
+  let savedCount = 0;
+  let firstSavedFilePath = "";
+
+  // Extraer todos los bloques de código
+  const codeBlocks: { language: string, code: string }[] = [];
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    const language = match[1] || "js"; // Asignar 'js' por defecto si no hay lenguaje
+    const codeContent = match[2];
+    codeBlocks.push({ language, code: codeContent });
+  }
+
+  // Si no se encontraron bloques de código, salir de la función
+  if (codeBlocks.length === 0) {
+    console.warn("No se encontraron bloques de código para guardar");
+    return;
+  }
+
+  // Preparar para guardar archivos
+  try {
+    for (const [index, codeBlock] of codeBlocks.entries()) {
+      // Determinar la extensión del archivo basada en el lenguaje
+      let fileExtension = ".js"; // Predeterminado a JavaScript
+
+      switch (codeBlock.language.toLowerCase()) {
+        case "javascript":
+        case "js":
+          fileExtension = ".js";
+          break;
+        case "typescript":
+        case "ts":
+          fileExtension = ".ts";
+          break;
+        case "html":
+          fileExtension = ".html";
+          break;
+        case "css":
+          fileExtension = ".css";
+          break;
+        case "json":
+          fileExtension = ".json";
+          break;
+        case "jsx":
+          fileExtension = ".jsx";
+          break;
+        case "tsx":
+          fileExtension = ".tsx";
+          break;
+        case "python":
+        case "py":
+          fileExtension = ".py";
+          break;
+        // Puedes agregar más lenguajes según sea necesario
+      }
+
+      // Aquí realizamos el fetch, que ahora está dentro de una función async
+      const response = await fetch("/api/files/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: `generated_code_${index + 1}${fileExtension}`,
+          content: codeBlock.code,
+          path: "", // Guardar en la ruta actual
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al guardar el archivo ${fileExtension}`);
+      }
+
+      savedCount++;
+      if (savedCount === 1) {
+        firstSavedFilePath = `generated_code_${index + 1}${fileExtension}`;
+      }
+    }
+
+    // Después de guardar los archivos, puedes agregar lógica para la notificación de éxito, etc.
+    console.log(`${savedCount} archivos guardados correctamente.`);
+  } catch (error) {
+    console.error("Error al guardar el código:", error);
+    // Aquí puedes manejar el error de manera adecuada
+  }
+};
+```
+
+### Resumen:
+1. Asegúrate de que la función `handleSaveCode` esté marcada como `async` para que puedas usar `await` dentro de ella.
+2. El operador `await` solo se puede usar dentro de funciones `async`, por lo que el cambio debe hacerse en la declaración de la función.
+
+Este ajuste debería resolver el error que estás viendo. Si tienes más dudas o el problema persiste, no dudes en decírmelo.
