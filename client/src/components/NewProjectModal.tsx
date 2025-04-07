@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { sounds } from "@/lib/sounds";
 
 interface NewProjectModalProps {
   onClose: () => void;
@@ -21,6 +22,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [template, setTemplate] = useState("html-css-js");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usingGptAssistant, setUsingGptAssistant] = useState(false);
+  const [isGeneratingFiles, setIsGeneratingFiles] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
@@ -95,14 +98,120 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   // Close modal on escape key
   useEffect(() => {
     const handleEscapeKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) {
+      if (e.key === 'Escape' && !isSubmitting && !isGeneratingFiles) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleEscapeKey);
     return () => document.removeEventListener('keydown', handleEscapeKey);
-  }, [isSubmitting, onClose]);
+  }, [isSubmitting, isGeneratingFiles, onClose]);
+  
+  // Función para generar archivos utilizando el asistente GPT
+  const generateFilesWithGPT = async () => {
+    if (!projectName.trim() || !template) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa un nombre para el proyecto y selecciona una plantilla",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsGeneratingFiles(true);
+      
+      toast({
+        title: "Generando archivos",
+        description: "El asistente está generando los archivos para tu proyecto...",
+        duration: 5000
+      });
+      
+      // Construcción del prompt para GPT
+      const prompt = `Genera los archivos iniciales para un proyecto de plantilla ${template} llamado "${projectName}". 
+      La descripción del proyecto es: "${description || 'Sin descripción'}". 
+      Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}. 
+      Basado en esta información, genera los archivos necesarios para el proyecto siguiendo las mejores prácticas del framework o lenguaje seleccionado.`;
+      
+      // Llamada a la API para generar los archivos
+      const response = await apiRequest("POST", "/api/generate-code", {
+        prompt: prompt,
+        language: template,
+        agents: ["architect", "coder"] // Utilizamos agentes especializados
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error al generar los archivos");
+      }
+      
+      const data = await response.json();
+      
+      // Procesar y enviar los archivos generados al panel de archivos generados
+      if (data.files && data.files.length > 0) {
+        data.files.forEach((file, index) => {
+          // Enviar cada archivo al panel de archivos generados con un retraso escalonado
+          setTimeout(() => {
+            const fileEvent = new CustomEvent('add-generated-file', {
+              detail: {
+                file: {
+                  name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
+                  content: file.content,
+                  extension: `.${file.language || getExtensionFromType(file.type)}`
+                }
+              }
+            });
+            window.dispatchEvent(fileEvent);
+            console.log(`Archivo generado por GPT enviado al explorador: ${file.name}`);
+          }, index * 300); // Retraso escalonado para cada archivo
+        });
+        
+        toast({
+          title: "Archivos generados",
+          description: `Se han generado ${data.files.length} archivos para tu proyecto`,
+          duration: 5000
+        });
+        sounds.play('success', 0.4);
+        
+        // Refrescar el panel de archivos generados
+        setTimeout(() => {
+          const refreshEvent = new CustomEvent('refresh-generated-files');
+          window.dispatchEvent(refreshEvent);
+        }, data.files.length * 300 + 500);
+      } else {
+        throw new Error("No se generaron archivos");
+      }
+    } catch (error) {
+      console.error("Error generando archivos con GPT:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron generar los archivos. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+      sounds.play('error', 0.3);
+    } finally {
+      setIsGeneratingFiles(false);
+    }
+  };
+  
+  // Función auxiliar para obtener la extensión desde el tipo
+  const getExtensionFromType = (type: string) => {
+    switch (type) {
+      case 'javascript':
+        return 'js';
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'typescript':
+        return 'ts';
+      case 'python':
+        return 'py';
+      case 'json':
+        return 'json';
+      default:
+        return type;
+    }
+  };
 
   const handleFeatureToggle = (feature: string) => {
     setSelectedFeatures(prev =>
@@ -1281,17 +1390,50 @@ gunicorn==20.1.0`;
               </div>
 
             {template !== "" && (
-              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <i className="ri-robot-line"></i>
-                <span>Puedes usar GPT-4 para personalizar los archivos de tu proyecto después de completar este formulario.</span>
+              <div className="mt-4 space-y-2 border-t pt-3 dark:border-slate-700">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="use-gpt-assistant"
+                    checked={usingGptAssistant}
+                    onCheckedChange={(value) => setUsingGptAssistant(!!value)}
+                    disabled={isSubmitting || isGeneratingFiles}
+                  />
+                  <label htmlFor="use-gpt-assistant" className="text-sm text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <i className="ri-robot-line"></i>
+                    <span>Usar asistente GPT para generar archivos personalizados</span>
+                  </label>
+                </div>
+                
+                {usingGptAssistant && (
+                  <div className="ml-6 border-l-2 pl-3 border-primary/30 dark:border-primary/20">
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      El asistente generará archivos adaptados a las características seleccionadas y la descripción del proyecto que has proporcionado.
+                    </p>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="outline" 
+                      className="mt-2 text-xs"
+                      onClick={generateFilesWithGPT}
+                      disabled={isSubmitting || isGeneratingFiles}
+                    >
+                      {isGeneratingFiles ? (
+                        <>
+                          <i className="ri-loader-4-line animate-spin mr-1"></i>
+                          Generando archivos...
+                        </>
+                      ) : "Generar archivos ahora"}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {projectName && (
             <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || isGeneratingFiles} className="w-full sm:w-auto">Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting || isGeneratingFiles} className="w-full sm:w-auto">
                 {isSubmitting ? (
                   <>
                     <i className="ri-loader-4-line animate-spin mr-2"></i>
