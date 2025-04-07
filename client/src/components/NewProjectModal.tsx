@@ -26,9 +26,27 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [isGeneratingFiles, setIsGeneratingFiles] = useState(false);
   const [showGeneratedFiles, setShowGeneratedFiles] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState([{ name: '', content: '', extension: '', selected: false }]);
+  const [availableAgents, setAvailableAgents] = useState<string[]>([]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
+
+  // Obtener agentes disponibles al montar el componente
+  useEffect(() => {
+    const fetchAvailableAgents = async () => {
+      try {
+        const response = await apiRequest("GET", "/api/agents");
+        const agents = await response.json();
+        setAvailableAgents(agents.map((agent: any) => agent.name));
+      } catch (error) {
+        console.error("Error obteniendo agentes disponibles:", error);
+        // Por defecto, usar estos agentes que sabemos que existen
+        setAvailableAgents(["project_architect", "frontend_designer", "backend_developer"]);
+      }
+    };
+    
+    fetchAvailableAgents();
+  }, []);
 
   // Template definitions with features
   const templates = [
@@ -136,11 +154,30 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}. 
       Basado en esta información, genera los archivos necesarios para el proyecto siguiendo las mejores prácticas del framework o lenguaje seleccionado.`;
 
+      // Seleccionar los agentes adecuados según la plantilla
+      let selectedAgents = [];
+      if (availableAgents.includes("project_architect")) {
+        selectedAgents.push("project_architect");
+      }
+      
+      if (template === "html-css-js" && availableAgents.includes("frontend_designer")) {
+        selectedAgents.push("frontend_designer");
+      } else if ((template === "react" || template === "vue") && availableAgents.includes("frontend_designer")) {
+        selectedAgents.push("frontend_designer");
+      } else if ((template === "node" || template === "python") && availableAgents.includes("backend_developer")) {
+        selectedAgents.push("backend_developer");
+      }
+      
+      // Si no hay agentes disponibles, no enviar el parámetro
+      const agentsParam = selectedAgents.length > 0 ? { agents: selectedAgents } : {};
+      
+      console.log("Usando agentes:", selectedAgents);
+      
       // Llamada a la API para generar los archivos
       const response = await apiRequest("POST", "/api/generate-code", {
         prompt: prompt,
         language: template,
-        agents: ["architect", "coder"] // Utilizamos agentes especializados
+        ...agentsParam
       });
 
       if (!response.ok) {
@@ -181,9 +218,63 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       }
     } catch (error) {
       console.error("Error generando archivos con GPT:", error);
+      
+      // Intentar extraer mensaje de error más específico
+      let errorMessage = "No se pudieron generar los archivos. Inténtalo de nuevo.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("architect")) {
+          errorMessage = "Error con los agentes de generación. Usando configuración alternativa.";
+          // Intentar nuevamente sin especificar agentes
+          try {
+            toast({
+              title: "Reintentando",
+              description: "Generando archivos con configuración alternativa...",
+              duration: 3000
+            });
+            
+            const fallbackResponse = await apiRequest("POST", "/api/generate-code", {
+              prompt: prompt,
+              language: template
+            });
+            
+            if (!fallbackResponse.ok) {
+              throw new Error("Error en la generación alternativa");
+            }
+            
+            const fallbackData = await fallbackResponse.json();
+            
+            if (fallbackData.files && fallbackData.files.length > 0) {
+              const newGeneratedFiles = fallbackData.files.map((file: any) => ({
+                name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
+                content: file.content,
+                extension: `.${file.language || getExtensionFromType(file.type)}`,
+                selected: false
+              }));
+              setGeneratedFiles(newGeneratedFiles);
+              setShowGeneratedFiles(true);
+              
+              toast({
+                title: "Archivos generados",
+                description: `Se han generado ${fallbackData.files.length} archivos para tu proyecto`,
+                duration: 5000
+              });
+              sounds.play('success', 0.4);
+              setIsGeneratingFiles(false);
+              return;
+            }
+          } catch (fallbackError) {
+            console.error("Error en reintento de generación:", fallbackError);
+            errorMessage = "No se pudieron generar los archivos. Por favor, inténtalo de nuevo más tarde.";
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudieron generar los archivos. Inténtalo de nuevo.",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000
       });
