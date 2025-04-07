@@ -1,0 +1,54 @@
+El error `"Upload is not defined"` ocurre porque parece que el componente `Upload` no está siendo importado correctamente o no está disponible en el contexto del archivo en el que lo estás utilizando. Para solucionarlo, debes asegurarte de que el componente `Upload` o el icono relacionado esté correctamente importado y disponible en tu archivo.
+
+### Pasos para corregir el error:
+
+1. **Verifica si el componente `Upload` es un componente de una librería de íconos o un componente personalizado**:
+   - Si es un ícono de una librería como `lucide-react`, `react-icons`, o `@heroicons/react`, asegúrate de importarlo adecuadamente.
+   - Si es un componente personalizado que has creado, asegúrate de que esté exportado correctamente y lo estés importando.
+
+2. **Asegúrate de que el componente esté importado**:
+   Si `Upload` es un ícono o componente de una librería como `lucide-react` o `react-icons`, por ejemplo, para importar un ícono de **Lucide React**, debes asegurarte de que esté importado en la parte superior de tu archivo.
+
+   #### Ejemplo con **Lucide React**:
+
+   ```tsx
+   import { Upload } from 'lucide-react';  // Importa el ícono de Lucide React
+
+   // O si es un componente desde una librería personalizada:
+   // import { Upload } from 'path-to-your-component';
+   ```
+
+3. **Revisa el lugar del código donde usas el componente**:
+   El error que proporcionaste se encuentra en la línea 1143, que está dentro de un bloque JSX. Asegúrate de que el componente `Upload` esté correctamente utilizado dentro del JSX:
+
+   ```tsx
+   <label htmlFor="file-upload" className="cursor-pointer">
+     <div className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+       <Upload className="w-5 h-5" /> {/* Asegúrate de que 'Upload' esté definido */}
+     </div>
+   </label>
+   ```
+
+### Solución Paso a Paso:
+
+1. **Importar el componente o ícono `Upload` correctamente** en la parte superior de tu archivo:
+
+   ```tsx
+   import { Upload } from 'lucide-react';  // Si es un ícono de la librería lucide-react
+   ```
+
+   Si el componente `Upload` proviene de una librería diferente, importa el ícono o componente de esa librería. Si es un componente personalizado, asegúrate de importarlo correctamente.
+
+2. **Asegúrate de que el componente `Upload` esté disponible en tu archivo** y se pueda usar dentro del JSX.
+
+3. **Verifica si hay dependencias faltantes**:
+   Si `lucide-react` u otra librería no está instalada en tu proyecto, instala la dependencia:
+
+   ```bash
+   npm install lucide-react
+   ```
+
+   Luego, intenta de nuevo compilar el proyecto.
+
+### Resumen:
+El error ocurre porque el componente `Upload` no está definido o no se ha importado correctamente. Solo necesitas asegurarte de que el ícono o componente esté bien importado desde la librería correspondiente.
