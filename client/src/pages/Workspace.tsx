@@ -771,17 +771,27 @@ const Workspace: React.FC = () => {
 
   const handleDeleteProject = async (projectId: number) => {
     try {
+      if (!projectId) {
+        throw new Error("ID de proyecto inválido");
+      }
+      
       const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
 
       if (!response.ok) {
         throw new Error("Error al eliminar el proyecto");
       }
 
-      refetchProjects();
+      // Actualizar la lista de proyectos
+      await refetchProjects();
 
       // Si se elimina el proyecto actual, redirigir al inicio
       if (projectId === Number(project?.id)) {
+        toast({
+          title: "Proyecto eliminado",
+          description: "El proyecto actual ha sido eliminado",
+        });
         navigate('/');
+        return;
       }
 
       // Reproducir sonido de éxito
