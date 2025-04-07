@@ -83,6 +83,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  apiRouter.delete("/projects/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const deleted = await storage.deleteProject(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      res.json({ success: true, message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Error deleting project" });
+    }
+  });
+
+
   // Files routes
   apiRouter.get("/projects/:projectId/files", async (req: Request, res: Response) => {
     try {
@@ -1429,4 +1449,11 @@ function shouldForceDownload(fileName: string): boolean {
   ];
 
   return forceDownloadExtensions.includes(extension);
+}
+
+// Added function to extract files from a repository (implementation needed)
+async function extractRepositoryFiles(documentId: number, projectId: number): Promise<number> {
+  // Implement your logic to extract files from a repository here
+  // This is a placeholder, you need to replace this with your actual implementation
+  return 0; // Placeholder return value, you'll need to return the actual number of extracted files.
 }

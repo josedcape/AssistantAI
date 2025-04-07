@@ -728,7 +728,7 @@ const Workspace: React.FC = () => {
     }
   }, [repoUrl, toast, refetchFiles]);
 
-  const handleCreateProject = useCallback(async () => {
+  const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
       toast({
         title: "Nombre requerido",
@@ -767,7 +767,42 @@ const Workspace: React.FC = () => {
         variant: "destructive"
       });
     }
-  }, [newProjectName, toast, refetchProjects, navigate]);
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    try {
+      const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
+
+      if (!response.ok) {
+        throw new Error("Error al eliminar el proyecto");
+      }
+
+      refetchProjects();
+
+      // Si se elimina el proyecto actual, redirigir al inicio
+      if (projectId === Number(project?.id)) {
+        navigate('/');
+      }
+
+      // Reproducir sonido de éxito
+      sounds.play('success', 0.4);
+
+      toast({
+        title: "Proyecto eliminado",
+        description: "El proyecto ha sido eliminado correctamente",
+      });
+    } catch (error) {
+      console.error("Error eliminando proyecto:", error);
+
+      sounds.play('error', 0.4);
+
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el proyecto. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleSwitchProject = useCallback((projectId: number) => {
     navigate(`/workspace/${projectId}`);
@@ -1199,15 +1234,22 @@ const Workspace: React.FC = () => {
     <div className="h-full overflow-y-auto p-2">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-medium">Proyectos</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-8" 
-          onClick={() => setNewProjectName(project?.name ? `Copia de ${project.name}` : "Nuevo Proyecto")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8" 
+            onClick={() => setNewProjectName(project?.name ? `Copia de ${project.name}` : "Nuevo Proyecto")}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo
+          </Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => {
+            if(project?.id) handleDeleteProject(project.id)
+          }}>
+            Eliminar
+          </Button>
+        </div>
       </div>
 
       {newProjectName && (
@@ -1263,6 +1305,9 @@ const Workspace: React.FC = () => {
                   </p>
                 </div>
               </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => handleDeleteProject(proj.id!)}>
+                <X className="h-4 w-4"/>
+              </Button>
             </li>
           ))}
         </ul>
@@ -1270,7 +1315,6 @@ const Workspace: React.FC = () => {
     </div>
   );
 
-  // Sidebar navigation component
   const SidebarNavigation = () => (
     <div className="border-b dark:border-slate-700 mb-2">
       <Tabs 
