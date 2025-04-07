@@ -21,6 +21,7 @@ import { DocumentUploader } from "@/components/DocumentUploader";
 import ProjectDeployment from "@/components/ProjectDeployment";
 import { sounds } from '@/lib/sounds';
 import PackageExplorer from "@/components/PackageExplorer";
+import GeneratedFilesPanel from "@/components/GeneratedFilesPanel";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { 
   PanelLeft, 
