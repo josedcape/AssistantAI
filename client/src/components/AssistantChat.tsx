@@ -71,7 +71,7 @@ export const AssistantChat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Guardar código de un mensaje y crear archivo automáticamente
-  const handleSaveCode = async (content: string) => {
+  const handleSaveCode = async (content: string): Promise<void> => {
     const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
     let match;
     let savedCount = 0;
