@@ -148,11 +148,59 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         duration: 5000
       });
 
-      // Construcción del prompt para GPT
-      const prompt = `Genera los archivos iniciales para un proyecto de plantilla ${template} llamado "${projectName}". 
+      // Construcción del prompt específico según el tipo de proyecto
+      let prompt = `Genera los archivos iniciales para un proyecto de ${getTemplateDisplayName(template)} llamado "${projectName}". 
       La descripción del proyecto es: "${description || 'Sin descripción'}". 
-      Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}. 
-      Basado en esta información, genera los archivos necesarios para el proyecto siguiendo las mejores prácticas del framework o lenguaje seleccionado.`;
+      Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}.`;
+      
+      // Añadir instrucciones específicas según el tipo de proyecto
+      if (template === "node") {
+        prompt += `
+        Necesito los siguientes archivos de configuración importantes:
+        1. Un package.json completo con las dependencias necesarias.
+        2. Un servidor principal (index.js o app.js).
+        3. Un archivo README.md que explique la estructura y cómo ejecutar el proyecto.
+        4. Un archivo .gitignore apropiado para Node.js.
+        5. Archivos de configuración adicionales como .env.example si es necesario.`;
+      } else if (template === "python") {
+        prompt += `
+        Necesito los siguientes archivos de configuración importantes:
+        1. Un archivo app.py o main.py principal.
+        2. Un requirements.txt con las dependencias necesarias.
+        3. Un archivo README.md que explique la estructura y cómo ejecutar el proyecto.
+        4. Un archivo .gitignore apropiado para Python.
+        5. Archivos de configuración adicionales como .env.example si es necesario.`;
+      } else if (template === "react" || template === "vue") {
+        prompt += `
+        Necesito los siguientes archivos de configuración importantes:
+        1. Un package.json completo con las dependencias necesarias.
+        2. Archivos de entrada principales (main.js, App.vue/App.jsx, etc.).
+        3. Un archivo README.md que explique la estructura y cómo ejecutar el proyecto.
+        4. Un archivo .gitignore apropiado para ${template === "react" ? "React" : "Vue.js"}.
+        5. Archivos de configuración como vite.config.js o similar si es apropiado.`;
+      } else if (template === "html-css-js") {
+        prompt += `
+        Necesito los siguientes archivos esenciales:
+        1. Un index.html bien estructurado.
+        2. Archivos CSS para estilos.
+        3. Un script JavaScript principal.
+        4. Un archivo README.md que explique el proyecto.`;
+      }
+      
+      prompt += `
+      Genera archivos completos y funcionales siguiendo las mejores prácticas actuales del framework o lenguaje seleccionado. Asegúrate de que los archivos estén bien estructurados y comentados para facilitar su comprensión.`;
+      
+      // Función auxiliar para obtener el nombre descriptivo de la plantilla
+      function getTemplateDisplayName(templateId: string): string {
+        const templateMap: Record<string, string> = {
+          "html-css-js": "HTML/CSS/JS básico",
+          "react": "React",
+          "vue": "Vue.js",
+          "node": "Node.js con Express",
+          "python": "Python con Flask"
+        };
+        return templateMap[templateId] || templateId;
+      }
 
       // Seleccionar los agentes adecuados según la plantilla
       let selectedAgents = [];
@@ -198,12 +246,29 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
 
       // Procesar y enviar los archivos generados al panel de archivos generados
       if (data.files && data.files.length > 0) {
-        const newGeneratedFiles = data.files.map(file => ({
-          name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
-          content: file.content,
-          extension: `.${file.language || getExtensionFromType(file.type)}`,
-          selected: false
-        }));
+        // Procesar los archivos generados
+        const newGeneratedFiles = data.files.map(file => {
+          // Detectar si es un archivo de configuración especial
+          const isConfigFile = 
+            file.name === 'package.json' || 
+            file.name === 'README.md' || 
+            file.name === '.gitignore' || 
+            file.name === 'requirements.txt' ||
+            file.name === '.env.example' ||
+            file.name === 'vite.config.js' ||
+            file.name === 'tsconfig.json';
+          
+          // Determinar si se debe preseleccionar el archivo (para los archivos de configuración)
+          const shouldPreselect = isConfigFile;
+          
+          return {
+            name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
+            content: file.content,
+            extension: `.${file.language || getExtensionFromType(file.type)}`,
+            selected: shouldPreselect
+          };
+        });
+        
         setGeneratedFiles(newGeneratedFiles);
         setShowGeneratedFiles(true);
 
@@ -213,6 +278,29 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
           duration: 5000
         });
         sounds.play('success', 0.4);
+        
+        // Enviar archivos de configuración importantes automáticamente al panel de archivos generados
+        setTimeout(() => {
+          newGeneratedFiles.forEach(file => {
+            if (file.selected) {
+              const fileEvent = new CustomEvent('add-generated-file', {
+                detail: {
+                  file: {
+                    name: file.name,
+                    content: file.content,
+                    extension: file.extension
+                  }
+                }
+              });
+              window.dispatchEvent(fileEvent);
+              console.log(`Archivo de configuración enviado automáticamente: ${file.name}${file.extension}`);
+            }
+          });
+          
+          // Refrescar el panel de archivos generados
+          const refreshEvent = new CustomEvent('refresh-generated-files');
+          window.dispatchEvent(refreshEvent);
+        }, 1000);
       } else {
         throw new Error("No se generaron archivos");
       }

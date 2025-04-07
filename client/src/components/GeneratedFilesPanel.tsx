@@ -251,6 +251,46 @@ const GeneratedFilesPanelContent = () => {
         <p className="text-sm text-muted-foreground">
           Archivos generados por el asistente. Puedes guardarlos en tu proyecto.
         </p>
+        {generatedFiles.length > 0 && (
+          <div className="mt-2 flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                // Guardar todos los archivos de configuración
+                const configFiles = generatedFiles.filter(file => 
+                  file.name === 'package' || 
+                  file.name === 'README' || 
+                  file.name === '.gitignore' || 
+                  file.name === 'requirements' ||
+                  file.name === '.env.example' ||
+                  file.name === 'vite.config' ||
+                  file.name === 'tsconfig'
+                );
+
+                if (configFiles.length > 0) {
+                  configFiles.forEach(file => saveFileToProject(file));
+                  toast({
+                    title: "Configuraciones guardadas",
+                    description: `Se han guardado ${configFiles.length} archivos de configuración`,
+                    duration: 3000
+                  });
+                  sounds.play('success', 0.4);
+                } else {
+                  toast({
+                    title: "Información",
+                    description: "No hay archivos de configuración para guardar",
+                    duration: 3000
+                  });
+                }
+              }}
+              className="text-xs"
+            >
+              <SaveIcon className="h-3.5 w-3.5 mr-1" />
+              Guardar configuraciones
+            </Button>
+          </div>
+        )}
       </div>
 
       {generatedFiles.length === 0 ? (
@@ -265,48 +305,85 @@ const GeneratedFilesPanelContent = () => {
         <div className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-2">
             <div className="space-y-2">
-              {generatedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
-                    selectedFile === file
-                      ? 'bg-primary/10 dark:bg-primary/20'
-                      : 'hover:bg-accent/50'
-                  }`}
-                  onClick={() => handleFileClick(file)}
-                >
-                  <div className="flex items-center gap-2">
-                    <FileCodeIcon className="h-5 w-5 text-primary" />
-                    <span className="font-medium truncate">
-                      {file.name}{file.extension}
-                    </span>
+              {generatedFiles.map((file, index) => {
+                // Determinar si es un archivo de configuración especial
+                const isConfigFile = 
+                  file.name === 'package' && file.extension === '.json' || 
+                  file.name === 'README' && file.extension === '.md' || 
+                  file.name === '.gitignore' || 
+                  file.name === 'requirements' && file.extension === '.txt' ||
+                  file.name === '.env.example' ||
+                  file.name === 'vite.config' ||
+                  file.name === 'tsconfig' && file.extension === '.json';
+
+                // Determinar el icono adecuado para el tipo de archivo
+                let FileIconComponent = FileCodeIcon;
+                let iconColorClass = "text-primary";
+
+                if (file.extension === '.json') {
+                  iconColorClass = "text-yellow-500";
+                } else if (file.extension === '.md') {
+                  FileIconComponent = FileTextIcon;
+                  iconColorClass = "text-blue-500";
+                } else if (file.name === '.gitignore') {
+                  iconColorClass = "text-gray-500";
+                } else if (file.extension === '.py') {
+                  iconColorClass = "text-green-600";
+                } else if (file.extension === '.html') {
+                  iconColorClass = "text-orange-500";
+                } else if (file.extension === '.css') {
+                  iconColorClass = "text-blue-400";
+                } else if (file.extension === '.js') {
+                  iconColorClass = "text-yellow-400";
+                }
+
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
+                      selectedFile === file
+                        ? 'bg-primary/10 dark:bg-primary/20'
+                        : isConfigFile 
+                          ? 'bg-slate-100 dark:bg-slate-800 hover:bg-accent/50' 
+                          : 'hover:bg-accent/50'
+                    }`}
+                    onClick={() => handleFileClick(file)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileIconComponent className={`h-5 w-5 ${iconColorClass}`} />
+                      <span className={`font-medium truncate ${isConfigFile ? 'font-semibold' : ''}`}>
+                        {file.name}{file.extension}
+                        {isConfigFile && <span className="ml-2 text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">config</span>}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          saveFileToProject(file);
+                        }}
+                        title="Guardar en proyecto"
+                        className={isConfigFile ? "text-primary" : ""}
+                      >
+                        <SaveIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile(index);
+                        }}
+                        title="Eliminar"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        saveFileToProject(file);
-                      }}
-                      title="Guardar en proyecto"
-                    >
-                      <SaveIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(index);
-                      }}
-                      title="Eliminar"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
