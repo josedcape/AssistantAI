@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { File } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import CodeBlock from "./CodeBlock";
-import CodePreview from "./CodePreview"; // Import the new CodePreview component
 
 interface CodePreviewProps {
   file: File;
@@ -10,7 +9,6 @@ interface CodePreviewProps {
 }
 
 const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -18,7 +16,6 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   const getProjectId = (): number | null => {
     if (!file) return null;
 
-    // Asegurarnos de que el projectId sea un número válido
     const projectId = typeof file.projectId === 'number'
       ? file.projectId
       : parseInt(String(file.projectId));
@@ -40,7 +37,6 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       return;
     }
 
-    // Cuando cambia el archivo, actualizar la vista previa
     refreshPreview();
   }, [file]);
 
@@ -48,18 +44,16 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   const refreshPreview = () => {
     setIsLoading(true);
 
-    // Obtener el ID del proyecto de forma segura
     const projectId = getProjectId();
     if (!projectId) return;
 
-    //Instead of iframe manipulation, use the new component
     const htmlFiles = allFiles.filter(f => f.type === 'html');
     const cssFiles = allFiles.filter(f => f.type === 'css');
     const jsFiles = allFiles.filter(f => f.type === 'javascript');
 
     let htmlContent = '';
-    if(htmlFiles.length > 0) {
-        htmlContent = htmlFiles[0].content;
+    if (htmlFiles.length > 0) {
+      htmlContent = htmlFiles[0].content;
     }
 
     const cssMap: Record<string, string> = {};
@@ -68,20 +62,14 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     const jsMap: Record<string, string> = {};
     jsFiles.forEach(f => { jsMap[f.name] = f.content; });
 
-    // Concatenate CSS content
     const css = Object.values(cssMap).join('\n');
-
-    // Concatenate JS content
     const js = Object.values(jsMap).join('\n');
 
-
-    setIsLoading(false); // Set loading to false after content is prepared
-
+    setIsLoading(false);
   };
 
   // Función para abrir la vista previa en una nueva ventana
   const openInNewWindow = () => {
-    // Verificar que el ID del proyecto sea válido
     const projectId = getProjectId();
     if (!projectId) {
       toast({
@@ -92,7 +80,42 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       return;
     }
 
-    window.open(`/api/projects/${projectId}/preview`, '_blank');
+    const htmlFiles = allFiles.filter(f => f.type === 'html');
+    const cssFiles = allFiles.filter(f => f.type === 'css');
+    const jsFiles = allFiles.filter(f => f.type === 'javascript');
+
+    let htmlContent = '';
+    if (htmlFiles.length > 0) {
+      htmlContent = htmlFiles[0].content;
+    }
+
+    const cssMap: Record<string, string> = {};
+    cssFiles.forEach(f => { cssMap[f.name] = f.content; });
+
+    const jsMap: Record<string, string> = {};
+    jsFiles.forEach(f => { jsMap[f.name] = f.content; });
+
+    const css = Object.values(cssMap).join('\n');
+    const js = Object.values(jsMap).join('\n');
+
+    const fullHtmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>${css}</style>
+      </head>
+      <body>
+        ${htmlContent}
+        <script>${js}</script>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([fullHtmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   // Determinar el tipo de contenido y cómo mostrarlo
@@ -105,40 +128,50 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       );
     }
 
-    // Verificar si es un archivo HTML o un proyecto web
     const projectId = getProjectId();
     const isHtml = file.type === 'html' || file.name.toLowerCase().endsWith('.html');
     const hasValidProject = projectId !== null;
 
-    // Para archivos HTML o proyectos web, usar iframe
     if ((isHtml || hasValidProject) && hasValidProject) {
-        const htmlFiles = allFiles.filter(f => f.type === 'html');
-        const cssFiles = allFiles.filter(f => f.type === 'css');
-        const jsFiles = allFiles.filter(f => f.type === 'javascript');
+      const htmlFiles = allFiles.filter(f => f.type === 'html');
+      const cssFiles = allFiles.filter(f => f.type === 'css');
+      const jsFiles = allFiles.filter(f => f.type === 'javascript');
 
-        let htmlContent = '';
-        if(htmlFiles.length > 0) {
-            htmlContent = htmlFiles[0].content;
-        }
+      let htmlContent = '';
+      if (htmlFiles.length > 0) {
+        htmlContent = htmlFiles[0].content;
+      }
 
-        const cssMap: Record<string, string> = {};
-        cssFiles.forEach(f => { cssMap[f.name] = f.content; });
+      const cssMap: Record<string, string> = {};
+      cssFiles.forEach(f => { cssMap[f.name] = f.content; });
 
-        const jsMap: Record<string, string> = {};
-        jsFiles.forEach(f => { jsMap[f.name] = f.content; });
+      const jsMap: Record<string, string> = {};
+      jsFiles.forEach(f => { jsMap[f.name] = f.content; });
 
-        // Concatenate CSS content
-        const css = Object.values(cssMap).join('\n');
-
-        // Concatenate JS content
-        const js = Object.values(jsMap).join('\n');
+      const css = Object.values(cssMap).join('\n');
+      const js = Object.values(jsMap).join('\n');
 
       return (
-        <CodePreview html={htmlContent} css={css} js={js} />
+        <iframe
+          srcDoc={`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>${css}</style>
+            </head>
+            <body>
+              ${htmlContent}
+              <script>${js}</script>
+            </body>
+            </html>
+          `}
+          className="w-full h-full border-none"
+        />
       );
     }
 
-    // Para otros tipos de archivos, mostrar el contenido como texto
     return (
       <div className="p-4 h-full overflow-auto">
         <div className="mb-4 flex justify-between items-center">
