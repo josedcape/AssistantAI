@@ -21,6 +21,7 @@ import {
 import ModelSelector from "./ModelSelector";
 import * as sounds from "@/lib/sounds"; //Import sounds module
 import { ConversationList } from "./ConversationList";
+import { useToast } from "@/hooks/use-toast";
 import { 
   saveConversation, 
   getConversation, 
@@ -47,6 +48,9 @@ interface Package {
 
 // Componente principal AssistantChat
 export const AssistantChat: React.FC = () => {
+  // Inicializar toast
+  const { toast } = useToast();
+  
   // Estado para mensajes y entrada
   const [messages, setMessages] = useState<Message[]>([
     {
