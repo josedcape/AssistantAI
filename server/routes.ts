@@ -1719,98 +1719,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint para obtener modelos disponibles
-  apiRouter.get("/models", async (req: Request, res: Response) => {
-    try {
-      // Obtener los modelos y el modelo activo
-      const models = getAvailableModels();
-      const activeModel = getActiveModel();
+      apiRouter.get("/models", async (req: Request, res: Response) => {
+        try {
+          // Obtener los modelos y el modelo activo
+          const models = getAvailableModels();
+          const activeModel = getActiveModel();
 
-      // Verificar que haya datos válidos
-      if (!models || Object.keys(models).length === 0) {
-        console.warn("No se encontraron modelos disponibles");
-        // Modelos predeterminados como fallback
-        return res.status(200).json({
-          models: {
-            "gpt-4o": "GPT-4O (OpenAI)",
-            "gemini-2.5": "Gemini 2.5 (Google)",
-            "claude-3.7": "Claude 3.7 (Anthropic)"
-          },
-          activeModel: "gpt-4o"
-        });
-      }
+          // Verificar que haya datos válidos
+          if (!models || Object.keys(models).length === 0) {
+            console.warn("No se encontraron modelos disponibles");
+            // Modelos predeterminados como fallback
+            return res.status(200).json({
+              models: {
+                "gpt-4o": "GPT-4O (OpenAI)",
+                "gemini-2.5": "Gemini 2.5 (Google)",
+                "claude-3.7": "Claude 3.7 (Anthropic)"
+              },
+              activeModel: "gpt-4o"
+            });
+          }
 
-      // Responder con los modelos
-      res.status(200).json({
-        models: models,
-        activeModel: activeModel,
-        success: true
-      });
-    } catch (error) {
-      console.error("Error fetching models:", error);
-      // Responder con modelos predeterminados en caso de error, pero con código 200
-      // para que la UI pueda seguir funcionando con los modelos fallback
-      res.status(200).json({
-        models: {
-          "gpt-4o": "GPT-4O (OpenAI)",
-          "gemini-2.5": "Gemini 2.5 (Google)",
-          "claude-3.7": "Claude 3.7 (Anthropic)"
-        },
-        activeModel: "gpt-4o",
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
+          // Responder con los modelos
+          res.status(200).json({
+            models: models,
+            activeModel: activeModel,
+            success: true
+          });
+        } catch (error) {
+          console.error("Error fetching models:", error);
+          // Responder con modelos predeterminados en caso de error, pero con código 200
+          // para que la UI pueda seguir funcionando con los modelos fallback
+          res.status(200).json({
+            models: {
+              "gpt-4o": "GPT-4O (OpenAI)",
+              "gemini-2.5": "Gemini 2.5 (Google)",
+              "claude-3.7": "Claude 3.7 (Anthropic)"
+            },
+            activeModel: "gpt-4o",
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }); // <-- Aquí se cierra correctamente la función GET /models
 
-  // Endpoint para cambiar el modelo activo
-  apiRouter.post("/models/set", async (req: Request, res: Response) => {
-    try {
-      const modelSchema = z.object({
-        modelId: z.string().min(1)
-      });
+      apiRouter.post("/models/set", async (req: Request, res: Response) => {
+        try {
+          const modelSchema = z.object({
+            modelId: z.string().min(1)
+          });
 
-      const validatedData = modelSchema.parse(req.body);
-      const requestedModel = validatedData.modelId;
+          const validatedData = modelSchema.parse(req.body);
+          const requestedModel = validatedData.modelId;
 
-      // Intentar cambiar el modelo
-      const success = setActiveModel(requestedModel);
+          // Intentar cambiar el modelo
+          const success = setActiveModel(requestedModel);
 
-      if (success) {
-        // Modelo cambiado exitosamente
-        console.log(`Modelo cambiado correctamente a: ${requestedModel}`);
-        res.status(200).json({
-          success: true,
-          message: "Modelo cambiado correctamente",
-          modelId: requestedModel
-        });
-      } else {
-        // Modelo no válido, pero enviamos código 200 para mejor manejo en el cliente
-        console.warn(`Intento de cambiar a modelo inválido: ${requestedModel}`);
-        res.status(200).json({
-          success: false,
-          message: "Modelo no disponible, se mantiene el modelo actual",
-          modelId: getActiveModel() // Devolver el modelo actual que sigue siendo válido
-        });
-      }
-    } catch (error) {
-      console.error("Error setting model:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          success: false,
-          message: "Datos de modelo inválidos",
-          errors: error.errors,
-          modelId: getActiveModel() // Devolver el modelo actual
-        });
-      }
-      res.status(200).json({ // Usamos 200 para mejor manejo cliente
-        success: false,
-        message: "Error al cambiar el modelo, se mantiene el modelo actual",
-        error: error instanceof Error ? error.message : "Error desconocido",
-        modelId: getActiveModel() // Devolver el modelo actual
-      });
-    }
-  });
+          if (success) {
+            // Modelo cambiado exitosamente
+            console.log(`Modelo cambiado correctamente a: ${requestedModel}`);
+            res.status(200).json({
+              success: true,
+              message: "Modelo cambiado correctamente",
+              modelId: requestedModel
+            });
+          } else {
+            // Modelo no válido, pero enviamos código 200 para mejor manejo en el cliente
+            console.warn(`Intento de cambiar a modelo inválido: ${requestedModel}`);
+            res.status(200).json({
+              success: false,
+              message: "Modelo no disponible, se mantiene el modelo actual",
+              modelId: getActiveModel() // Devolver el modelo actual que sigue siendo válido
+            });
+          }
+        } catch (error) {
+          console.error("Error setting model:", error);
+          if (error instanceof z.ZodError) {
+            return res.status(400).json({
+              success: false,
+              message: "Datos de modelo inválidos",
+              errors: error.errors,
+              modelId: getActiveModel() // Devolver el modelo actual
+            });
+          }
+          res.status(200).json({ // Usamos 200 para mejor manejo cliente
+            success: false,
+            message: "Error al cambiar el modelo, se mantiene el modelo actual",
+            error: error instanceof Error ? error.message : "Error desconocido",
+            modelId: getActiveModel() // Devolver el modelo actual
+          });
+        }
+      }); // <-- Aquí se cierra correctamente la función POST /models/set
 
   // Configurar rutas para los efectos de sonido
   setupSoundsRoutes(apiRouter); // Added sound routes setup
