@@ -48,15 +48,15 @@ export function PackageExplorer() {
     fetchPackages();
 
     // Escuchar evento de instalación de paquete
-    const handlePackageInstalled = () => {
-      console.log("📦 Detectada instalación de paquete, actualizando lista...");
-      fetchPackages();
+    const handlePackageInstalled = (event: CustomEvent) => {
+      console.log("📦 Detectada instalación de paquete, actualizando lista...", event.detail);
+      fetchPackages(); // Llamar a la función que carga los paquetes
     };
 
-    window.addEventListener('package-installed', handlePackageInstalled);
+    window.addEventListener('package-installed', handlePackageInstalled as EventListener);
 
     return () => {
-      window.removeEventListener('package-installed', handlePackageInstalled);
+      window.removeEventListener('package-installed', handlePackageInstalled as EventListener);
     };
   }, []);
 
