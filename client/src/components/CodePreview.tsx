@@ -29,20 +29,23 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     if (!file) return;
     
     setIsLoading(true);
+    console.log("Cargando contenido del archivo:", file.name);
     
     try {
       // Asegurarse de que siempre tengamos contenido para previsualizar
       if (file.content !== undefined && file.content !== null) {
+        // Primero actualizar el estado de contenido
         setPreviewContent(file.content);
         
-        // Forzar una actualización del DOM después de cambiar el contenido
+        // Pequeño retraso para asegurar que la UI se actualice correctamente
         setTimeout(() => {
           setIsLoading(false);
+          console.log("Contenido cargado:", file.name);
           toast({
             title: "Archivo cargado",
             description: `Se ha cargado el archivo "${file.name}" para previsualización`,
           });
-        }, 100);
+        }, 300);
       } else {
         console.warn("Archivo sin contenido:", file.name);
         setPreviewContent("// Archivo sin contenido");
@@ -68,8 +71,16 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     if (!file) return;
     
     // Inicialmente intentamos cargar el contenido al cambiar de archivo
-    loadFileContent();
-  }, [file]);
+    console.log("Archivo seleccionado cambiado:", file.name);
+    setIsLoading(true);
+    
+    // Pequeño retraso para evitar problemas de renderizado
+    const timer = setTimeout(() => {
+      loadFileContent();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [file?.id]); // Solo se ejecuta cuando cambia el ID del archivo
 
   // Función para refrescar la vista previa
   const refreshPreview = () => {
@@ -145,27 +156,44 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
       const css = cssFiles.map(f => f.content || '').join('\n');
       const js = jsFiles.map(f => f.content || '').join('\n');
-
+      
+      // Contenido HTML completo para el iframe
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            /* Estilos base */
+            body { 
+              margin: 0; 
+              padding: 10px; 
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+            }
+            /* Estilos del usuario */
+            ${css}
+          </style>
+        </head>
+        <body>
+          ${file.content || '<div>No hay contenido HTML para mostrar</div>'}
+          <script>${js}</script>
+        </body>
+        </html>
+      `;
+      
+      console.log("Renderizando HTML en iframe");
+      
       return (
-        <iframe
-          srcDoc={`
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <style>${css}</style>
-            </head>
-            <body>
-              ${file.content || ''}
-              <script>${js}</script>
-            </body>
-            </html>
-          `}
-          className="w-full h-full border-none"
-          sandbox="allow-scripts"
-          title="Vista previa HTML"
-        />
+        <div className="w-full h-full">
+          <iframe
+            srcDoc={htmlContent}
+            className="w-full h-full border-none"
+            sandbox="allow-scripts allow-same-origin"
+            title="Vista previa HTML"
+            onLoad={() => console.log("iframe cargado")}
+          />
+        </div>
       );
     }
 
@@ -264,7 +292,16 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
         <div className="flex items-center space-x-2">
           <button
             className={`px-2 py-1 rounded text-xs ${isLoading ? 'bg-slate-400' : 'bg-primary-500 hover:bg-primary-600'} text-white transition-colors`}
-            onClick={refreshPreview}
+            onClick={() => {
+              if (file) {
+                console.log("Botón Cargar archivo presionado");
+                // Forzar actualización completa
+                setPreviewContent("");
+                setTimeout(() => {
+                  refreshPreview();
+                }, 50);
+              }
+            }}
             title="Cargar archivo para previsualización"
             disabled={!file || isLoading}
           >
