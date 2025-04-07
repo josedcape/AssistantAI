@@ -1,0 +1,130 @@
+> rest-express@1.0.0 dev
+> npx tsx server/index.ts
+
+2:31:50 AM [express] serving on port 5001
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Error:   Failed to scan for dependencies from entries:
+  /home/runner/workspace/client/index.html
+/home/runner/workspace/client/public/index.html
+
+  ✘ [ERROR] Multiple exports with the same name "getConversation"
+
+    client/src/lib/conversationStorage.ts:127:2:
+      127 │   getConversation,
+          ╵   ~~~~~~~~~~~~~~~
+
+  The name "getConversation" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:62:13:
+      62 │ export const getConversation = (id: string): Conversation | null => {
+         ╵              ~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "getConversations"
+
+    client/src/lib/conversationStorage.ts:128:2:
+      128 │   getConversations,
+          ╵   ~~~~~~~~~~~~~~~~
+
+  The name "getConversations" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:22:13:
+      22 │ export const getConversations = (): Conversation[] => {
+         ╵              ~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "saveConversation"
+
+    client/src/lib/conversationStorage.ts:129:2:
+      129 │   saveConversation,
+          ╵   ~~~~~~~~~~~~~~~~
+
+  The name "saveConversation" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:50:13:
+      50 │ export const saveConversation = (conversation: Conversation): bool...
+         ╵              ~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "deleteConversation"
+
+    client/src/lib/conversationStorage.ts:130:2:
+      130 │   deleteConversation,
+          ╵   ~~~~~~~~~~~~~~~~~~
+
+  The name "deleteConversation" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:72:13:
+      72 │ export const deleteConversation = (id: string): boolean => {
+         ╵              ~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "setActiveConversation"
+
+    client/src/lib/conversationStorage.ts:131:2:
+      131 │   setActiveConversation,
+          ╵   ~~~~~~~~~~~~~~~~~~~~~
+
+  The name "setActiveConversation" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:112:13:
+      112 │ export const setActiveConversation = (id: string | null): boolean...
+          ╵              ~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "getActiveConversation"
+
+    client/src/lib/conversationStorage.ts:132:2:
+      132 │   getActiveConversation,
+          ╵   ~~~~~~~~~~~~~~~~~~~~~
+
+  The name "getActiveConversation" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:102:13:
+      102 │ export const getActiveConversation = (): string | null => {
+          ╵              ~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "generateConversationId"
+
+    client/src/lib/conversationStorage.ts:133:2:
+      133 │   generateConversationId,
+          ╵   ~~~~~~~~~~~~~~~~~~~~~~
+
+  The name "generateConversationId" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:83:13:
+      83 │ export const generateConversationId = (): string => {
+         ╵              ~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Multiple exports with the same name "generateConversationTitle"
+
+    client/src/lib/conversationStorage.ts:134:2:
+      134 │   generateConversationTitle,
+          ╵   ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  The name "generateConversationTitle" was originally exported here:
+
+    client/src/lib/conversationStorage.ts:88:13:
+      88 │ export const generateConversationTitle = (messages: Message[]): st...
+         ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+    at failureErrorWithLog (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:1472:15)
+    at /home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:945:25
+    at runOnEndCallbacks (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:1315:45)
+    at buildResponseToResult (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:943:7)
+    at /home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:955:9
+    at new Promise (<anonymous>)
+    at requestCallbacks.on-end (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:954:54)
+    at handleRequest (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:647:17)
+    at handleIncomingPacket (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:672:7)
+    at Socket.readFromStdout (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
