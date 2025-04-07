@@ -141,8 +141,14 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
         const updatedFile = await response.json();
         setIsDirty(false);
 
+        // Actualizar el archivo con el contenido nuevo para que otros componentes lo utilicen
+        const fileWithUpdatedContent = {
+          ...file,
+          content: correctedCode
+        };
+
         if (onUpdate) {
-          onUpdate(updatedFile);
+          onUpdate(fileWithUpdatedContent);
         }
       } catch (error) {
         console.error("Error saving corrected code:", error);
