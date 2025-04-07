@@ -57,6 +57,31 @@ export class MemStorage implements IStorage {
   private fileId: number;
   private documentId: number;
 
+  // Event emitter for file changes
+  private notifyFileChange() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('files-updated'));
+    }
+  }
+
+  // Add file to storage
+  async addFile(file: InsertFile): Promise<File> {
+    const id = this.fileId++;
+    const now = new Date();
+    const newFile: File = { 
+      ...file, 
+      id,
+      createdAt: now,
+      lastModified: now
+    };
+    this.files.set(id, newFile);
+    
+    // Notify file change
+    this.notifyFileChange();
+    
+    return newFile;
+  }
+
   constructor() {
     this.users = new Map();
     this.projects = new Map();

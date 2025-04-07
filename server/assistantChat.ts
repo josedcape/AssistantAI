@@ -320,15 +320,34 @@ function detectPackageManager(message: string): 'npm' | 'yarn' | 'pnpm' | 'bun' 
  */
 async function createFile(fileName: string, content: string, projectId: number | null): Promise<void> {
   try {
-    // Agregar al almacenamiento para que se refleje en el explorador
+    // Get file type based on extension
+    const ext = fileName.split('.').pop()?.toLowerCase() || 'txt';
+    let fileType = 'text';
+    
+    switch (ext) {
+      case 'js': fileType = 'javascript'; break;
+      case 'jsx': fileType = 'javascript'; break;
+      case 'ts': fileType = 'typescript'; break;
+      case 'tsx': fileType = 'typescript'; break;
+      case 'html': fileType = 'html'; break;
+      case 'css': fileType = 'css'; break;
+      case 'json': fileType = 'json'; break;
+      case 'md': fileType = 'markdown'; break;
+    }
+
+    // Add file to storage
     await storage.addFile({
       name: fileName,
       content,
-      type: 'file',
+      type: fileType,
       projectId
     });
 
     console.log(`Archivo ${fileName} creado y agregado al proyecto ${projectId}`);
+
+    // Trigger file explorer update
+    const fileEvent = new CustomEvent('files-updated');
+    window.dispatchEvent(fileEvent);
   } catch (error) {
     console.error("Error creating file:", error);
     throw error;
