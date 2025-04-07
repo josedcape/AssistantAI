@@ -90,7 +90,10 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   // Función para abrir la vista previa en una nueva ventana
   const openInNewWindow = () => {
     if (!file) return;
+    
+    console.log("Abriendo vista previa en nueva ventana...");
 
+    // Filtrar archivos por tipo
     const htmlFiles = allFiles.filter(f => f.type === 'html' || f.name.toLowerCase().endsWith('.html'));
     const cssFiles = allFiles.filter(f => f.type === 'css' || f.name.toLowerCase().endsWith('.css'));
     const jsFiles = allFiles.filter(f => f.type === 'javascript' || f.name.toLowerCase().endsWith('.js'));
@@ -192,19 +195,43 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       </html>
     `;
 
-    // Crear blob y abrir en nueva ventana
-    const blob = new Blob([fullHtmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const newWindow = window.open(url, '_blank');
-    
-    // Liberar URL cuando se cierra la ventana
-    if (newWindow) {
-      newWindow.addEventListener('beforeunload', () => {
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+    try {
+      // Crear blob y abrir en nueva ventana
+      const blob = new Blob([fullHtmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      // Intentar abrir en una nueva ventana
+      const newWindow = window.open(url, '_blank');
+      
+      // Verificar si la ventana se abrió correctamente
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        // Si hay problemas con la apertura, mostrar mensaje
+        console.warn("El navegador bloqueó la apertura de la ventana. Verifique la configuración de bloqueo de ventanas emergentes.");
+        toast({
+          title: "No se pudo abrir la ventana",
+          description: "El navegador puede estar bloqueando ventanas emergentes. Por favor, permita ventanas emergentes para este sitio.",
+          variant: "destructive"
+        });
+      } else {
+        // Liberar URL cuando se cierra la ventana
+        newWindow.addEventListener('beforeunload', () => {
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+        });
+        
+        console.log("Vista previa abierta en nueva ventana");
+        toast({
+          title: "Vista previa abierta",
+          description: "Se ha abierto la vista previa en una nueva ventana"
+        });
+      }
+    } catch (error) {
+      console.error("Error al abrir la vista previa:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo abrir la vista previa en una nueva ventana",
+        variant: "destructive"
       });
     }
-    
-    console.log("Vista previa abierta en nueva ventana");
   };
 
   // Determinar el tipo de contenido y cómo mostrarlo
@@ -401,8 +428,12 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
             )}
           </button>
           <button
-            className="px-2 py-1 rounded flex items-center text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-            onClick={openInNewWindow}
+            className="px-2 py-1 rounded flex items-center text-xs bg-primary-500 dark:bg-primary-600 text-white hover:bg-primary-600 dark:hover:bg-primary-700 transition-colors"
+            onClick={() => {
+              if (file && !isLoading) {
+                openInNewWindow();
+              }
+            }}
             title="Abrir en nueva ventana"
             disabled={!file || isLoading}
           >
