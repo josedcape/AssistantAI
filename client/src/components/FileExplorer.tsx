@@ -274,6 +274,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
         type: fileType,
         createdAt: doc.createdAt,
         lastModified: doc.createdAt,
+        isDocument: true, // Marcar como documento para tratamiento especial
       };
 
       // Select file for viewing
@@ -497,6 +498,53 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "No se pudo enviar el archivo al asistente",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
+    }
+  };
+  
+  // Función para enviar documento al asistente
+  const handleDocumentAssistant = async (doc: any) => {
+    if (!onSendToAssistant) {
+      toast({
+        title: "Función no disponible",
+        description: "No se puede enviar al asistente en este contexto",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Obtener el contenido del documento
+      const response = await fetch(`/api/documents/${doc.id}/content`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al cargar el documento");
+      }
+
+      const content = await response.text();
+      
+      if (!content) {
+        throw new Error("El documento no tiene contenido");
+      }
+
+      // Preparar mensaje para el asistente
+      const message = `Analiza este documento ${doc.name}:\n`;
+      
+      // Llamar a la función para enviar al asistente
+      onSendToAssistant(content, doc.name, message);
+      
+      toast({
+        title: "Documento enviado al asistente",
+        description: `Se ha enviado ${doc.name} al chat del asistente`,
+      });
+      sounds.play('success', 0.3);
+    } catch (error) {
+      console.error("Error al enviar documento al asistente:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo enviar el documento al asistente",
         variant: "destructive",
       });
       sounds.play('error', 0.3);
@@ -962,6 +1010,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                                 </span>
                               </div>
                               <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                                {onSendToAssistant && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6"
+                                    title="Enviar al asistente"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDocumentAssistant(doc);
+                                    }}
+                                  >
+                                    <MessageSquare className="h-3 w-3 text-green-500" />
+                                  </Button>
+                                )}
                                 {(doc.type === 'repository' || doc.name.includes('Repositorio') || doc.path?.endsWith('.zip')) && (
                                   <Button 
                                     variant="ghost" 

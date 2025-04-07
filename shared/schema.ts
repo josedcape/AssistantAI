@@ -187,6 +187,7 @@ export const FileSchema = z.object({
   type: z.string().min(1).max(50),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
+  isDocument: z.boolean().optional(), // Para identificar si es un documento cargado
 });
 
 export type File = z.infer<typeof FileSchema>;

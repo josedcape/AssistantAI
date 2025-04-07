@@ -12,6 +12,8 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [previewContent, setPreviewContent] = useState<string>("");
+  const [isPdf, setIsPdf] = useState(false);
+  const [isImage, setIsImage] = useState(false);
 
   // Función para obtener el ID del proyecto de forma segura
   const getProjectId = (): number | null => {
@@ -23,24 +25,55 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
     return !isNaN(projectId) ? projectId : null;
   };
+  
+  // Función para determinar el tipo de contenido
+  const detectContentType = (fileName: string, content: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    
+    // Detectar imágenes
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(extension)) {
+      setIsImage(true);
+      return 'image';
+    }
+    
+    // Detectar PDF
+    if (extension === 'pdf') {
+      setIsPdf(true);
+      return 'pdf';
+    }
+    
+    // Para otros tipos, intentar determinar si es texto o binario
+    const isBinary = /[\x00-\x08\x0E-\x1F\x7F-\xFF]/.test(content.substring(0, 1000));
+    if (isBinary) {
+      return 'binary';
+    }
+    
+    // Por defecto, tratar como texto
+    return 'text';
+  };
 
   // Función para cargar el contenido del archivo seleccionado
   const loadFileContent = () => {
     if (!file) return;
     
     setIsLoading(true);
+    setIsPdf(false);
+    setIsImage(false);
     console.log("Cargando contenido del archivo:", file.name);
     
     try {
       // Asegurarse de que siempre tengamos contenido para previsualizar
       if (file.content !== undefined && file.content !== null) {
-        // Primero actualizar el estado de contenido
+        // Detectar el tipo de contenido
+        const contentType = detectContentType(file.name, file.content);
+        
+        // Actualizar el estado de contenido
         setPreviewContent(file.content);
         
         // Pequeño retraso para asegurar que la UI se actualice correctamente
         setTimeout(() => {
           setIsLoading(false);
-          console.log("Contenido cargado:", file.name);
+          console.log("Contenido cargado:", file.name, "tipo:", contentType);
           toast({
             title: "Archivo cargado",
             description: `Se ha cargado el archivo "${file.name}" para previsualización`,
@@ -358,6 +391,81 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       );
     }
 
+    // Para PDFs
+    if (isPdf) {
+      return (
+        <div className="p-4 h-full overflow-auto">
+          <div className="mb-4 flex justify-between items-center">
+            <h3 className="text-lg font-medium">
+              PDF: <span className="text-primary-500">{file.name}</span>
+            </h3>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center">
+            <p className="mb-4 text-slate-500">Este archivo es un PDF y no puede ser visualizado directamente aquí.</p>
+            <Button
+              onClick={() => {
+                window.open(`/api/documents/${Math.abs(file.id || 0)}/raw`, '_blank');
+              }}
+            >
+              <i className="ri-external-link-line mr-2"></i>
+              Abrir PDF en nueva ventana
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    // Para imágenes
+    if (isImage) {
+      return (
+        <div className="p-4 h-full overflow-auto">
+          <div className="mb-4 flex justify-between items-center">
+            <h3 className="text-lg font-medium">
+              Imagen: <span className="text-primary-500">{file.name}</span>
+            </h3>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center">
+            {file.isDocument ? (
+              <img 
+                src={`/api/documents/${Math.abs(file.id || 0)}/raw`} 
+                alt={file.name} 
+                className="max-w-full max-h-[70vh] object-contain border border-slate-200 dark:border-slate-700 rounded-md"
+              />
+            ) : (
+              <p className="text-slate-500">La imagen no puede ser visualizada directamente.</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Para archivos binarios no reconocidos
+    if (file.isDocument && !isText(file.content || '')) {
+      return (
+        <div className="p-4 h-full overflow-auto">
+          <div className="mb-4 flex justify-between items-center">
+            <h3 className="text-lg font-medium">
+              Archivo binario: <span className="text-primary-500">{file.name}</span>
+            </h3>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center">
+            <p className="mb-4 text-slate-500">Este archivo no se puede previsualizar en este formato.</p>
+            <Button
+              onClick={() => {
+                window.open(`/api/documents/${Math.abs(file.id || 0)}/raw`, '_blank');
+              }}
+            >
+              <i className="ri-download-line mr-2"></i>
+              Descargar archivo
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     // Para otros tipos de archivos, mostramos el código con resaltado de sintaxis
     return (
       <div className="p-4 h-full overflow-auto">
@@ -377,6 +485,17 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       </div>
     );
   };
+  
+  // Función auxiliar para detectar si el contenido es texto
+  function isText(content: string): boolean {
+    const sample = content.substring(0, 1000);
+    const nonTextChars = /[\x00-\x08\x0E-\x1F]/.test(sample);
+    if (nonTextChars) return false;
+    
+    // Verificar si tiene una proporción razonable de caracteres imprimibles
+    const printableChars = sample.replace(/[^\x20-\x7E]/g, '');
+    return printableChars.length / sample.length > 0.8;
+  }
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900">

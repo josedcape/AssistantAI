@@ -230,9 +230,15 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
           </div>
         </TabsContent>
       </Tabs>
-      {/* Added Back Button */}
-      <Button onClick={() => {/* Add your logic to go back to development area */}}>Volver al área de desarrollo</Button>
 
+      <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+        <p className="font-medium mb-1">Acciones disponibles para documentos:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Haz clic en un documento para previsualizarlo</li>
+          <li>Usa el menú contextual para enviar documentos al asistente</li>
+          <li>Puedes extraer archivos de repositorios ZIP</li>
+        </ul>
+      </div>
     </div>
   );
 }

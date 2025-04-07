@@ -12,6 +12,8 @@ import multer from "multer";
 import { downloadFromUrl, processUploadedFile, searchInDocuments, getDocumentContent } from "./documents";
 import { installPackage, uninstallPackage, listPackages, runScript, getPackageInfo, getInstalledPackages } from "./packageManager";
 import { setupSoundsRoutes } from "./sounds"; // Added import for sound routes
+import path from 'path';
+import fs from 'fs';
 
 const upload = multer();
 
@@ -1704,7 +1706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Asegurarse de que sea un número válido y mayor a 0
       const validProjectId = /^\d+$/.test(rawProjectId) ? parseInt(rawProjectId) : NaN;
 
-      if (isNaN(validProjectId) || validProjectId <= 0) {
+      if (isNaN(validProjectId) || validProjectId) <= 0) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
         // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
         return res.status(400).send(`
@@ -2519,6 +2521,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para obtener archivos binarios (imágenes, PDFs, etc.)
+  apiRouter.get("/documents/:documentId/raw", async (req: Request, res: Response) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: "ID de documento inválido" });
+      }
+
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Documento no encontrado" });
+      }
+
+      // Construir la ruta al archivo
+      const docDir = path.join(process.cwd(), 'documents', document.projectId.toString());
+      const filePath = path.join(docDir, document.path);
+
+      // Verificar si el archivo existe
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "Archivo no encontrado" });
+      }
+
+      // Determinar el tipo MIME
+      const mimeType = getMimeType(document.name);
+      res.setHeader('Content-Type', mimeType);
+
+      // Para archivos que deben descargarse en lugar de mostrarse en el navegador
+      if (shouldForceDownload(document.name)) {
+        res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+      }
+
+      // Transmitir archivo al cliente
+      fs.createReadStream(filePath).pipe(res);
+    } catch (error) {
+      console.error("Error obteniendo archivo:", error);
+      res.status(500).json({
+        error: "Error al obtener el archivo",
+        details: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
   // Endpoint para obtener modelos disponibles
   apiRouter.get("/models", async (req: Request, res: Response) => {
     try {
@@ -2628,4 +2672,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error("Error al configurar las rutas:", error);
     throw error;
   }
+}
+
+// Función para determinar el tipo MIME basado en la extensión del archivo
+function getMimeType(fileName: string): string {
+  const extension = path.extname(fileName).toLowerCase().substring(1);
+  const mimeTypes: Record<string, string> = {
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'svg': 'image/svg+xml',
+    'html': 'text/html',
+    'css': 'text/css',
+    'js': 'text/javascript',
+    'json': 'application/json',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed',
+    'mp3': 'audio/mpeg',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'ogg': 'audio/ogg',
+    'wav': 'audio/wav'
+  };
+
+  return mimeTypes[extension] || 'application/octet-stream';
+}
+
+// Función para determinar si un archivo debe forzar descarga
+function shouldForceDownload(fileName: string): boolean {
+  const extension = path.extname(fileName).toLowerCase().substring(1);
+  const forceDownloadExtensions = [
+    'zip', 'rar', 'exe', 'dll', 'bin', 'apk', 'dmg', 'iso'
+  ];
+
+  return forceDownloadExtensions.includes(extension);
 }
