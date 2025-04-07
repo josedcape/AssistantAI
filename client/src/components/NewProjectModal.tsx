@@ -175,7 +175,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         }
       }
 
-      // Create initial files based on template
+      // Crear archivos iniciales basados en la plantilla
       if (template === "html-css-js") {
         await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
           name: "index.html",
@@ -221,8 +221,7 @@ h1 {
   color: #333;
 }
 
-${selectedFeatures.includes('responsive') ? `
-/* Diseño responsive */
+${selectedFeatures.includes('responsive') ? `/* Diseño responsive */
 @media (max-width: 768px) {
   #app {
     padding: 15px;
@@ -233,8 +232,7 @@ ${selectedFeatures.includes('responsive') ? `
   }
 }` : ''}
 
-${selectedFeatures.includes('dark-mode') ? `
-/* Modo oscuro */
+${selectedFeatures.includes('dark-mode') ? `/* Modo oscuro */
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #1a1a1a;
@@ -260,14 +258,12 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('Aplicación iniciada');
 
   ${selectedFeatures.includes('responsive') ? `
-  // Detectar si es un dispositivo móvil
   const isMobile = window.innerWidth < 768;
   if (isMobile) {
     console.log('Versión móvil cargada');
   }` : ''}
 
   ${selectedFeatures.includes('animations') ? `
-  // Agregar animaciones
   const title = document.querySelector('h1');
   title.style.opacity = '0';
   title.style.transition = 'opacity 0.5s ease-in-out';
@@ -280,158 +276,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      // Invalidate projects cache
+      // Invalidar caché de proyectos y actualizar los archivos en el explorador
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-
-      // Disparar evento de actualización de archivos para que el explorador se actualice
-      toast({
-        title: "Actualizando archivos",
-        description: "Preparando archivos del proyecto...",
-        duration: 3000
-      });
-
-      // Preparar los archivos creados para enviarlos al explorador
-      const createdFiles = [
-        { 
-          name: "index.html", 
-          content: `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${projectName}</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div id="app">
-    <h1>Bienvenido a ${projectName}</h1>
-    <p>${description || "Mi nuevo proyecto"}</p>
-  </div>
-  <script src="app.js"></script>
-</body>
-</html>`,
-          extension: "html"
-        },
-        { 
-          name: "styles.css", 
-          content: `/* Estilos para ${projectName} */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 20px;
-  background-color: #f5f5f5;
-}
-
-#app {
-  max-width: 800px;
-  margin: 0 auto;
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-h1 {
-  color: #333;
-}
-
-${selectedFeatures.includes('responsive') ? `
-/* Diseño responsive */
-@media (max-width: 768px) {
-  #app {
-    padding: 15px;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-  }
-}` : ''}
-
-${selectedFeatures.includes('dark-mode') ? `
-/* Modo oscuro */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #1a1a1a;
-    color: #fff;
-  }
-
-  #app {
-    background-color: #2d2d2d;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  }
-
-  h1 {
-    color: #fff;
-  }
-}` : ''}`,
-          extension: "css"
-        },
-        { 
-          name: "app.js", 
-          content: `// Código JavaScript para ${projectName}
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Aplicación iniciada');
-
-  ${selectedFeatures.includes('responsive') ? `
-  // Detectar si es un dispositivo móvil
-  const isMobile = window.innerWidth < 768;
-  if (isMobile) {
-    console.log('Versión móvil cargada');
-  }` : ''}
-
-  ${selectedFeatures.includes('animations') ? `
-  // Agregar animaciones
-  const title = document.querySelector('h1');
-  title.style.opacity = '0';
-  title.style.transition = 'opacity 0.5s ease-in-out';
-
-  requestAnimationFrame(() => {
-    title.style.opacity = '1';
-  });` : ''}
-});`,
-          extension: "js"
-        }
-      ];
-
-      // Enviar archivos al panel de archivos generados
-      const sendFilesToExplorer = new CustomEvent('send-files-to-explorer', {
-        detail: {
-          files: createdFiles,
-          projectId: newProject.id,
-          fromTemplate: true
-        }
-      });
-      console.log("Enviando archivos al panel de generados:", createdFiles);
-      window.dispatchEvent(sendFilesToExplorer);
-
-      // Activar la pestaña de archivos generados después de un breve retraso
-      setTimeout(() => {
-        // Cambiar a la pestaña de archivos generados
-        const activateGeneratedEvent = new CustomEvent('activate-generated-tab', {
-          detail: { projectId: newProject.id }
-        });
-        window.dispatchEvent(activateGeneratedEvent);eneratedEvent);
-      }, 500);
-
-      // Luego refrescar archivos después de un breve retraso
-      setTimeout(() => {
-        // Solo refrescar la lista de archivos sin modificar el explorador
-        const refreshEvent = new CustomEvent('refresh-files', {
-          detail: { 
-            projectId: newProject.id, 
-            forceRefresh: true,
-            targetPanel: 'generated' // Indicar que solo queremos actualizar el panel de generados
-          }
-        });
-        window.dispatchEvent(refreshEvent);
-      }, 800);
 
       toast({
         title: "Proyecto creado",
         description: `${projectName} ha sido creado exitosamente`
       });
 
-      // Navigate to the workspace
+      // Navegar a la página del proyecto
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -445,30 +298,17 @@ document.addEventListener('DOMContentLoaded', () => {
       onClose();
     }
   };
-
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isSubmitting) {
-      onClose();
+      onClose();  // Cierra el modal cuando se hace clic fuera de él
     }
   };
-
   return (
-    <div 
-      className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
-      onClick={handleBackdropClick}
-    >
-      <div 
-        className={`bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full ${isMobile ? 'max-h-[90vh] overflow-y-auto' : ''}`}
-        style={{ maxWidth: isMobile ? '100%' : '500px' }}
-      >
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={handleBackdropClick}>
+      <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full ${isMobile ? 'max-h-[90vh] overflow-y-auto' : ''}`} style={{ maxWidth: isMobile ? '100%' : '500px' }}>
         <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
           <h3 className="text-lg font-medium">Crear nuevo proyecto</h3>
-          <button 
-            className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Cerrar"
-          >
+          <button className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" onClick={onClose} disabled={isSubmitting} aria-label="Cerrar">
             <i className="ri-close-line text-xl"></i>
           </button>
         </div>
@@ -476,9 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <form onSubmit={handleSubmit} className="p-4">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="projectName" className="text-sm font-medium">
-                Nombre del proyecto
-              </Label>
+              <Label htmlFor="projectName" className="text-sm font-medium">Nombre del proyecto</Label>
               <Input
                 id="projectName"
                 type="text"
@@ -492,9 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div>
-              <Label htmlFor="description" className="text-sm font-medium">
-                Descripción (opcional)
-              </Label>
+              <Label htmlFor="description" className="text-sm font-medium">Descripción (opcional)</Label>
               <Textarea
                 id="description"
                 value={description}
@@ -506,17 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div>
-              <Label htmlFor="template" className="text-sm font-medium">
-                Plantilla
-              </Label>
-              <Select 
-                value={template} 
-                onValueChange={(value) => {
-                  setTemplate(value);
-                  setSelectedFeatures([]);
-                }}
-                disabled={isSubmitting}
-              >
+              <Label htmlFor="template" className="text-sm font-medium">Plantilla</Label>
+              <Select value={template} onValueChange={(value) => { setTemplate(value); setSelectedFeatures([]); }} disabled={isSubmitting}>
                 <SelectTrigger id="template" className="mt-1.5">
                   <SelectValue placeholder="Selecciona una plantilla" />
                 </SelectTrigger>
@@ -528,9 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           <i className={`${tmpl.icon} ${tmpl.iconColor} mt-0.5`}></i>
                           <div>
                             <div>{tmpl.name}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              {tmpl.description}
-                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{tmpl.description}</div>
                           </div>
                         </div>
                       </SelectItem>
@@ -541,9 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div>
-              <Label className="text-sm font-medium">
-                Características adicionales
-              </Label>
+              <Label className="text-sm font-medium">Características adicionales</Label>
               <div className="mt-2 space-y-2">
                 {getCurrentTemplateFeatures().map(feature => (
                   <div key={feature} className="flex items-center space-x-2">
@@ -553,10 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       onCheckedChange={() => handleFeatureToggle(feature)}
                       disabled={isSubmitting}
                     />
-                    <label
-                      htmlFor={`feature-${feature}`}
-                      className="text-sm text-slate-700 dark:text-slate-300"
-                    >
+                    <label htmlFor={`feature-${feature}`} className="text-sm text-slate-700 dark:text-slate-300">
                       {featureLabels[feature]}
                     </label>
                   </div>
@@ -566,20 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
 
           <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting ? (
                 <>
                   <i className="ri-loader-4-line animate-spin mr-2"></i>

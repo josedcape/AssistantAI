@@ -77,7 +77,7 @@ const GeneratedFilesPanelContent = () => {
     // Listen for custom events to add new files
     const handleNewFileEvent = (e: CustomEvent) => {
       if (e.detail && e.detail.file) {
-        // Agregar un retraso de 20 segundos para dar tiempo al procesamiento
+        // Add file with a slight delay to give time for processing
         console.log("Archivo generado recibido, procesando en 20 segundos...");
         setTimeout(() => {
           const newFile = e.detail.file;
@@ -87,7 +87,7 @@ const GeneratedFilesPanelContent = () => {
             return updated;
           });
           console.log("Archivo generado procesado y agregado correctamente");
-        }, 20000); // 20 segundos de retraso
+        }, 20000); // 20 seconds delay
       }
     };
 
@@ -124,7 +124,6 @@ const GeneratedFilesPanelContent = () => {
   // Function to save file to the project
   const saveFileToProject = async (file: GeneratedFile) => {
     try {
-      // Determine file name
       let fileName = file.name;
 
       // Add extension if not present
