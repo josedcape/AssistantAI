@@ -133,6 +133,13 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
     try {
       setIsSubmitting(true);
 
+      // Mostrar un toast de creación en proceso con una duración más larga
+      toast({
+        title: "Creando proyecto",
+        description: "Configurando plantilla y archivos iniciales...",
+        duration: 6000
+      });
+
       const response = await apiRequest("POST", "/api/projects", {
         name: projectName,
         description,
@@ -141,6 +148,33 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       });
 
       const newProject = await response.json();
+
+      // Crear directorios para estructuras más complejas
+      if (template === "react" || template === "vue" || template === "node") {
+        await apiRequest("POST", "/api/directories/create", {
+          path: `src`
+        });
+        
+        if (template === "react" || template === "vue") {
+          await apiRequest("POST", "/api/directories/create", {
+            path: `src/components`
+          });
+          
+          await apiRequest("POST", "/api/directories/create", {
+            path: `public`
+          });
+        }
+        
+        if (template === "node") {
+          await apiRequest("POST", "/api/directories/create", {
+            path: `src/routes`
+          });
+          
+          await apiRequest("POST", "/api/directories/create", {
+            path: `src/controllers`
+          });
+        }
+      }
 
       // Create initial files based on template
       if (template === "html-css-js") {
@@ -249,6 +283,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Invalidate projects cache
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+
+      // Disparar evento de actualización de archivos para que el explorador se actualice
+      setTimeout(() => {
+        const refreshEvent = new CustomEvent('refresh-files', {
+          detail: { projectId: newProject.id }
+        });
+        window.dispatchEvent(refreshEvent);
+      }, 500);
 
       toast({
         title: "Proyecto creado",

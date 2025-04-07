@@ -168,7 +168,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
 
     sounds.play('click', 0.2);
     refreshFiles();
-    
+
     // Marcar el botón para poder encontrarlo desde otros componentes
     const refreshButton = document.querySelector('button[aria-label="Refrescar"]');
     if (refreshButton) {
@@ -176,31 +176,32 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       refreshButton.setAttribute('data-action', 'refresh-files');
     }
   };
-  
+
   // Efecto para escuchar eventos de actualización de archivos
   useEffect(() => {
+    // Handler para actualizar archivos cuando se recibe un evento
     const handleFileUpdated = (e: CustomEvent) => {
-      console.log("Evento files-updated recibido");
-      
-      // Usar timeout para dar tiempo a que los archivos se guarden en el backend
+      console.log("Evento files-updated recibido", e.detail);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
       refreshTimeoutRef.current = setTimeout(() => {
         refreshFiles();
       }, 500);
     };
-    
-    // Escuchar evento para recibir archivos del asistente
+
+    // Handler para recibir archivos del asistente
     const handleFilesFromAssistant = (e: CustomEvent) => {
       console.log("Evento send-files-to-explorer recibido", e.detail);
-      
-      if (e.detail && e.detail.files && Array.isArray(e.detail.files)) {
+      if (e.detail?.files && Array.isArray(e.detail.files)) {
         const files = e.detail.files;
-        
+
         toast({
           title: "Archivos recibidos",
           description: `Procesando ${files.length} archivo(s) del asistente...`,
           duration: 3000
         });
-        
+
         // Procesar cada archivo
         Promise.all(files.map(async (file: any) => {
           // Si el archivo ya existe, lo actualizamos en lugar de crear uno nuevo
@@ -208,18 +209,18 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
         }))
         .then(results => {
           const successCount = results.filter(Boolean).length;
-          
+
           toast({
             title: "Archivos procesados",
             description: `Se han añadido ${successCount} de ${files.length} archivos al explorador`,
             duration: 3000
           });
-          
+
           sounds.play('success', 0.3);
-          
+
           // Refrescar archivos después de procesarlos todos
           refreshFiles();
-          
+
           // Expandir los tipos de archivo correspondientes
           files.forEach((file: any) => {
             if (file.extension) {
@@ -239,24 +240,48 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
         });
       }
     };
-    
-    // Escuchar evento para cambiar a la pestaña de archivos
-    const handleActivateFilesTab = () => {
-      // Este evento permite cambiar automáticamente a la pestaña de archivos
+
+    // Handler para activar la pestaña de archivos
+    const handleActivateFilesTab = (e: Event) => {
+      console.log("Evento activate-files-tab recibido");
+      // Procesar evento para activar la pestaña de archivos...
       setOpenSections(prev => ({
         ...prev,
         files: true
       }));
     };
-    
+
+    // Handler para refrescar archivos (usado por las plantillas)
+    const handleRefreshFiles = (e: CustomEvent) => {
+      console.log("Evento refresh-files recibido", e.detail);
+      if (e.detail?.projectId === projectId || !e.detail?.projectId) {
+        refreshFiles();
+        // Expandir todas las carpetas después de cargar una plantilla
+        setTimeout(() => {
+          setOpenFolders(prev => {
+            const allFolders = getFolders();
+            const newOpenFolders = { ...prev };
+            allFolders.forEach(folder => {
+              newOpenFolders[folder] = true;
+            });
+            newOpenFolders['/'] = true;
+            return newOpenFolders;
+          });
+        }, 300);
+      }
+    };
+
+    // Agregar listeners
     window.addEventListener('files-updated', handleFileUpdated as EventListener);
     window.addEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
     window.addEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
-    
+    window.addEventListener('refresh-files', handleRefreshFiles as EventListener);
+
     return () => {
       window.removeEventListener('files-updated', handleFileUpdated as EventListener);
       window.removeEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
       window.removeEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
+      window.removeEventListener('refresh-files', handleRefreshFiles as EventListener);
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
@@ -739,7 +764,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       if (isMobile && onClose) {
         setTimeout(onClose, 300);
       }
-      
+
       // Disparar evento para abrir la pestaña del asistente
       const assistantEvent = new CustomEvent('open-assistant-tab');
       window.dispatchEvent(assistantEvent);
@@ -751,6 +776,22 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       });
       sounds.play('error', 0.3);
     }
+  };
+
+  const getFolders = (): string[] => {
+    const folders: string[] = [];
+    files.forEach(file => {
+      const pathParts = file.name.split('/');
+      if (pathParts.length > 1) {
+        for (let i = 1; i < pathParts.length -1; i++) {
+          const folderPath = '/' + pathParts.slice(0, i + 1).join('/');
+          if (!folders.includes(folderPath)) {
+            folders.push(folderPath);
+          }
+        }
+      }
+    });
+    return folders;
   };
 
 
@@ -877,7 +918,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                   <div className="flex gap-2 mt-2">
                     <Button 
                       variant="outline" 
-                      className="w-full h-7 text-xs" 
+                      className="w-fullh-7 text-xs" 
                       onClick={() => {
                         setShowNewFileDialog(true);
                         fileForm.reset();

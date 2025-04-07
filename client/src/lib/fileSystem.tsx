@@ -349,6 +349,11 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
       }
     });
 
+    // Agregar carpeta raíz si no existe
+    if (!folderSet.has('/')) {
+      folderSet.add('/');
+    }
+
     return Array.from(folderSet);
   };
 
