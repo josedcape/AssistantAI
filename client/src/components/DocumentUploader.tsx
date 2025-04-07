@@ -9,6 +9,7 @@ import { PackageOpenIcon, FolderIcon } from "lucide-react";
 interface DocumentUploaderProps {
   projectId: number;
   onDocumentUploaded: () => void;
+  onUploadComplete?: (documents: any[]) => void;
 }
 
 export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUploaderProps) {
@@ -197,6 +198,9 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
             onUploadComplete(data.documents);
           }
 
+          // Llamar a la función para actualizar la lista de documentos
+          onDocumentUploaded();
+
           // Sugerir usar documentos con el asistente
           if (acceptedFiles.length === 1 && ['txt', 'md', 'csv', 'json'].includes(
             acceptedFiles[0].name.split('.').pop()?.toLowerCase() || ''
@@ -245,7 +249,7 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
           setIsUploading(false);
         });
     },
-    [projectId, toast, onUploadComplete]
+    [projectId, toast, onDocumentUploaded, onUploadComplete]
   );
 
 
