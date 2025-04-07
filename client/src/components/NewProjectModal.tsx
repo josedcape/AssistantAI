@@ -144,6 +144,15 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         throw new Error("Error al generar los archivos");
       }
       
+      // Verificar el tipo de contenido de la respuesta
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        // Si no es JSON, extraer el texto para debug y lanzar un error
+        const text = await response.text();
+        console.error("Respuesta no válida:", text.substring(0, 150) + "...");
+        throw new Error("La respuesta del servidor no es JSON válido");
+      }
+      
       const data = await response.json();
       
       // Procesar y enviar los archivos generados al panel de archivos generados
@@ -184,8 +193,9 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       console.error("Error generando archivos con GPT:", error);
       toast({
         title: "Error",
-        description: "No se pudieron generar los archivos. Inténtalo de nuevo.",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "No se pudieron generar los archivos. Inténtalo de nuevo.",
+        variant: "destructive",
+        duration: 5000
       });
       sounds.play('error', 0.3);
     } finally {
