@@ -134,26 +134,28 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       Basado en esta información, genera los archivos necesarios para el proyecto siguiendo las mejores prácticas del framework o lenguaje seleccionado.`;
       
       // Llamada a la API para generar los archivos
-      const response = await apiRequest("POST", "/api/generate-code", {
-        prompt: prompt,
-        language: template,
-        agents: ["architect", "coder"] // Utilizamos agentes especializados
-      });
-      
-      if (!response.ok) {
-        throw new Error("Error al generar los archivos");
-      }
-      
-      // Verificar el tipo de contenido de la respuesta
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        // Si no es JSON, extraer el texto para debug y lanzar un error
-        const text = await response.text();
-        console.error("Respuesta no válida:", text.substring(0, 150) + "...");
-        throw new Error("La respuesta del servidor no es JSON válido");
-      }
-      
-      const data = await response.json();
+      try {
+        const response = await apiRequest("POST", "/api/generate-code", {
+          prompt: prompt,
+          language: template,
+          agents: ["architect", "coder"] // Utilizamos agentes especializados
+        });
+        
+        if (!response.ok) {
+          // Intentar obtener mensaje de error si existe
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Error al generar los archivos");
+          } catch (parseError) {
+            // Si no puede parsear la respuesta como JSON
+            const text = await response.text();
+            console.error("Respuesta no válida:", text.substring(0, 150) + "...");
+            throw new Error("Error al generar los archivos. La respuesta no es válida.");
+          }
+        }
+        
+        // Procesar respuesta exitosa
+        const data = await response.json();
       
       // Procesar y enviar los archivos generados al panel de archivos generados
       if (data.files && data.files.length > 0) {
@@ -201,6 +203,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
     } finally {
       setIsGeneratingFiles(false);
     }
+  }
   };
   
   // Función auxiliar para obtener la extensión desde el tipo

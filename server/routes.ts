@@ -575,6 +575,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         message: "Error processing URL",
         error: error instanceof Error ? error.message : "Unknown error"
+
+
+  // Endpoint para generar código desde NewProjectModal
+  apiRouter.post("/generate-code", async (req: Request, res: Response) => {
+    try {
+      const { prompt, language, agents } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Se requiere un prompt para generar código" 
+        });
+      }
+
+      // Integrar con la función de generación
+      try {
+        const result = await generateCode({
+          prompt,
+          language: language || "javascript",
+          projectId: null,
+          agents: agents || []
+        });
+
+        return res.json({
+          success: true,
+          files: result.files,
+          suggestions: result.suggestions
+        });
+      } catch (error) {
+        console.error("Error en la generación de código:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Error al generar el código",
+          error: error instanceof Error ? error.message : "Error desconocido"
+        });
+      }
+    } catch (error) {
+      console.error("Error en endpoint generate-code:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
+
       });
     }
   });
