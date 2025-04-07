@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { File } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -27,63 +26,34 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
   useEffect(() => {
     if (!file) return;
+
     setIsLoading(true);
-    
-    // Actualizar el contenido para la previsualización
-    setPreviewContent(file.content || "");
-    
-    const projectId = getProjectId();
-    if (!projectId) {
-      console.error("ID de proyecto inválido:", file.projectId);
-      toast({
-        title: "Error",
-        description: "ID de proyecto inválido. No se puede mostrar la vista previa.",
-        variant: "destructive"
-      });
+
+    // Asegurarse de que siempre tengamos contenido para previsualizar
+    if (file.content !== undefined && file.content !== null) {
+      setPreviewContent(file.content);
+    } else {
+      console.warn("Archivo sin contenido:", file.name);
+      setPreviewContent("// Archivo sin contenido");
     }
 
-    refreshPreview();
+    setIsLoading(false);
   }, [file]);
 
   // Función para refrescar la vista previa
   const refreshPreview = () => {
     setIsLoading(true);
 
-    const projectId = getProjectId();
-    if (!projectId && file) {
-      // Si no hay proyecto, simplemente mostramos el contenido del archivo
+    if (file) {
+      // Actualizar contenido directamente desde el file
       setPreviewContent(file.content || "");
-    } else if (projectId && allFiles) {
-      // Si hay proyecto, preparamos una vista previa más completa
-      prepareProjectPreview();
     }
 
     setIsLoading(false);
   };
 
-  // Prepara la vista previa para proyectos HTML/CSS/JS
-  const prepareProjectPreview = () => {
-    const htmlFiles = allFiles.filter(f => f.type === 'html');
-    const cssFiles = allFiles.filter(f => f.type === 'css');
-    const jsFiles = allFiles.filter(f => f.type === 'javascript');
-
-    let htmlContent = '';
-    if (htmlFiles.length > 0) {
-      htmlContent = htmlFiles[0].content;
-    }
-
-    const cssContent = cssFiles.map(f => f.content).join('\n');
-    const jsContent = jsFiles.map(f => f.content).join('\n');
-
-    // Si el archivo actual es HTML, actualizamos la vista previa
-    if (file.type === 'html') {
-      setPreviewContent(htmlContent);
-    }
-  };
-
   // Función para abrir la vista previa en una nueva ventana
   const openInNewWindow = () => {
-    const projectId = getProjectId();
     if (!file) return;
 
     const htmlFiles = allFiles.filter(f => f.type === 'html');
@@ -129,27 +99,17 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       );
     }
 
-    const projectId = getProjectId();
     const isHtml = file.type === 'html' || file.name.toLowerCase().endsWith('.html');
     const isCss = file.type === 'css' || file.name.toLowerCase().endsWith('.css');
     const isJs = file.type === 'javascript' || file.name.toLowerCase().endsWith('.js');
-    const hasValidProject = projectId !== null;
 
-    // Si es un archivo HTML o el proyecto tiene archivos HTML, mostramos iframe para previsualización
-    if (isHtml || (hasValidProject && allFiles.some(f => f.type === 'html'))) {
-      const htmlFiles = allFiles.filter(f => f.type === 'html');
+    // Si es un archivo HTML, mostramos iframe para previsualización
+    if (isHtml) {
       const cssFiles = allFiles.filter(f => f.type === 'css');
       const jsFiles = allFiles.filter(f => f.type === 'javascript');
 
-      // Si estamos viendo un archivo HTML, usamos su contenido
-      // Si no, usamos el primer archivo HTML del proyecto
-      let htmlContent = isHtml ? file.content : '';
-      if (!isHtml && htmlFiles.length > 0) {
-        htmlContent = htmlFiles[0].content;
-      }
-
-      const css = cssFiles.map(f => f.content).join('\n');
-      const js = jsFiles.map(f => f.content).join('\n');
+      const css = cssFiles.map(f => f.content || '').join('\n');
+      const js = jsFiles.map(f => f.content || '').join('\n');
 
       return (
         <iframe
@@ -162,14 +122,14 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
               <style>${css}</style>
             </head>
             <body>
-              ${htmlContent}
+              ${file.content || ''}
               <script>${js}</script>
             </body>
             </html>
           `}
           className="w-full h-full border-none"
           sandbox="allow-scripts"
-          title="Vista previa"
+          title="Vista previa HTML"
         />
       );
     }
@@ -184,15 +144,15 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <style>${file.content}</style>
+              <style>${file.content || ''}</style>
             </head>
             <body>
-              <div class="preview-container">
+              <div class="preview-container" style="padding: 20px; font-family: system-ui, sans-serif;">
                 <h1>Encabezado H1</h1>
                 <h2>Encabezado H2</h2>
                 <p>Párrafo de ejemplo con <a href="#">enlace</a> y <strong>texto en negrita</strong>.</p>
                 <button>Botón</button>
-                <div class="box">Caja de ejemplo</div>
+                <div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc;">Caja de ejemplo</div>
               </div>
             </body>
             </html>
@@ -216,7 +176,7 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
           <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
             <CodeBlock
-              code={file.content}
+              code={file.content || '// Sin contenido'}
               language="javascript"
               showLineNumbers={true}
             />
@@ -236,7 +196,7 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
           <CodeBlock
-            code={file.content}
+            code={previewContent || '// Sin contenido'}
             language={file.type === 'javascript' ? 'js' : file.type}
             showLineNumbers={true}
           />

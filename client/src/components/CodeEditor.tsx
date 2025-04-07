@@ -315,7 +315,7 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
         <CodeCorrectionModal
           file={{
             ...file,
-            content: content // Pasar el contenido actual del editor, no el original del archivo
+            content: content || "" // Asegurar que siempre haya contenido válido
           }}
           onClose={() => setShowCorrectionModal(false)}
           onApplyChanges={handleApplyCorrections}
