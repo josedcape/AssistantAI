@@ -357,6 +357,18 @@ async function createFile(fileName: string, content: string, projectId: number |
 /**
  * Procesa los mensajes del asistente, incluyendo comandos de paquetes
  */
+// Extender la interfaz de solicitud para incluir imágenes
+interface AssistantRequest {
+  message: string;
+  projectId: number | null;
+  modelId?: string;
+  history: Array<{
+    role: string;
+    content: string;
+  }>;
+  image?: string; // Base64 de la imagen
+}
+
 export async function processAssistantChat(request: AssistantRequest): Promise<AssistantResponse> {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -461,8 +473,26 @@ COMANDOS ESPECIALES:
     let modelToUse = request.modelId || getActiveModel();
 
     try {
-      // Llamar a la API de OpenAI
-      const response = await openai.chat.completions.create({
+      // Preparar mensajes con la imagen si está presente
+    if (request.image) {
+      // Si hay una imagen, agregamos un mensaje con la imagen usando el formato correcto para GPT-4 Vision
+      messages.push({
+        role: "user" as const,
+        content: [
+          { type: "text", text: request.message },
+          { 
+            type: "image_url", 
+            image_url: { 
+              url: request.image, 
+              detail: "high" // Alta calidad para mejor análisis
+            } 
+          }
+        ]
+      });
+    }
+
+    // Llamar a la API de OpenAI (con soporte para contenido multimodal si hay imágenes)
+    const response = await openai.chat.completions.create({
         model: modelToUse,
         messages,
         temperature: 0.7,

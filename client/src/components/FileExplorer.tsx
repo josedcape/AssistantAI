@@ -58,7 +58,7 @@ interface FileExplorerProps {
   onFileSelect: (file: File) => void;
   selectedFileId?: number;
   onClose?: () => void;
-  onSendToAssistant?: (fileContent: string, fileName: string, message?: string) => void;
+  onSendToAssistant?: (fileContent: string, fileName: string, message?: string, file?: File, isImage?: boolean) => void;
 }
 
 interface NewFileFormData {
@@ -196,7 +196,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       if (e.detail?.files && Array.isArray(e.detail.files)) {
         const files = e.detail.files;
         const isFromTemplate = e.detail.projectId === projectId;
-        
+
         toast({
           title: isFromTemplate ? "Plantilla detectada" : "Archivos recibidos",
           description: `Procesando ${files.length} archivo(s)${isFromTemplate ? " de la plantilla" : " del asistente"}...`,
@@ -229,7 +229,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               setOpenTypes(prev => ({ ...prev, [extension]: true }));
             }
           });
-          
+
           // Si viene de una plantilla, asegurarse de que todos los tipos estén expandidos
           if (isFromTemplate) {
             setOpenTypes(prev => ({
@@ -242,7 +242,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               'tsx': true,
               'json': true
             }));
-            
+
             // También abrir todas las carpetas
             setOpenFolders(prev => {
               const allFolders = getFolders();
@@ -253,7 +253,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               newOpenFolders['/'] = true;
               return newOpenFolders;
             });
-            
+
             // Forzar una segunda actualización después de un breve retraso
             setTimeout(() => {
               refreshFiles();
@@ -288,7 +288,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       console.log("Evento refresh-files recibido", e.detail);
       if (e.detail?.projectId === projectId || !e.detail?.projectId) {
         refreshFiles();
-        
+
         // Expandir todas las carpetas y tipos de archivos después de cargar una plantilla
         setTimeout(() => {
           // Expandir todas las carpetas
@@ -301,7 +301,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
             newOpenFolders['/'] = true;
             return newOpenFolders;
           });
-          
+
           // Expandir también los tipos de archivos comunes
           setOpenTypes(prev => {
             return {
@@ -314,7 +314,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               'tsx': true
             };
           });
-          
+
           // Forzar una actualización adicional para asegurar que se muestran todos los archivos
           setTimeout(refreshFiles, 500);
         }, 300);
@@ -780,48 +780,51 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
   }, {} as { [folderName: string]: any[] });
 
   // Función para enviar un archivo al asistente
-  const handleFileAssistant = (file: File) => {
-    if (onSendToAssistant && file.content) {
-      // Preparar mensaje opcional basado en el tipo de archivo
-      let customMessage = "";
-      const extension = file.name.split('.').pop()?.toLowerCase() || '';
-
-      // Personalizar el mensaje según el tipo de archivo
-      if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
-        customMessage = `Por favor analiza este archivo JavaScript/TypeScript "${file.name}" y sugiere mejoras de código, patrones de diseño apropiados y posibles optimizaciones:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
-      } else if (['html', 'css'].includes(extension)) {
-        customMessage = `Por favor revisa este archivo ${extension.toUpperCase()} "${file.name}" y sugiere mejoras de estructura, accesibilidad y buenas prácticas:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
-      } else if (['json', 'yml', 'yaml', 'toml'].includes(extension)) {
-        customMessage = `Por favor revisa esta configuración en "${file.name}" y explica su propósito y estructura:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
-      } else if (['md', 'txt'].includes(extension)) {
-        customMessage = `Por favor analiza el contenido de este documento "${file.name}":\n\n\`\`\`${extension}\n${file.content}\`\`\``;
-      } else {
-        customMessage = `Archivo "${file.name}" enviado para análisis.`;
-      }
-
-      // Enviar al asistente con el mensaje personalizado
-      onSendToAssistant(file.content, file.name, customMessage);
-
-      // Notificar al usuario
+  const handleFileAssistant = async (file: File) => {
+    if (!onSendToAssistant) {
       toast({
-        title: "Archivo enviado al asistente",
-        description: `${file.name} ha sido enviado al asistente para análisis`,
-        duration: 3000
+        title: "Función no disponible",
+        description: "No se puede enviar al asistente en este contexto",
+        variant: "destructive",
       });
-      sounds.play("send");
+      return;
+    }
 
-      // Abrir automáticamente la pestaña del asistente
-      if (isMobile && onClose) {
-        setTimeout(onClose, 300);
+    try {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
+
+      if (isImage) {
+        // Para imágenes, enviamos el Blob directamente
+        const message = `Analiza esta imagen ${file.name}:\n`;
+
+        // Llamar a la función para enviar al asistente con el Blob
+        onSendToAssistant("", file.name, message, file, true);
+
+        toast({
+          title: "Imagen enviada al asistente",
+          description: `Se ha enviado la imagen ${file.name} al chat del asistente`,
+        });
+        sounds.play('success', 0.3);
+      } else {
+        // Para archivos de texto, leer el contenido
+        const content = await file.text();
+        const message = `Analiza este archivo ${file.name}:\n`;
+
+        // Llamar a la función para enviar al asistente
+        onSendToAssistant(content, file.name, message);
+
+        toast({
+          title: "Archivo enviado al asistente",
+          description: `Se ha enviado ${file.name} al chat del asistente`,
+        });
+        sounds.play('success', 0.3);
       }
-
-      // Disparar evento para abrir la pestaña del asistente
-      const assistantEvent = new CustomEvent('open-assistant-tab');
-      window.dispatchEvent(assistantEvent);
-    } else {
+    } catch (error) {
+      console.error("Error al enviar archivo al asistente:", error);
       toast({
         title: "Error",
-        description: "El archivo no tiene contenido o no está disponible",
+        description: error instanceof Error ? error.message : "No se pudo enviar el archivo al asistente",
         variant: "destructive",
       });
       sounds.play('error', 0.3);

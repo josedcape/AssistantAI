@@ -944,11 +944,20 @@ const AssistantChat: React.FC = () => {
   };
 
   // Función para procesar archivos enviados desde el explorador
-  const processFileFromExplorer = useCallback((content: string, fileName: string, message?: string) => {
+  const processFileFromExplorer = useCallback((content: string, fileName: string, message?: string, fileBlob?: Blob) => {
     // Detectar tipo de archivo basado en la extensión
     const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'txt';
+    
+    // Verificar si es una imagen
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
+    
+    if (isImage && fileBlob) {
+      // Procesar como imagen
+      processImageFile(fileBlob, fileName);
+      return;
+    }
 
-    // Crear mensaje con formato adecuado
+    // Crear mensaje con formato adecuado para archivos de texto
     const messagePrefix = message || `He recibido el archivo "${fileName}" desde el explorador:\n\n\`\`\`\${fileExtension}\n`;
 
     // Limitar el contenido si es muy grande
@@ -1008,12 +1017,93 @@ const AssistantChat: React.FC = () => {
       setInput(finalMessage);
     }
   }, [messages, modelId]);
+  
+  // Función para procesar imágenes
+  const processImageFile = async (imageBlob: Blob, fileName: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Convertir la imagen a base64
+      const reader = new FileReader();
+      reader.readAsDataURL(imageBlob);
+      
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+        
+        // Crear un mensaje de usuario con la imagen
+        const userMessage = `Analiza esta imagen "${fileName}":\n![${fileName}](${base64Image})`;
+        
+        // Añadir el mensaje del usuario con la imagen
+        setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+        
+        // Enviar la solicitud al backend para procesar la imagen
+        try {
+          const response = await fetch("/api/assistant-chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: `Analiza esta imagen: ${fileName}`,
+              modelId,
+              history: messages,
+              projectId: null,
+              image: base64Image
+            }),
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Error al procesar la imagen: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          if (data.message) {
+            setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+            sounds.play("notification");
+          }
+        } catch (error) {
+          console.error("Error procesando imagen:", error);
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `## ⚠️ Error al analizar la imagen\n\nNo se pudo procesar la imagen ${fileName}. ${error instanceof Error ? error.message : "Error desconocido"}.`
+          }]);
+          sounds.play("error");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      reader.onerror = () => {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `## ⚠️ Error al leer la imagen\n\nNo se pudo leer el archivo ${fileName}.`
+        }]);
+        sounds.play("error");
+      };
+    } catch (error) {
+      setIsLoading(false);
+      console.error("Error al procesar la imagen:", error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `## ⚠️ Error al procesar la imagen\n\nHa ocurrido un error al procesar la imagen ${fileName}.`
+      }]);
+      sounds.play("error");
+    }
+  };
 
   // Efecto para escuchar eventos del explorador de archivos
   useEffect(() => {
     const handleFileToAssistant = (e: CustomEvent) => {
-      if (e.detail && e.detail.content && e.detail.fileName) {
-        processFileFromExplorer(e.detail.content, e.detail.fileName, e.detail.message);
+      if (e.detail && e.detail.fileName) {
+        // Verificar si es una imagen enviada como Blob
+        if (e.detail.fileBlob && e.detail.isImage) {
+          processFileFromExplorer("", e.detail.fileName, e.detail.message, e.detail.fileBlob);
+        } 
+        // Archivo de texto normal con contenido como texto
+        else if (e.detail.content) {
+          processFileFromExplorer(e.detail.content, e.detail.fileName, e.detail.message);
+        }
       }
     };
 
@@ -1207,13 +1297,27 @@ const AssistantChat: React.FC = () => {
                         id="file-upload"
                         type="file"
                         className="hidden"
-                        accept=".txt,.pdf,.doc,.docx,.md"
+                        accept=".txt,.pdf,.doc,.docx,.md,.jpg,.jpeg,.png,.gif,.webp,.bmp"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
 
                           const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                          const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension || '');
 
+                          // Procesamiento especial para imágenes
+                          if (isImage) {
+                            toast({
+                              title: "Procesando imagen",
+                              description: `Preparando ${file.name} para análisis...`,
+                              duration: 3000
+                            });
+                            
+                            // Usar la función para procesar imágenes
+                            processImageFile(file, file.name);
+                            return;
+                          }
+                          
                           // Procesamiento especial para DOC/DOCX
                           if (fileExtension === 'doc' || fileExtension === 'docx') {
                             // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
@@ -1309,7 +1413,7 @@ const AssistantChat: React.FC = () => {
                     </label>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Subir documento (.txt, .pdf, .doc, .md)
+                    Subir documento o imagen (.txt, .pdf, .doc, .md, .jpg, .png, etc.)
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
