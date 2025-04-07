@@ -1,0 +1,210 @@
+Aquí te proporciono una versión optimizada de la **llamada API** y el **prompt** que se debería utilizar para que el asistente, basado en el modelo GPT-4o-mini, genere los archivos de forma profesional y adecuada para distintos tipos de proyectos.
+
+### **1. Llamada API para Generar Archivos con GPT-4o-mini**
+
+La **API** debería recibir los siguientes parámetros:
+- **template**: La plantilla de proyecto seleccionada (HTML/CSS/JS, React, Node, Python, etc.).
+- **projectName**: El nombre del proyecto.
+- **description**: Una breve descripción del proyecto.
+- **features**: Las características adicionales seleccionadas (e.g., responsive, dark-mode, routing, etc.).
+
+Aquí te dejo un ejemplo de cómo realizar la llamada API utilizando **Node.js**:
+
+```javascript
+const axios = require('axios');
+
+const generateFiles = async (template, projectName, description, features) => {
+  try {
+    // Crear el prompt dinámicamente
+    const prompt = `Genera los archivos iniciales para un proyecto de plantilla ${template} llamado "${projectName}". 
+    La descripción del proyecto es: "${description}". 
+    Las características seleccionadas son: ${features.join(", ")}. 
+    Necesito que los archivos generados estén listos para ser usados en el proyecto y se adapten a las mejores prácticas del lenguaje y framework seleccionado.`;
+
+    // Realizar la llamada a la API del modelo GPT-4o-mini
+    const response = await axios.post('https://api.openai.com/v1/completions', {
+      model: 'gpt-4o-mini', // Usamos el modelo GPT-4o-mini
+      prompt: prompt,
+      max_tokens: 1500,
+      temperature: 0.7,
+      top_p: 1,
+      n: 1,
+      stop: ['\n']
+    }, {
+      headers: {
+        'Authorization': `Bearer YOUR_API_KEY`
+      }
+    });
+
+    // Devuelve la respuesta del modelo (los archivos generados)
+    return response.data.choices[0].text;
+  } catch (error) {
+    console.error("Error generando los archivos:", error);
+    throw new Error('No se pudieron generar los archivos');
+  }
+};
+```
+
+### **2. Prompt para Generar los Archivos**
+
+A continuación te dejo un **prompt profesional** que puedes enviar al modelo **GPT-4o-mini** para que genere los archivos adecuados para cada tipo de proyecto.
+
+```text
+Genera los archivos iniciales para un proyecto de plantilla {{template}} llamado "{{projectName}}". 
+La descripción del proyecto es: "{{description}}". 
+Las características seleccionadas son: {{features}}. 
+Basado en esta información, genera los siguientes archivos para el proyecto:
+1. **Archivo de configuración** (si aplica, como package.json para Node, requirements.txt para Python, etc.).
+2. **Archivos principales del proyecto** como el archivo HTML, CSS, JS, o cualquier archivo de entrada relevante para la plantilla seleccionada.
+3. **Estructura básica de carpetas** (si aplica, como carpetas src, public, componentes, rutas, etc.).
+4. Incluye las características seleccionadas (como responsive, dark mode, autenticación, API endpoints) aplicadas en los archivos donde corresponda.
+
+Asegúrate de seguir las mejores prácticas del framework o lenguaje seleccionado. Los archivos deben ser lo más completos posible, pero fáciles de usar para que el desarrollador pueda comenzar rápidamente.
+
+Recuerda que la respuesta debe contener el código listo para ser copiado en los archivos correspondientes.
+```
+
+### **3. Respuesta Esperada**
+
+La respuesta del modelo debería incluir los archivos generados de la siguiente forma:
+
+#### **Ejemplo de Respuesta para un Proyecto React**
+
+```text
+Generando archivos para el proyecto React "Mi Aplicación":
+
+1. **package.json**:
+```json
+{
+  "name": "mi-aplicacion",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-scripts": "4.0.3"
+  }
+}
+```
+
+2. **src/index.js**:
+```javascript
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App';
+
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
+);
+```
+
+3. **src/App.js**:
+```javascript
+import React from 'react';
+import './App.css';
+
+function App() {
+  return (
+    <div className="App">
+      <h1>Bienvenido a Mi Aplicación</h1>
+      <p>{description}</p>
+    </div>
+  );
+}
+
+export default App;
+```
+
+4. **src/App.css**:
+```css
+.App {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .App {
+    background-color: lightgray;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .App {
+    background-color: black;
+    color: white;
+  }
+}
+```
+
+#### **Ejemplo de Respuesta para un Proyecto Node.js**
+
+```text
+Generando archivos para el proyecto Node.js "API Backend":
+
+1. **package.json**:
+```json
+{
+  "name": "api-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.9.10"
+  }
+}
+```
+
+2. **src/index.js**:
+```javascript
+const express = require('express');
+const app = express();
+const port = 3000;
+
+app.get('/', (req, res) => {
+  res.send('API Backend funcionando!');
+});
+
+app.listen(port, () => {
+  console.log(`Servidor corriendo en http://localhost:${port}`);
+});
+```
+
+3. **src/routes/userRoutes.js**:
+```javascript
+const express = require('express');
+const router = express.Router();
+
+router.get('/users', (req, res) => {
+  res.json([{ id: 1, name: 'Juan' }, { id: 2, name: 'Ana' }]);
+});
+
+module.exports = router;
+```
+
+4. **src/controllers/userController.js**:
+```javascript
+// Controlador para la gestión de usuarios
+module.exports.getUsers = (req, res) => {
+  res.json([{ id: 1, name: 'Juan' }, { id: 2, name: 'Ana' }]);
+};
+```
+
+### **4. Conclusión**
+
+Este flujo permite que el asistente GPT-4o-mini genere los archivos correctos según la plantilla de proyecto seleccionada y las características que el usuario elija. Los archivos se pueden mostrar en el frontend para que el usuario los apruebe y luego se reflejan en el explorador de archivos.
+
+Con esta estructura:
+1. El **backend** maneja las solicitudes de generación de archivos y la creación de los proyectos.
+2. El **frontend** permite al usuario interactuar con el asistente, generando y visualizando los archivos antes de confirmarlos.
