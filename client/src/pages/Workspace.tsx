@@ -1622,10 +1622,9 @@ const Workspace: React.FC = () => {
 
                 {activeTab === "history" && <HistoryComponent />}
                 {activeTab === "generated" && (
-                  <div>
-                    {/* Contenido del panel de archivos generados */}
-                    <p>Panel de archivos generados</p>
-                  </div>
+                  <GeneratedFilesPanel
+                    projectId={Number(projectId)}
+                  />
                 )}
               </div>
             </div>

@@ -406,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Activar la pestaña de archivos generados después de un breve retraso
       setTimeout(() => {
+        // Cambiar a la pestaña de archivos generados
         const activateGeneratedEvent = new CustomEvent('activate-generated-tab', {
           detail: { projectId: newProject.id }
         });
@@ -414,14 +415,15 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Luego refrescar archivos después de un breve retraso
       setTimeout(() => {
+        // Solo refrescar la lista de archivos sin modificar el explorador
         const refreshEvent = new CustomEvent('refresh-files', {
-          detail: { projectId: newProject.id, forceRefresh: true }
+          detail: { 
+            projectId: newProject.id, 
+            forceRefresh: true,
+            targetPanel: 'generated' // Indicar que solo queremos actualizar el panel de generados
+          }
         });
         window.dispatchEvent(refreshEvent);
-
-        // Activar la pestaña de archivos
-        const activateFilesEvent = new CustomEvent('activate-files-tab');
-        window.dispatchEvent(activateFilesEvent);
       }, 800);
 
       toast({
