@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -979,7 +978,7 @@ const Workspace: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {fileChangesHistory.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((change, index) => (
-            <div key={index} className="border rounded-md p-3 bg-white dark:bg-slate-800 shadow-sm">
+            <div key={index} className="border rounded-md p3 bg-white dark:bg-slate-800 shadow-sm">
               <div className="flex justify-between items-start">
                 <div className="flex items-start">
                   {change.description.includes("creado") ? (
@@ -1506,7 +1505,7 @@ const Workspace: React.FC = () => {
               <div className="border-b dark:border-slate-700">
                 <Tabs 
                   value={activeTab} 
-                  onValueChange={(value) => setActiveTab(value as any)}
+                  onValueChange={handleTabChange}
                   className="w-full"
                 >
                   <TabsList className="h-10 w-full justify-start overflow-x-auto">

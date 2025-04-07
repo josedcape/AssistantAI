@@ -70,31 +70,77 @@ const GeneratedFilesPanelContent = () => {
     }
   };
 
-  // Load files on initial render
+  // Load files on initial render and set up refresh interval
   useEffect(() => {
+    console.log("Inicializando panel de archivos generados");
     loadFilesFromStorage();
+    
+    // Realizar verificaciones periódicas para asegurar que se muestren los archivos
+    const refreshInterval = setInterval(() => {
+      const storedFiles = localStorage.getItem('generatedFiles');
+      if (storedFiles) {
+        try {
+          const parsedFiles = JSON.parse(storedFiles);
+          if (parsedFiles.length > 0 && generatedFiles.length === 0) {
+            console.log("Detectados archivos en storage que no están en el estado, actualizando...");
+            setGeneratedFiles(parsedFiles);
+          }
+        } catch (error) {
+          console.error("Error verificando archivos almacenados:", error);
+        }
+      }
+    }, 5000); // Verificar cada 5 segundos
 
     // Listen for custom events to add new files
     const handleNewFileEvent = (e: CustomEvent) => {
       if (e.detail && e.detail.file) {
-        // Add file with a slight delay to give time for processing
-        console.log("Archivo generado recibido, procesando en 20 segundos...");
-        setTimeout(() => {
-          const newFile = e.detail.file;
-          setGeneratedFiles(prev => {
-            const updated = [...prev, newFile];
-            saveFilesToStorage(updated);
-            return updated;
+        // Log receiving event
+        console.log("Archivo generado recibido:", e.detail.file.name);
+        
+        // Check if file already exists to avoid duplicates
+        const newFile = e.detail.file;
+        setGeneratedFiles(prev => {
+          // Check if file with same name already exists
+          const fileExists = prev.some(file => 
+            file.name === newFile.name && 
+            file.extension === newFile.extension
+          );
+          
+          if (fileExists) {
+            console.log(`Archivo ${newFile.name}${newFile.extension} ya existe, no se duplicará`);
+            return prev;
+          }
+          
+          // Add new file
+          console.log(`Agregando archivo ${newFile.name}${newFile.extension} al panel de generados`);
+          const updated = [...prev, newFile];
+          saveFilesToStorage(updated);
+          
+          // Notify success
+          toast({
+            title: "Archivo generado",
+            description: `${newFile.name}${newFile.extension} ha sido agregado al panel`,
           });
-          console.log("Archivo generado procesado y agregado correctamente");
-        }, 20000); // 20 seconds delay
+          
+          return updated;
+        });
       }
     };
 
     window.addEventListener('add-generated-file', handleNewFileEvent as EventListener);
 
+    // Escuchar eventos de refresco explícito
+    const handleRefreshGeneratedFiles = () => {
+      console.log("Recibida solicitud de refresco de archivos generados");
+      loadFilesFromStorage();
+    };
+    
+    window.addEventListener('refresh-generated-files', handleRefreshGeneratedFiles);
+    
     return () => {
       window.removeEventListener('add-generated-file', handleNewFileEvent as EventListener);
+      window.removeEventListener('refresh-generated-files', handleRefreshGeneratedFiles);
+      clearInterval(refreshInterval);
     };
   }, []);
 

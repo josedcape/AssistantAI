@@ -279,6 +279,136 @@ document.addEventListener('DOMContentLoaded', () => {
       // Invalidar caché de proyectos y actualizar los archivos en el explorador
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
 
+      // Emitir evento para actualizar archivos generados
+      const filesCreatedEvent = new CustomEvent('add-generated-file', {
+        detail: {
+          file: {
+            name: "index.html",
+            content: `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projectName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Bienvenido a ${projectName}</h1>
+    <p>${description || "Mi nuevo proyecto"}</p>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>`,
+            extension: ".html"
+          }
+        }
+      });
+      window.dispatchEvent(filesCreatedEvent);
+
+      // Emitir eventos para cada archivo creado en la plantilla
+      if (template === "html-css-js") {
+        setTimeout(() => {
+          const cssEvent = new CustomEvent('add-generated-file', {
+            detail: {
+              file: {
+                name: "styles",
+                content: `/* Estilos para ${projectName} */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h1 {
+  color: #333;
+}
+
+${selectedFeatures.includes('responsive') ? `/* Diseño responsive */
+@media (max-width: 768px) {
+  #app {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+}` : ''}
+
+${selectedFeatures.includes('dark-mode') ? `/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a1a1a;
+    color: #fff;
+  }
+
+  #app {
+    background-color: #2d2d2d;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  h1 {
+    color: #fff;
+  }
+}` : ''}`,
+                extension: ".css"
+              }
+            }
+          });
+          window.dispatchEvent(cssEvent);
+        }, 1000);
+        
+        setTimeout(() => {
+          const jsEvent = new CustomEvent('add-generated-file', {
+            detail: {
+              file: {
+                name: "app",
+                content: `// Código JavaScript para ${projectName}
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Aplicación iniciada');
+
+  ${selectedFeatures.includes('responsive') ? `
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    console.log('Versión móvil cargada');
+  }` : ''}
+
+  ${selectedFeatures.includes('animations') ? `
+  const title = document.querySelector('h1');
+  title.style.opacity = '0';
+  title.style.transition = 'opacity 0.5s ease-in-out';
+
+  requestAnimationFrame(() => {
+    title.style.opacity = '1';
+  });` : ''}
+});`,
+                extension: ".js"
+              }
+            }
+          });
+          window.dispatchEvent(jsEvent);
+        }, 2000);
+      }
+
+      // Emitir evento para refrescar archivos en el explorador
+      const refreshEvent = new CustomEvent('refresh-files', {
+        detail: {
+          projectId: newProject.id,
+          forceRefresh: true
+        }
+      });
+      window.dispatchEvent(refreshEvent);
+
       toast({
         title: "Proyecto creado",
         description: `${projectName} ha sido creado exitosamente`
