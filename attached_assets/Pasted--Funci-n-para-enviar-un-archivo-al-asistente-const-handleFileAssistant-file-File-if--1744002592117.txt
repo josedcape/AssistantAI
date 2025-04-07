@@ -1,0 +1,44 @@
+// Función para enviar un archivo al asistente
+const handleFileAssistant = (file: File) => {
+  if (onSendToAssistant && file.content) {
+    // Preparar mensaje opcional basado en el tipo de archivo
+    let customMessage = "";
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+    // Personalizar el mensaje según el tipo de archivo
+    if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
+      customMessage = `Por favor analiza este archivo JavaScript/TypeScript "${file.name}" y sugiere mejoras de código, patrones de diseño apropiados y posibles optimizaciones:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+    } else if (['html', 'css'].includes(extension)) {
+      customMessage = `Por favor revisa este archivo ${extension.toUpperCase()} "${file.name}" y sugiere mejoras de estructura, accesibilidad y buenas prácticas:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+    } else if (['json', 'yml', 'yaml', 'toml'].includes(extension)) {
+      customMessage = `Por favor revisa esta configuración en "${file.name}" y explica su propósito y estructura:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+    } else if (['md', 'txt'].includes(extension)) {
+      customMessage = `Por favor analiza el contenido de este documento "${file.name}":\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+    } else {
+      customMessage = `Archivo "${file.name}" enviado para análisis.`;
+    }
+
+    // Enviar al asistente con el mensaje personalizado
+    onSendToAssistant(file.content, file.name, customMessage);
+
+    // Notificar al usuario
+    toast({
+      title: "Archivo enviado al asistente",
+      description: `${file.name} ha sido enviado al asistente para análisis`,
+      duration: 3000
+    });
+    sounds.play("send");
+
+    // Abrir automáticamente la pestaña del asistente
+    if (isMobile && onClose) {
+      setTimeout(onClose, 300);
+    }
+  } else {
+    toast({
+      title: "Error",
+      description: "El archivo no tiene contenido o no está disponible",
+      variant: "destructive",
+    });
+    sounds.play('error', 0.3);
+  }
+};
