@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PackageOpenIcon, FolderIcon } from "lucide-react";
+import { PackageOpenIcon, FolderIcon, Upload } from "lucide-react";
 
 interface DocumentUploaderProps {
   projectId: number;
