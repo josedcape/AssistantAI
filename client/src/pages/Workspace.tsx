@@ -202,10 +202,20 @@ const Workspace: React.FC = () => {
       }
     };
 
+    // Manejador para activar la pestaña de archivos generados
+    const handleActivateGeneratedTab = (event: CustomEvent) => {
+      console.log("🔄 Workspace: Activando pestaña de archivos generados", event.detail);
+      if (event.detail?.projectId === Number(projectId)) {
+        setSidebarTab('generated');
+      }
+    };
+
     window.addEventListener('document-uploaded', handleDocumentUploaded as EventListener);
+    window.addEventListener('activate-generated-tab', handleActivateGeneratedTab as EventListener);
 
     return () => {
       window.removeEventListener('document-uploaded', handleDocumentUploaded as EventListener);
+      window.removeEventListener('activate-generated-tab', handleActivateGeneratedTab as EventListener);
     };
   }, []);
 

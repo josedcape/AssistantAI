@@ -401,6 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
           fromTemplate: true
         }
       });
+      console.log("Enviando archivos al panel de generados:", createdFiles);
       window.dispatchEvent(sendFilesToExplorer);
 
       // Activar la pestaña de archivos generados después de un breve retraso
@@ -409,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const activateGeneratedEvent = new CustomEvent('activate-generated-tab', {
           detail: { projectId: newProject.id }
         });
-        window.dispatchEvent(activateGeneratedEvent);
+        window.dispatchEvent(activateGeneratedEvent);eneratedEvent);
       }, 500);
 
       // Luego refrescar archivos después de un breve retraso

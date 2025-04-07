@@ -52,17 +52,42 @@ const GeneratedFilesPanelContent = ({ projectId }: GeneratedFilesPanelProps) => 
       
       if (e.detail?.files && Array.isArray(e.detail.files)) {
         const files = e.detail.files;
-        const isFromTemplate = e.detail.projectId === projectId;
+        const isFromTemplate = e.detail.fromTemplate === true;
+        const eventProjectId = e.detail.projectId;
         
-        toast({
-          title: isFromTemplate ? "Plantilla detectada" : "Archivos recibidos",
-          description: `${files.length} archivo(s) recibidos${isFromTemplate ? " de la plantilla" : " del asistente"}`,
-          duration: 3000
-        });
-        
-        // Agregar los archivos recibidos al estado
-        setGeneratedFiles(prev => [...prev, ...files]);
-        sounds.play('success', 0.3);
+        // Verificar si el evento es para este proyecto o si no hay ID de proyecto
+        if (!eventProjectId || Number(eventProjectId) === Number(projectId)) {
+          console.log(`Agregando ${files.length} archivos al panel de generados para proyecto ${projectId}`);
+          
+          toast({
+            title: isFromTemplate ? "Plantilla detectada" : "Archivos recibidos",
+            description: `${files.length} archivo(s) recibidos${isFromTemplate ? " de la plantilla" : " del asistente"}`,
+            duration: 3000
+          });
+          
+          // Agregar los archivos recibidos al estado
+          setGeneratedFiles(prev => {
+            // Verificar si ya existen archivos con el mismo nombre
+            const newFiles = files.filter(newFile => 
+              !prev.some(existingFile => existingFile.name === newFile.name)
+            );
+            
+            if (newFiles.length === 0) {
+              toast({
+                title: "Archivos duplicados",
+                description: "Los archivos ya existen en el panel",
+                duration: 3000
+              });
+              return prev;
+            }
+            
+            return [...prev, ...newFiles];
+          });
+          
+          sounds.play('success', 0.3);
+        } else {
+          console.log(`Ignorando archivos para proyecto ${eventProjectId}, estamos en ${projectId}`);
+        }
       }
     };
 
