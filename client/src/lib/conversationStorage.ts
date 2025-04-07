@@ -1,4 +1,3 @@
-
 import { localStorageUtils } from './storage';
 
 // Tipos para el almacenamiento de conversaciones
@@ -26,9 +25,9 @@ export const getConversations = (): Conversation[] => {
     const conversationKeys = allKeys.filter(key => 
       key.startsWith(localStorageUtils.getFullKey(CONVERSATION_PREFIX))
     );
-    
+
     const conversations: Conversation[] = [];
-    
+
     for (const key of conversationKeys) {
       const rawKey = key.replace(localStorageUtils.getFullKey(CONVERSATION_PREFIX), '');
       const conversation = getConversation(rawKey);
@@ -36,7 +35,7 @@ export const getConversations = (): Conversation[] => {
         conversations.push(conversation);
       }
     }
-    
+
     // Ordenar por fecha de actualización (más reciente primero)
     return conversations.sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -89,13 +88,13 @@ export const generateConversationId = (): string => {
 export const generateConversationTitle = (messages: Message[]): string => {
   // Buscar el primer mensaje del usuario
   const firstUserMessage = messages.find(msg => msg.role === 'user');
-  
+
   if (firstUserMessage) {
     // Limitar a 30 caracteres y añadir puntos suspensivos si es más largo
     const content = firstUserMessage.content.trim();
     return content.length > 30 ? content.substring(0, 30) + '...' : content;
   }
-  
+
   return `Conversación ${new Date().toLocaleString()}`;
 };
 
@@ -122,4 +121,17 @@ export const setActiveConversation = (id: string | null): boolean => {
     console.error('Error al establecer conversación activa:', error);
     return false;
   }
+};
+
+export {
+  getConversation,
+  getConversations,
+  saveConversation,
+  deleteConversation,
+  setActiveConversation,
+  getActiveConversation,
+  generateConversationId,
+  generateConversationTitle,
+  type Conversation,
+  type Message
 };

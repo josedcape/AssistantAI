@@ -1,221 +1,183 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import { Conversation, getConversations, deleteConversation } from "@/lib/conversationStorage";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from "@/components/ui/tooltip";
+import { MessageSquare, Plus, Search, Trash2, MoreVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Edit, Trash2, Search, Plus, Save } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
-  getConversations, 
-  getConversation, 
-  deleteConversation,
-  saveConversation,
-  Conversation
-} from '@/lib/conversationStorage';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import * as sounds from "@/lib/sounds";
 
 interface ConversationListProps {
   onSelect: (conversation: Conversation) => void;
   onNew: () => void;
-  activeConversationId: string | null;
+  activeConversationId?: string | null;
 }
 
-export const ConversationList: React.FC<ConversationListProps> = ({
-  onSelect,
-  onNew,
-  activeConversationId
-}) => {
+export function ConversationList({ onSelect, onNew, activeConversationId }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingTitle, setEditingTitle] = useState<{id: string, title: string} | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
-  // Cargar conversaciones
   useEffect(() => {
+    const loadConversations = () => {
+      const convs = getConversations();
+      // Ordenar por fecha más reciente
+      convs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      setConversations(convs);
+    };
+
     loadConversations();
+
+    // Actualizar la lista cuando cambia el almacenamiento
+    const handleStorageChange = () => {
+      loadConversations();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
-  const loadConversations = () => {
-    const loadedConversations = getConversations();
-    setConversations(loadedConversations);
-  };
-
-  // Filtrar conversaciones según búsqueda
   const filteredConversations = conversations.filter(conv => 
     conv.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Editar título de conversación
-  const handleEditTitle = (id: string, newTitle: string) => {
-    const conversation = getConversation(id);
-    if (conversation) {
-      conversation.title = newTitle;
-      conversation.updatedAt = new Date();
-      saveConversation(conversation);
-      setEditingTitle(null);
-      loadConversations();
-    }
-  };
-
-  // Eliminar conversación
   const handleDeleteConversation = (id: string) => {
     deleteConversation(id);
-    setShowDeleteDialog(null);
-    loadConversations();
-  };
 
-  // Formatear fecha para mostrar
-  const formatDate = (date: Date) => {
-    const d = new Date(date);
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    // Eliminar también del localStorage para mayor consistencia
+    try {
+      localStorage.removeItem(`conversation-${id}`);
+    } catch (e) {
+      console.warn("No se pudo eliminar de localStorage:", e);
+    }
+
+    // Actualizar la lista de conversaciones
+    setConversations(prevConversations => 
+      prevConversations.filter(conv => conv.id !== id)
+    );
+
+    // Reproducir sonido
+    sounds.play("click");
+
+    // Cerrar el diálogo
+    setConversationToDelete(null);
+
+    // Si la conversación activa es la que se elimina, crear una nueva
+    if (activeConversationId === id) {
+      onNew();
+    }
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* Cabecera */}
-      <div className="p-3 border-b flex items-center justify-between">
-        <h3 className="font-medium">Conversaciones</h3>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onNew}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Nueva conversación
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-      
-      {/* Buscador */}
-      <div className="px-3 py-2">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold mb-4">Conversaciones</h2>
+        <Button 
+          onClick={onNew} 
+          className="w-full mb-2"
+          variant="outline"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nueva conversación
+        </Button>
         <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" />
           <Input
-            placeholder="Buscar conversación"
+            placeholder="Buscar conversaciones..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
           />
         </div>
       </div>
-      
-      {/* Lista de conversaciones */}
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
-          {filteredConversations.length > 0 ? (
-            filteredConversations.map((conv) => (
-              <div 
-                key={conv.id} 
-                className={`p-2 rounded-md cursor-pointer hover:bg-accent flex justify-between items-start ${activeConversationId === conv.id ? 'bg-accent' : ''}`}
-              >
-                <div className="flex-1" onClick={() => onSelect(conv)}>
-                  {editingTitle && editingTitle.id === conv.id ? (
-                    <Input
-                      value={editingTitle.title}
-                      onChange={(e) => setEditingTitle({...editingTitle, title: e.target.value})}
-                      onBlur={() => handleEditTitle(conv.id, editingTitle.title)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleEditTitle(conv.id, editingTitle.title);
-                        if (e.key === 'Escape') setEditingTitle(null);
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <>
-                      <div className="font-medium truncate">{conv.title}</div>
-                      <div className="text-xs text-muted-foreground flex items-center">
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        {conv.messages.length} mensajes · {formatDate(conv.updatedAt)}
-                      </div>
-                    </>
-                  )}
-                </div>
-                
-                <div className="flex space-x-1 ml-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7"
-                          onClick={() => setEditingTitle({id: conv.id, title: conv.title})}
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Editar título
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7"
-                          onClick={() => setShowDeleteDialog(conv.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Eliminar conversación
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              {searchTerm ? 'No se encontraron resultados' : 'No hay conversaciones guardadas'}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+      <div className="flex-1 overflow-auto p-2">
+        {filteredConversations.length > 0 ? (
+          <ul className="space-y-1">
+            {filteredConversations.map((conv) => (
+              <li key={conv.id} className="flex items-center group">
+                <Button
+                  variant={conv.id === activeConversationId ? "secondary" : "ghost"}
+                  className="w-full justify-start text-left h-auto py-2 px-3"
+                  onClick={() => onSelect(conv)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <div className="truncate flex-grow">
+                    <p className="truncate font-medium">{conv.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(conv.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      className="text-red-500 focus:text-red-500" 
+                      onClick={() => setConversationToDelete(conv.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4">
+            <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
+            <p className="text-center text-sm">
+              {searchTerm ? "No se encontraron conversaciones" : "No hay conversaciones guardadas"}
+            </p>
+          </div>
+        )}
+      </div>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <Dialog open={showDeleteDialog !== null} onOpenChange={() => setShowDeleteDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar conversación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(null)}>
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => showDeleteDialog && handleDeleteConversation(showDeleteDialog)}
+      {/* Diálogo de confirmación para eliminar conversación */}
+      <AlertDialog open={!!conversationToDelete} onOpenChange={(open) => !open && setConversationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esta conversación se eliminará permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => conversationToDelete && handleDeleteConversation(conversationToDelete)}
+              className="bg-red-500 hover:bg-red-600"
             >
               Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-};
+}

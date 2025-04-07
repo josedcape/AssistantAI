@@ -1153,13 +1153,69 @@ ${error instanceof Error ? error.message : "Error desconocido"}
                       accept=".txt,.pdf,.doc,.docx,.md"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
+                        if (!file) return;
+
+                        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                        
+                        // Procesamiento especial para DOC/DOCX
+                        if (fileExtension === 'doc' || fileExtension === 'docx') {
+                          // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
+                          toast({
+                            title: "Procesando documento",
+                            description: `Preparando ${file.name} para análisis...`,
+                            duration: 3000
+                          });
+                          
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          
+                          fetch("/api/documents/extract-text", {
+                            method: "POST",
+                            body: formData
+                          })
+                          .then(response => {
+                            if (!response.ok) {
+                              throw new Error(`Error al procesar el documento: ${response.statusText}`);
+                            }
+                            return response.json();
+                          })
+                          .then(data => {
+                            const content = data.text || "No se pudo extraer contenido del documento.";
+                            
+                            // Preparar mensaje con el contenido del archivo
+                            const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
+                            
+                            // Limitar el contenido si es muy grande
+                            const maxLength = 10000;
+                            const truncatedContent = content.length > maxLength 
+                              ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]" 
+                              : content;
+                            
+                            const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                            setInput(finalMessage);
+                            
+                            toast({
+                              title: "Documento procesado",
+                              description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
+                              duration: 3000
+                            });
+                          })
+                          .catch(error => {
+                            console.error("Error procesando documento:", error);
+                            toast({
+                              title: "Error al procesar documento",
+                              description: "No se pudo extraer el contenido del archivo. Intente con un formato diferente (.txt, .md).",
+                              variant: "destructive",
+                              duration: 5000
+                            });
+                          });
+                        } else {
+                          // Para otros formatos, usar el método existente
                           const reader = new FileReader();
                           reader.onload = (event) => {
                             const content = event.target?.result as string;
                             if (content) {
                               // Preparar mensaje con el contenido del archivo
-                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
                               const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
                               
                               // Limitar el contenido si es muy grande
@@ -1179,6 +1235,16 @@ ${error instanceof Error ? error.message : "Error desconocido"}
                               });
                             }
                           };
+                          
+                          reader.onerror = () => {
+                            toast({
+                              title: "Error al leer archivo",
+                              description: "No se pudo leer el contenido del archivo. Intente con otro formato.",
+                              variant: "destructive",
+                              duration: 4000
+                            });
+                          };
+                          
                           reader.readAsText(file);
                         }
                       }}
