@@ -184,18 +184,37 @@ export const AssistantChat: React.FC = () => {
       ]);
 
       // Disparar evento para actualizar el explorador de archivos
-      const fileEvent = new CustomEvent('files-updated');
+      const fileEvent = new CustomEvent('files-updated', {
+        detail: { forceRefresh: true }
+      });
       window.dispatchEvent(fileEvent);
 
       // Buscar y actualizar el explorador de archivos si existe
       setTimeout(() => {
         const fileExplorer = document.querySelector('[data-component="file-explorer"]');
         if (fileExplorer) {
-          const refreshButton = fileExplorer.querySelector('button[aria-label="Refrescar"]');
+          const refreshButton = fileExplorer.querySelector('button[title="Actualizar"]');
           if (refreshButton) {
             (refreshButton as HTMLButtonElement).click();
+          } else {
+            // Alternativa para encontrar el botón de refrescar
+            const allButtons = fileExplorer.querySelectorAll('button');
+            for (const button of allButtons) {
+              if (button.innerHTML.includes('RefreshCw') || 
+                  button.title.toLowerCase().includes('refrescar') || 
+                  button.title.toLowerCase().includes('actualizar')) {
+                (button as HTMLButtonElement).click();
+                break;
+              }
+            }
           }
         }
+        
+        // Forzar recarga de la lista de archivos directamente
+        const refreshEvent = new CustomEvent('refresh-files', {
+          detail: { force: true }
+        });
+        window.dispatchEvent(refreshEvent);
       }, 1000);
 
     } catch (error) {

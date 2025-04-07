@@ -455,6 +455,12 @@ const Workspace: React.FC = () => {
 
       // Update UI - simplified approach with more direct state update
       setFiles(prevFiles => [...prevFiles, newFile]);
+      
+      // Disparar evento para actualizar exploradores de archivos
+      const fileEvent = new CustomEvent('files-updated', {
+        detail: { file: newFile }
+      });
+      window.dispatchEvent(fileEvent);
 
       // Update folder structure
       setFolderStructure(prevStructure => {

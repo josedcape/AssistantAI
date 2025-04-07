@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect } from 'react';
 import { File } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
@@ -19,25 +18,25 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
   // Load files from API on initial render
   useEffect(() => {
     if (!projectId || isNaN(projectId)) return;
-    
+
     const loadFiles = async () => {
       try {
         setLoading(true);
-        
+
         // Get files from API
         const response = await apiRequest("GET", `/api/projects/${projectId}/files`);
         if (!response.ok) throw new Error("Failed to fetch files");
-        
+
         const data = await response.json();
         setFiles(data);
-        
+
         // Get documents
         const docsResponse = await apiRequest("GET", `/api/projects/${projectId}/documents`);
         if (docsResponse.ok) {
           const docsData = await docsResponse.json();
           setDocuments(docsData);
         }
-        
+
       } catch (error) {
         console.error("Error loading files:", error);
         toast({
@@ -50,7 +49,7 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         setLoading(false);
       }
     };
-    
+
     loadFiles();
   }, [projectId, toast]);
 
@@ -58,17 +57,17 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
   const createFile = async (name: string, content = '') => {
     try {
       const filePath = currentPath === '/' ? name : `${currentPath}/${name}`;
-      
+
       toast({
         title: "Creando archivo",
         description: filePath,
       });
       sounds.play('pop', 0.3);
-      
+
       // Get file type based on extension
       const ext = name.split('.').pop()?.toLowerCase() || "txt";
       let fileType = 'text';
-      
+
       switch (ext) {
         case 'js': fileType = 'javascript'; break;
         case 'jsx': fileType = 'javascript'; break;
@@ -79,28 +78,28 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         case 'json': fileType = 'json'; break;
         case 'md': fileType = 'markdown'; break;
       }
-      
+
       const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
         name: filePath,
         content,
         type: fileType,
         path: currentPath === '/' ? undefined : currentPath
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Error al crear archivo");
       }
-      
+
       const newFile = await response.json();
       setFiles(prevFiles => [...prevFiles, newFile]);
-      
+
       toast({
         title: "Archivo creado",
         description: `Se ha creado el archivo ${name}`,
       });
       sounds.play('success', 0.4);
-      
+
       return newFile;
     } catch (error) {
       console.error("Error creando archivo:", error);
@@ -118,13 +117,13 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
   const createFolder = async (name: string) => {
     try {
       const folderPath = currentPath === '/' ? name : `${currentPath}/${name}`;
-      
+
       toast({
         title: "Creando carpeta",
         description: folderPath,
       });
       sounds.play('pop', 0.3);
-      
+
       // Create a .gitkeep file to represent the folder
       const response = await apiRequest("POST", `/api/projects/${projectId}/files`, {
         name: `${folderPath}/.gitkeep`,
@@ -132,25 +131,25 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         type: "text",
         path: folderPath
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Error al crear carpeta");
       }
-      
+
       // Reload files
       const filesResponse = await apiRequest("GET", `/api/projects/${projectId}/files`);
       if (filesResponse.ok) {
         const filesData = await filesResponse.json();
         setFiles(filesData);
       }
-      
+
       toast({
         title: "Carpeta creada",
         description: `Se ha creado la carpeta ${name}`,
       });
       sounds.play('success', 0.4);
-      
+
       return true;
     } catch (error) {
       console.error("Error creando carpeta:", error);
@@ -172,19 +171,19 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         description: "Por favor espera",
       });
       sounds.play('pop', 0.2);
-      
+
       const response = await apiRequest("DELETE", `/api/files/${fileId}`);
       if (!response.ok) throw new Error("Failed to delete file");
-      
+
       // Update local state
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-      
+
       toast({
         title: "Éxito",
         description: "Archivo eliminado correctamente",
       });
       sounds.play('success', 0.3);
-      
+
       return true;
     } catch (error) {
       console.error("Error eliminando archivo:", error);
@@ -206,18 +205,18 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         description: "Por favor espera",
       });
       sounds.play('pop', 0.2);
-      
+
       const response = await apiRequest("DELETE", `/api/documents/${documentId}`);
       if (!response.ok) throw new Error("Failed to delete document");
-      
+
       setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId));
-      
+
       toast({
         title: "Éxito",
         description: "Documento eliminado correctamente",
       });
       sounds.play('success', 0.3);
-      
+
       return true;
     } catch (error) {
       console.error("Error eliminando documento:", error);
@@ -236,15 +235,15 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
     try {
       const file = files.find(f => f.id === fileId);
       if (!file) throw new Error("Archivo no encontrado");
-      
+
       const response = await apiRequest("PUT", `/api/files/${fileId}`, {
         content,
         name: file.name,
         type: file.type
       });
-      
+
       if (!response.ok) throw new Error("Failed to update file");
-      
+
       // Update local state
       setFiles(prevFiles => 
         prevFiles.map(file => 
@@ -253,7 +252,7 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
             : file
         )
       );
-      
+
       return true;
     } catch (error) {
       console.error("Error actualizando archivo:", error);
@@ -272,30 +271,30 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
     try {
       const file = files.find(f => f.id === fileId);
       if (!file) throw new Error("Archivo no encontrado");
-      
+
       // Get the directory path
       const pathParts = file.name.split('/');
       pathParts.pop(); // Remove filename
       const dirPath = pathParts.length > 0 ? pathParts.join('/') : '';
-      
+
       // New full path
       const newPath = dirPath ? `${dirPath}/${newName}` : newName;
-      
+
       const response = await apiRequest("PUT", `/api/files/${fileId}`, {
         content: file.content,
         name: newPath,
         type: file.type
       });
-      
+
       if (!response.ok) throw new Error("Failed to rename file");
-      
+
       // Reload files to ensure correct paths
       const filesResponse = await apiRequest("GET", `/api/projects/${projectId}/files`);
       if (filesResponse.ok) {
         const filesData = await filesResponse.json();
         setFiles(filesData);
       }
-      
+
       return true;
     } catch (error) {
       console.error("Error renombrando archivo:", error);
@@ -319,10 +318,10 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
     return files.filter(file => {
       // Skip .gitkeep files
       if (file.name.endsWith('/.gitkeep')) return false;
-      
+
       const filePath = file.name;
       const pathParts = filePath.split('/');
-      
+
       if (currentPath === '/') {
         // Root directory: show only top-level files and folders
         return pathParts.length === 1 || (pathParts.length === 2 && pathParts[0] !== '');
@@ -338,10 +337,10 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
   // Get all folders
   const getFolders = () => {
     const folderSet = new Set<string>();
-    
+
     files.forEach(file => {
       const pathParts = file.name.split('/');
-      
+
       // Add each folder in the path
       let currentFolder = '';
       for (let i = 0; i < pathParts.length - 1; i++) {
@@ -349,33 +348,32 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         folderSet.add(currentFolder);
       }
     });
-    
+
     return Array.from(folderSet);
   };
 
   // Refresh files
   const refreshFiles = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
       const response = await apiRequest("GET", `/api/projects/${projectId}/files`);
       if (!response.ok) throw new Error("Failed to fetch files");
-      
+
       const data = await response.json();
       setFiles(data);
-      
+
       const docsResponse = await apiRequest("GET", `/api/projects/${projectId}/documents`);
       if (docsResponse.ok) {
         const docsData = await docsResponse.json();
         setDocuments(docsData);
       }
-      
+
       toast({
         title: "Actualizado",
         description: "Lista de archivos actualizada",
       });
       sounds.play('success', 0.3);
-      
+
       return true;
     } catch (error) {
       console.error("Error refreshing files:", error);
@@ -391,6 +389,21 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
     }
   };
 
+  // Efecto para escuchar evento de actualización de archivos
+  useEffect(() => {
+    const handleRefreshEvent = (e: CustomEvent) => {
+      console.log("Evento refresh-files recibido");
+      refreshFiles();
+    };
+
+    window.addEventListener('refresh-files', handleRefreshEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('refresh-files', handleRefreshEvent as EventListener);
+    };
+  }, []);
+
+
   // Handle repository extraction
   const extractRepository = async (documentId: number) => {
     try {
@@ -399,29 +412,29 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
         description: "Extrayendo archivos del repositorio...",
       });
       sounds.play('pop', 0.3);
-      
+
       const response = await apiRequest("POST", `/api/documents/${documentId}/extract`, {
         projectId
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Error al extraer archivos");
       }
-      
+
       const result = await response.json();
-      
+
       toast({
         title: "Repositorio extraído",
         description: `Se extrajeron ${result.processed || 0} archivos correctamente`,
       });
       sounds.play('success', 0.4);
-      
+
       // Reload files with a delay to ensure backend has processed them
       setTimeout(() => {
         refreshFiles();
       }, 1000);
-      
+
       return true;
     } catch (error) {
       console.error("Error extrayendo repositorio:", error);

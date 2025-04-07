@@ -168,7 +168,35 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
 
     sounds.play('click', 0.2);
     refreshFiles();
+    
+    // Marcar el botón para poder encontrarlo desde otros componentes
+    const refreshButton = document.querySelector('button[aria-label="Refrescar"]');
+    if (refreshButton) {
+      refreshButton.setAttribute('title', 'Actualizar');
+      refreshButton.setAttribute('data-action', 'refresh-files');
+    }
   };
+  
+  // Efecto para escuchar eventos de actualización de archivos
+  useEffect(() => {
+    const handleFileUpdated = (e: CustomEvent) => {
+      console.log("Evento files-updated recibido");
+      
+      // Usar timeout para dar tiempo a que los archivos se guarden en el backend
+      refreshTimeoutRef.current = setTimeout(() => {
+        refreshFiles();
+      }, 500);
+    };
+    
+    window.addEventListener('files-updated', handleFileUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('files-updated', handleFileUpdated as EventListener);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCreateNewFile = async (data: NewFileFormData) => {
     if (!data.fileName.trim()) {
@@ -618,6 +646,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       let customMessage = "";
       const extension = file.name.split('.').pop()?.toLowerCase() || '';
 
+      // Personalizar el mensaje según el tipo de archivo
       if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
         customMessage = `Por favor analiza este archivo JavaScript/TypeScript "${file.name}" y sugiere mejoras de código, patrones de diseño apropiados y posibles optimizaciones:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
       } else if (['html', 'css'].includes(extension)) {
@@ -642,7 +671,20 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       sounds.play("send");
 
       // Abrir automáticamente la pestaña del asistente
-      // Esto se maneja con el evento personalizado en Workspace.tsx
+      if (isMobile && onClose) {
+        setTimeout(onClose, 300);
+      }
+      
+      // Disparar evento para abrir la pestaña del asistente
+      const assistantEvent = new CustomEvent('open-assistant-tab');
+      window.dispatchEvent(assistantEvent);
+    } else {
+      toast({
+        title: "Error",
+        description: "El archivo no tiene contenido o no está disponible",
+        variant: "destructive",
+      });
+      sounds.play('error', 0.3);
     }
   };
 
