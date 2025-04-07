@@ -1,3 +1,7 @@
+// Componente principal AssistantChat
+const AssistantChat = () => {
+  // Estado y otras variables aquí...
+  
 // Guardar código de un mensaje y crear archivo automáticamente
   const handleSaveCode = async (content: string): Promise<void> => {
     const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
@@ -215,3 +219,13 @@
       ]);
     }
   };
+  
+  // Resto del componente y return...
+  return (
+    <div className="assistant-chat-container">
+      {/* Contenido del componente */}
+    </div>
+  );
+};
+
+export default AssistantChat;
