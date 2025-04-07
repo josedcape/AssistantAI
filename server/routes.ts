@@ -1706,7 +1706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Asegurarse de que sea un número válido y mayor a 0
       const validProjectId = /^\d+$/.test(rawProjectId) ? parseInt(rawProjectId) : NaN;
 
-      if (isNaN(validProjectId) || validProjectId) <= 0) {
+      if (isNaN(validProjectId) || validProjectId <= 0) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
         // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
         return res.status(400).send(`
