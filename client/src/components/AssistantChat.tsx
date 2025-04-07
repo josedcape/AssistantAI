@@ -14,17 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Loader2, Mic, MicOff, Send, Save, Copy, Check, 
+import {
+  Loader2, Mic, MicOff, Send, Save, Copy, Check,
   MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
-import * as sounds from "@/lib/sounds";
+import * as sounds from "@/lib/sounds"; //Import sounds module
 import { ConversationList } from "./ConversationList";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  saveConversation, 
-  getConversation, 
+import {
+  saveConversation,
+  getConversation,
   setActiveConversation,
   getActiveConversation,
   generateConversationId,
@@ -241,8 +241,8 @@ const AssistantChat: React.FC = () => {
         title,
         messages: messages as ConversationMessage[],
         modelId,
-        createdAt: currentConversationId 
-          ? (getConversation(conversationId)?.createdAt || now) 
+        createdAt: currentConversationId
+          ? (getConversation(conversationId)?.createdAt || now)
           : now,
         updatedAt: now
       };
@@ -347,15 +347,15 @@ const AssistantChat: React.FC = () => {
           role: "assistant",
           content: `## ⚠️ Error en la solicitud
 
-🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
-\`\`\`
-${error instanceof Error ? error.message : "Error desconocido"}
-\`\`\`
+  🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
+  \`\`\`
+  ${error instanceof Error ? error.message : "Error desconocido"}
+  \`\`\`
 
-### 🔍 Posibles soluciones:
-* 🔄 Verifica que el servidor de la API esté funcionando correctamente
-* 📡 Comprueba tu conexión a internet
-* 🔧 Reinicia la aplicación si el problema persiste`
+  ### 🔍 Posibles soluciones:
+  * 🔄 Verifica que el servidor de la API esté funcionando correctamente
+  * 📡 Comprueba tu conexión a internet
+  * 🔧 Reinicia la aplicación si el problema persiste`
         },
       ]);
       sounds.play("error");
@@ -391,7 +391,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
   // Detectar paquetes mencionados en el mensaje
   const detectPackages = (content: string) => {
     // Expresión regular para detectar comandos de instalación
-    const installCommandRegex = /```(?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
+    const installCommandRegex = /```(?\:bash|shell|sh)?\s*((?\:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
     let match;
     const suggestedPackages: { name: string; isDev: boolean; description: string }[] = [];
 
@@ -419,6 +419,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
 
     // Buscar paquetes mencionados con formato específico
     const packageSuggestionRegex = /debes?\s+instalar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi;
+    const codeBlockRegex = /```[^\n]*\n([\s\S]*?)```/g;
 
     let packageMatch;
     while ((packageMatch = packageSuggestionRegex.exec(content)) !== null) {
@@ -545,7 +546,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       }
 
       // Agregar botón para enviar al explorador/recursos
-      successMessage += `\n\n<button id="send-to-explorer" data-files='${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 12px; display: flex; align-items: center; font-size: 14px;">
+      successMessage += `\n\n<button id="send-to-explorer" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 12px; display: flex; align-items: center; font-size: 14px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
           <polyline points="14 2 14 8 20 8"/>
@@ -578,8 +579,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             // Alternativa para encontrar el botón de refrescar
             const allButtons = fileExplorer.querySelectorAll('button');
             for (const button of allButtons) {
-              if (button.innerHTML.includes('RefreshCw') || 
-                  button.title.toLowerCase().includes('refrescar') || 
+              if (button.innerHTML.includes('RefreshCw') ||
+                  button.title.toLowerCase().includes('refrescar') ||
                   button.title.toLowerCase().includes('actualizar')) {
                 (button as HTMLButtonElement).click();
                 break;
@@ -643,7 +644,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         ...prev,
         {
           role: "assistant",
-          content: `## ⚠️ Error al guardar el código\n\n❌ No se pudieron guardar los archivos debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o crea los archivos manualmente.*`
+          content: `## ⚠️ Error al guardar el código\n\n❌ No se pudieron guardar los archivos debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o crea los archivos manualmente.*`
         },
       ]);
     }
@@ -738,8 +739,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     // Añadir emojis en los puntos importantes (títulos, listas, etc.)
     enhancedContent = enhancedContent
       // Títulos con emojis
-      .replace(/^(#{1,3})\s+(.+)$/gm, (_, hashes, title) => {
-        if (title.includes("importante") || title.includes("atención")) 
+      .replace(/^(#{1,3})\s+(.+)\$/gm, (_, hashes, title) => {
+        if (title.includes("importante") || title.includes("atención"))
           return `${hashes} 🚨 ${title}`;
         if (title.includes("nota") || title.includes("recuerda"))
           return `${hashes} 📝 ${title}`;
@@ -756,7 +757,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         return `${hashes} ✨ ${title}`;
       })
       // Elementos de lista con emojis
-      .replace(/^(\s*[-*+])\s+(.+)$/gm, (_, bullet, item) => {
+      .replace(/^(\s*[-*+])\s+(.+)\$/gm, (_, bullet, item) => {
         if (item.includes("importante") || item.includes("clave"))
           return `${bullet} 🔑 ${item}`;
         if (item.includes("ejemplo") || item.includes("muestra"))
@@ -768,7 +769,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         return `${bullet} • ${item}`;
       })
       // Líneas numeradas con emojis
-      .replace(/^(\s*\d+\.)\s+(.+)$/gm, (_, number, item) => {
+      .replace(/^(\s*\d+\.)\s+(.+)\$/gm, (_, number, item) => {
         if (item.includes("paso") || item.includes("etapa"))
           return `${number} 🔄 ${item}`;
         if (item.includes("primero") || item.includes("inicial"))
@@ -803,9 +804,9 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       const result = await response.json();
       const lastMessage = messages[messages.length - 1];
 
-      // Extraer descripción del paquete de la respuesta de instalación o del contexto
+      // Extract description from the response text or context
       const getPackageDescription = (packageName: string, responseText: string) => {
-        // Intentar encontrar una descripción en el texto de respuesta
+        // Try to find a description in the response text
         const descriptionRegex = new RegExp(`${packageName}[^.]*(?:se usa para|permite|es una|(?:es|sirve) para|librería para|biblioteca para|framework para)[^.]*\\.`, 'i');
         const match = responseText.match(descriptionRegex);
 
@@ -813,7 +814,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           return match[0].trim();
         }
 
-        // Descripciones predefinidas para algunos paquetes comunes
+        // Default descriptions for some common packages
         const packageDescriptions: Record<string, string> = {
           "react": "Biblioteca para construir interfaces de usuario",
           "express": "Framework web para Node.js",
@@ -839,9 +840,9 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         return packageDescriptions[packageName] || "Instalado a través del asistente";
       };
 
-      // Determinar la categoría del paquete
+      // Determine the category of the package
       const getPackageCategory = (packageName: string, description: string): string => {
-        // Lista de categorías y palabras clave asociadas
+        // List of categories and associated keywords
         const categories: Record<string, string[]> = {
           "UI/Componentes": ["react", "ui", "component", "interface", "dom", "tailwind", "css", "styled", "material", "chakra", "bootstrap"],
           "Backend/API": ["express", "server", "api", "http", "rest", "graphql", "router", "middleware", "backend"],
@@ -855,7 +856,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         const nameLower = packageName.toLowerCase();
         const descLower = description.toLowerCase();
 
-        // Buscar coincidencias en nombre y descripción
+        // Look for matches in name and description
         for (const [category, keywords] of Object.entries(categories)) {
           for (const keyword of keywords) {
             if (nameLower.includes(keyword) || descLower.includes(keyword)) {
@@ -864,7 +865,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           }
         }
 
-        // Si se proporcionó una categoría, usarla
+        // If a category is provided, use it
         if (category) {
           return category;
         }
@@ -875,12 +876,91 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       const packageDescription = getPackageDescription(packageName, lastMessage?.content || "");
       const packageCategory = getPackageCategory(packageName, packageDescription);
 
-      // Disparar evento de instalación de paquete para actualización automática
+      // Dispatch event for package installation update
       window.dispatchEvent(new CustomEvent('package-installed', {
-        \n\nPor favor analiza este código.";
+        detail: {
+          name: packageName,
+          version: result.packageDetails?.version || 'latest',
+          isDev: isDev,
+          description: packageDescription,
+          category: packageCategory,
+          timestamp: new Date()
+        }
+      }));
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## ✅ Instalación Exitosa
+
+          📦 El paquete **\${packageName}** ha sido instalado correctamente.
+
+          *Puntos importantes:*
+          * 🔄 La lista de paquetes se actualiza automáticamente
+          * 📝 Ya puedes utilizar este paquete en tu proyecto
+          * 💻 Versión instalada: \`${result.packageDetails?.version || 'latest'}\`
+          * 🛠️ Tipo: ${isDev ? 'Dependencia de desarrollo' : 'Dependencia de producción'}
+          * 📋 Categoría: ${packageCategory}
+          * 📎 Descripción: \${packageDescription}
+
+          🔍 **Sugerencia:** Puedes ver el historial completo de paquetes instalados en la pestaña "Paquetes" del panel lateral.`,
+        },
+      ]);
+      sounds.play("success");
+
+      // Update the package list after 1 second to give time for package.json to update
+      setTimeout(() => {
+        // Find and update the package explorer if it exists
+        const packageExplorer = document.querySelector('[data-component="package-explorer"]');
+        if (packageExplorer) {
+          const refreshButton = packageExplorer.querySelector('button[title="Actualizar lista de paquetes"]');
+          if (refreshButton) {
+            (refreshButton as HTMLButtonElement).click();
+          }
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error("Error al instalar:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## ⚠️ Error de Instalación
+
+          ❌ Ha ocurrido un problema al instalar **\${packageName}**.
+
+          *Posibles soluciones:*
+          * 🔄 Intenta instalar manualmente con \`npm install ${isDev ? '--save-dev ' : ''}${packageName}\`
+          * 🔍 Verifica que el nombre del paquete sea correcto
+          * 📦 Comprueba si hay problemas de conectividad con el registro de npm`,
+        },
+      ]);
+      sounds.play("error");
+    } finally {
+      setIsInstallingPackage(false);
+    }
+  };
+
+  // Función para procesar archivos enviados desde el explorador
+  const processFileFromExplorer = useCallback((content: string, fileName: string, message?: string) => {
+    // Detectar tipo de archivo basado en la extensión
+    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'txt';
+
+    // Crear mensaje con formato adecuado
+    const messagePrefix = message || `He recibido el archivo "${fileName}" desde el explorador:\n\n\`\`\`\${fileExtension}\n`;
+
+    // Limitar el contenido si es muy grande
+    const maxLength = 15000;
+    const truncatedContent = content.length > maxLength
+      ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
+      : content;
+
+    const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este código.";
 
     // Enviar automáticamente o preparar en el input según la configuración
-    const autoSend = true; // Se podría hacer configurable
+    const autoSend = true; // Podría hacerse configurable
 
     if (autoSend) {
       setMessages(prev => [...prev, { role: "user", content: finalMessage }]);
@@ -914,9 +994,9 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         })
         .catch(error => {
           console.error("Error procesando archivo:", error);
-          setMessages(prev => [...prev, { 
-            role: "assistant", 
-            content: `## ⚠️ Error al procesar el archivo\n\nHa ocurrido un error al analizar el archivo ${fileName}. Por favor, intenta nuevamente o proporciona un archivo más pequeño.` 
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `## ⚠️ Error al procesar el archivo\n\nHa ocurrido un error al analizar el archivo ${fileName}. Por favor, intenta nuevamente o proporciona un archivo más pequeño.`
           }]);
           sounds.play("error");
         })
@@ -948,8 +1028,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       {/* Panel lateral de conversaciones (visible/oculto según estado) */}
       {showConversations && (
         <div className="w-64 border-r">
-          <ConversationList 
-            onSelect={loadConversation} 
+          <ConversationList
+            onSelect={loadConversation}
             onNew={startNewConversation}
             activeConversationId={currentConversationId}
           />
@@ -963,8 +1043,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     onClick={() => setShowConversations(!showConversations)}
                   >
@@ -997,9 +1077,9 @@ ${error instanceof Error ? error.message : "Error desconocido"}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={saveCurrentConversation}
                       disabled={savedStatus === 'saved' || messages.length <= 2}
                     >
@@ -1014,10 +1094,10 @@ ${error instanceof Error ? error.message : "Error desconocido"}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {savedStatus === 'saving' 
-                    ? 'Guardando...' 
-                    : savedStatus === 'saved' 
-                      ? 'Guardado' 
+                  {savedStatus === 'saving'
+                    ? 'Guardando...'
+                    : savedStatus === 'saved'
+                      ? 'Guardado'
                       : 'Guardar conversación'}
                 </TooltipContent>
               </Tooltip>
@@ -1026,8 +1106,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     onClick={startNewConversation}
                   >
@@ -1043,162 +1123,267 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         </div>
 
         <ScrollArea className="flex-grow p-4">
-        <div className="space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex flex-col ${
-                message.role === "user" ? "items-end" : "items-start"
-              }`}
-            >
+          <div className="space-y-4">
+            {messages.map((message, index) => (
               <div
-                className={`px-4 py-2 rounded-lg max-w-[80%] ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-blue-900 text-white"
+                key={index}
+                className={`flex flex-col ${
+                  message.role === "user" ? "items-end" : "items-start"
                 }`}
               >
-                <div className="flex justify-between items-start mb-1">
-                  <Badge variant={message.role === "user" ? "outline" : "secondary"}>
-                    {message.role === "user" ? "Tú" : "Asistente"}
-                  </Badge>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => copyToClipboard(message.content, index)}
-                          className="h-6 w-6"
-                        >
-                          {hasCopied && copiedIndex === index ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {hasCopied && copiedIndex === index
-                          ? "¡Copiado!"
-                          : "Copiar mensaje"}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-
-                  {message.role === "assistant" && message.content.includes("```") && (
+                <div
+                  className={`px-4 py-2 rounded-lg max-w-[80%] ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-blue-900 text-white"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <Badge variant={message.role === "user" ? "outline" : "secondary"}>
+                      {message.role === "user" ? "Tú" : "Asistente"}
+                    </Badge>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleSaveCode(message.content)}
+                            onClick={() => copyToClipboard(message.content, index)}
+                            className="h-6 w-6"
                           >
-                            <Save className="w-4 h-4" />
+                            {hasCopied && copiedIndex === index ? (
+                              <Check className="w-4 h-4" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Guardar código</TooltipContent>
+                        <TooltipContent>
+                          {hasCopied && copiedIndex === index
+                            ? "¡Copiado!"
+                            : "Copiar mensaje"}
+                        </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                  )}
+
+                    {message.role === "assistant" && message.content.includes("```") && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleSaveCode(message.content)}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Guardar código</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
                 </div>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
               </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
-      <div className="flex items-center justify-between p-4 border-t">
-        <div className="flex items-center space-x-2">
-          <div className="flex space-x-2">
-            <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost" title="Usar micrófono">
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <div className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <input 
-                      id="file-upload" 
-                      type="file" 
-                      className="hidden" 
-                      accept=".txt,.pdf,.doc,.docx,.md"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+        <div className="flex items-center justify-between p-4 border-t">
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-2">
+              <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost" title="Usar micrófono">
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <div className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        className="hidden"
+                        accept=".txt,.pdf,.doc,.docx,.md"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
 
-                        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                          const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-                        // Procesamiento especial para DOC/DOCX
-                        if (fileExtension === 'doc' || fileExtension === 'docx') {
-                          // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
-                          toast({
-                            title: "Procesando documento",
-                            description: `Preparando ${file.name} para análisis...`,
-                            duration: 3000
-                          });
-
-                          const formData = new FormData();
-                          formData.append("file", file);
-
-                          fetch("/api/documents/extract-text", {
-                            method: "POST",
-                            body: formData
-                          })
-                          .then(response => {
-                            if (!response.ok) {
-                              throw new Error(`Error al procesar el documento: ${response.statusText}`);
-                            }
-                            return response.json();
-                          })
-                          .then(data => {
-                            const content = data.text || "No se pudo extraer contenido del documento.";
-
-                            // Preparar mensaje con el contenido del archivo
-                            const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
-
-                            // Limitar el contenido si es muy grande
-                            const maxLength = 10000;
-                            const truncatedContent = content.length > maxLength 
-                              ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]" 
-                              : content;
-
-                            const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
-                            setInput(finalMessage);
-
+                          // Procesamiento especial para DOC/DOCX
+                          if (fileExtension === 'doc' || fileExtension === 'docx') {
+                            // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
                             toast({
-                              title: "Documento procesado",
-                              description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
+                              title: "Procesando documento",
+                              description: `Preparando ${file.name} para análisis...`,
                               duration: 3000
                             });
-                          })
-                          .catch(error => {
-                            console.error("Error procesando documento:", error);
-                            toast({
-                              title: "Error al procesar documento",
-                              description: "No se pudo extraer el contenido del archivo. Intente con un formato diferente (.txt, .md).",
-                              variant: "destructive",
-                              duration: 5000
-                            });
-                          });
-                        } else {
-                          // Para otros formatos, usar el método existente
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const content = event.target?.result as string;
-                            if (content) {
-                              // Preparar mensaje con el contenido del archivo
-                              const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
 
-                              // Limitar el contenido si es muy grande
-                              const maxLength = 10000;
-                              const truncatedContent = content.length > maxLength 
-                                ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]" 
-                                : content;
+                            const formData = new FormData();
+                            formData.append("file", file);
 
-                              const finalMessage = messagePrefix + truncatedContent + "\n
+                            fetch("/api/documents/extract-text", {
+                              method: "POST",
+                              body: formData
+                            })
+                              .then(response => {
+                                if (!response.ok) {
+                                  throw new Error(`Error al procesar el documento: ${response.statusText}`);
+                                }
+                                return response.json();
+                              })
+                              .then(data => {
+                                const content = data.text || "No se pudo extraer contenido del documento.";
+
+                                // Preparar mensaje con el contenido del archivo
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\${fileExtension}\n`;
+
+                                // Limitar el contenido si es muy grande
+                                const maxLength = 10000;
+                                const truncatedContent = content.length > maxLength
+                                  ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
+                                  : content;
+
+                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                                setInput(finalMessage);
+
+                                toast({
+                                  title: "Documento procesado",
+                                  description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
+                                  duration: 3000
+                                });
+                              })
+                              .catch(error => {
+                                console.error("Error procesando documento:", error);
+                                toast({
+                                  title: "Error al procesar documento",
+                                  description: "No se pudo extraer el contenido del archivo. Intente con un formato diferente (.txt, .md).",
+                                  variant: "destructive",
+                                  duration: 5000
+                                });
+                              });
+                          } else {
+                            // Para otros formatos, usar el método existente
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const content = event.target?.result as string;
+                              if (content) {
+                                // Preparar mensaje con el contenido del archivo
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
+
+                                // Limitar el contenido si es muy grande
+                                const maxLength = 10000;
+                                const truncatedContent = content.length > maxLength
+                                  ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
+                                  : content;
+
+                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                                setInput(finalMessage);
+
+                                // Notificar al usuario
+                                toast({
+                                  title: "Archivo cargado",
+                                  description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
+                                  duration: 3000
+                                });
+                              }
+                            };
+
+                            reader.onerror = () => {
+                              toast({
+                                title: "Error al leer archivo",
+                                description: "No se pudo leer el contenido del archivo. Intente con otro formato.",
+                                variant: "destructive",
+                                duration: 4000
+                              });
+                            };
+
+                            reader.readAsText(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Subir documento (.txt, .pdf, .doc, .md)
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            <Textarea
+              placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-grow min-h-[100px] resize-y"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              style={{
+                transition: "height 0.2s ease",
+                minHeight: "100px",
+                height: `${Math.min(25 + input.split('\n').length * 20, 250)}px`,
+                fontSize: "16px",
+                lineHeight: "1.5"
+              }}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <ModelSelector modelId={modelId} onModelChange={setModelId} />
+            <Button onClick={handleSendMessage} disabled={isLoading} className="bg-sky-500 hover:bg-sky-600">
+              {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
+            </Button>
+          </div>
+        </div>
+        <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+          <DialogHeader>
+            <DialogTitle>Paquetes sugeridos</DialogTitle>
+            <DialogDescription>
+              Se han encontrado los siguientes paquetes que se podrían usar. ¿Quieres instalarlos?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogContent>
+            <ul className="space-y-2">
+              {pendingPackages.map((pkg, index) => (
+                <li key={index} className="flex items-center">
+                  <Badge>{pkg.name}</Badge>
+                  <span className="ml-2">{pkg.description}</span>
+                </li>
+              ))}
+            </ul>
+          </DialogContent>
+          <DialogFooter>
+            <Button onClick={() => {
+              setShowPackageDialog(false);
+              setPendingPackages([]);
+            }} variant="secondary">
+              Cancelar
+            </Button>
+            <Button onClick={async () => {
+              setShowPackageDialog(false);
+              setPendingPackages([]);
+              await Promise.all(pendingPackages.map(async (pkg) => {
+                await installPackageFromCommand(pkg.name, pkg.isDev || false);
+              }));
+            }} disabled={isInstallingPackage}>
+              {isInstallingPackage ? (
+                <Loader2 className="animate-spin w-5 h-5" />
+              ) : (
+                "Instalar paquetes"
+              )}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      </div>
+    </div>
+  );
+};
+
+export default AssistantChat;
