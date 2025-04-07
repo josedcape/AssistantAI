@@ -391,7 +391,7 @@ const AssistantChat: React.FC = () => {
   // Detectar paquetes mencionados en el mensaje
   const detectPackages = (content: string) => {
     // Expresión regular para detectar comandos de instalación
-    const installCommandRegex = /```(?\:bash|shell|sh)?\s*((?\:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
+    const installCommandRegex = /```(?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
     let match;
     const suggestedPackages: { name: string; isDev: boolean; description: string }[] = [];
 
