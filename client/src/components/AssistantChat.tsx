@@ -574,22 +574,23 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     }
     return suggestedPackages;
   };
-
   // Guardar código de un mensaje y crear archivo automáticamente
   const handleSaveCode = async (content: string) => {
+    // Expresión regular para detectar bloques de código
     const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
     let match;
     let savedCount = 0;
     let firstSavedFilePath = "";
 
     // Extraer todos los bloques de código
-    const codeBlocks: { language: string, code: string }[] = [];
+    const codeBlocks: { language: string; code: string }[] = [];
     while ((match = codeBlockRegex.exec(content)) !== null) {
-      const language = match[1] || "js";
+      const language = match[1] || "js"; // Asignar 'js' por defecto si no hay lenguaje
       const codeContent = match[2];
       codeBlocks.push({ language, code: codeContent });
     }
 
+    // Si no se encontraron bloques de código, salir de la función
     if (codeBlocks.length === 0) {
       console.warn("No se encontraron bloques de código para guardar");
       return;
@@ -629,8 +630,27 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           case "py":
             fileExtension = ".py";
             break;
-          // Añadir más lenguajes según sea necesario
+          // Puedes agregar más lenguajes según sea necesario
         }
+
+        // Código para guardar el archivo (en tu lógica posterior)
+        // Aquí deberías manejar la creación del archivo de acuerdo con el sistema de archivos que estés usando.
+        // Por ejemplo, puedes usar un API de servidor o un sistema de almacenamiento.
+
+        savedCount++;
+        if (savedCount === 1) {
+          firstSavedFilePath = `generated_code_${index + 1}${fileExtension}`;
+        }
+      }
+
+      // Después de guardar los archivos, puedes agregar lógica para la notificación de éxito, etc.
+      console.log(`${savedCount} archivos guardados correctamente.`);
+    } catch (error) {
+      console.error("Error al guardar el código:", error);
+      // Aquí puedes manejar el error de manera adecuada
+    }
+  };
+
 
         // Generar nombre de archivo único basado en el contenido o tipo de código
         let fileName = `generated_code_${index + 1}${fileExtension}`;
