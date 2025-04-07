@@ -109,6 +109,16 @@ export function PackageExplorer() {
       );
       setFilteredPackages(filtered);
     }
+    
+    // Guardar historial de búsquedas recientes en localStorage
+    if (searchTerm.trim() !== "") {
+      const recentSearches = JSON.parse(localStorage.getItem('package-searches') || '[]');
+      if (!recentSearches.includes(searchTerm.trim()) && searchTerm.length > 2) {
+        recentSearches.unshift(searchTerm.trim());
+        // Limitar a 5 búsquedas recientes
+        localStorage.setItem('package-searches', JSON.stringify(recentSearches.slice(0, 5)));
+      }
+    }
   }, [searchTerm, packages, packageDescriptions]);
 
   // Función para organizar los paquetes por categorías
@@ -167,27 +177,117 @@ export function PackageExplorer() {
         <CardTitle className="text-lg flex items-center gap-2">
           <Package size={18} />
           Paquetes Instalados
-          <button 
-            onClick={fetchPackages} 
-            className="ml-auto p-1 rounded-md hover:bg-secondary/50 text-muted-foreground"
-            title="Actualizar lista de paquetes"
-            aria-label="Refrescar"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-              <path d="M16 21h5v-5"/>
-            </svg>
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button 
+                        className="p-1 rounded-md hover:bg-secondary/50 text-muted-foreground"
+                        title="Sugerir paquetes"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M12 16v-4"/>
+                          <path d="M12 8h.01"/>
+                        </svg>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Paquetes Populares</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 pt-4">
+                        <h4 className="text-sm font-medium mb-1">Componentes UI</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {["react", "react-dom", "tailwindcss", "@chakra-ui/react", "styled-components"].map(pkg => (
+                            <Badge key={pkg} variant="outline" className="cursor-pointer" onClick={() => setSearchTerm(pkg)}>
+                              {pkg}
+                            </Badge>
+                          ))}
+                        </div>
+                        <h4 className="text-sm font-medium mb-1">Backend</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {["express", "axios", "mongoose", "prisma", "cors"].map(pkg => (
+                            <Badge key={pkg} variant="outline" className="cursor-pointer" onClick={() => setSearchTerm(pkg)}>
+                              {pkg}
+                            </Badge>
+                          ))}
+                        </div>
+                        <h4 className="text-sm font-medium mb-1">Desarrollo</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {["typescript", "eslint", "prettier", "jest", "vitest"].map(pkg => (
+                            <Badge key={pkg} variant="outline" className="cursor-pointer" onClick={() => setSearchTerm(pkg)}>
+                              {pkg}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Paquetes populares</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button 
+                    onClick={fetchPackages} 
+                    className="p-1 rounded-md hover:bg-secondary/50 text-muted-foreground"
+                    title="Actualizar lista de paquetes"
+                    aria-label="Refrescar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                      <path d="M16 21h5v-5"/>
+                    </svg>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Actualizar lista</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </CardTitle>
-        <Input
-          type="search"
-          placeholder="Buscar paquetes..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mt-2"
-        />
+        <div className="relative mt-2">
+          <Input
+            type="search"
+            placeholder="Buscar paquetes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pr-8"
+          />
+          {searchTerm && (
+            <button
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              onClick={() => setSearchTerm('')}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        {searchTerm.length === 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {JSON.parse(localStorage.getItem('package-searches') || '[]').slice(0, 3).map((term: string) => (
+              <Badge 
+                key={term} 
+                variant="outline" 
+                className="cursor-pointer text-xs bg-slate-50 hover:bg-slate-100"
+                onClick={() => setSearchTerm(term)}
+              >
+                {term}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex-1 overflow-auto px-4 pb-4 pt-0">
         {loading ? (

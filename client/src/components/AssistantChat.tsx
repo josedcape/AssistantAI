@@ -144,6 +144,23 @@ export const AssistantChat: React.FC = () => {
   useEffect(() => {
     const activeConversationId = getActiveConversation();
     if (activeConversationId) {
+      // Intentar primero cargar desde localStorage para mejor persistencia
+      const localStorageConversation = localStorage.getItem(`conversation-${activeConversationId}`);
+      if (localStorageConversation) {
+        try {
+          const parsedConversation = JSON.parse(localStorageConversation);
+          setMessages(parsedConversation.messages as Message[]);
+          setModelId(parsedConversation.modelId || modelId);
+          setCurrentConversationId(activeConversationId);
+          setSavedStatus('saved');
+          console.log("Conversación cargada desde localStorage");
+          return;
+        } catch (e) {
+          console.error("Error al cargar conversación desde localStorage:", e);
+        }
+      }
+      
+      // Si no está en localStorage, intentar desde el almacenamiento normal
       const conversation = getConversation(activeConversationId);
       if (conversation) {
         setMessages(conversation.messages as Message[]);
@@ -226,6 +243,18 @@ export const AssistantChat: React.FC = () => {
           : now,
         updatedAt: now
       };
+
+      // Guardar en localStorage para persistencia adicional
+      try {
+        localStorage.setItem(`conversation-${conversationId}`, JSON.stringify({
+          messages,
+          modelId,
+          title,
+          updatedAt: now.toISOString()
+        }));
+      } catch (e) {
+        console.warn("No se pudo guardar en localStorage:", e);
+      }
 
       saveConversation(conversation);
       setActiveConversation(conversationId);
@@ -692,7 +721,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
   };
 
   // Instalar paquete desde comando con actualización automática
-  const installPackageFromCommand = async (packageName: string, isDev: boolean) => {
+  const installPackageFromCommand = async (packageName: string, isDev: boolean, category?: string) => {
     setIsInstallingPackage(true);
     try {
       const response = await fetch("/api/packages/install", {
@@ -717,7 +746,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       // Extraer descripción del paquete de la respuesta de instalación o del contexto
       const getPackageDescription = (packageName: string, responseText: string) => {
         // Intentar encontrar una descripción en el texto de respuesta
-        const descriptionRegex = new RegExp(`${packageName}[^.]*(?:se usa para|permite|es una|(?:es|sirve) para)[^.]*\\.`, 'i');
+        const descriptionRegex = new RegExp(`${packageName}[^.]*(?:se usa para|permite|es una|(?:es|sirve) para|librería para|biblioteca para|framework para)[^.]*\\.`, 'i');
         const match = responseText.match(descriptionRegex);
 
         if (match) {
@@ -739,11 +768,52 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           "vite": "Herramienta de desarrollo frontend",
           "eslint": "Herramienta de linting para JavaScript",
           "prisma": "ORM para bases de datos",
-          "redux": "Contenedor de estado predecible"
+          "redux": "Contenedor de estado predecible",
+          "styled-components": "Biblioteca para CSS-in-JS en React",
+          "react-router-dom": "Enrutamiento para aplicaciones React",
+          "zod": "Validación de esquemas con TypeScript",
+          "date-fns": "Utilidades modernas para fechas en JavaScript",
+          "sass": "Preprocesador CSS con características avanzadas"
         };
 
         return packageDescriptions[packageName] || "Instalado a través del asistente";
       };
+
+      // Determinar la categoría del paquete
+      const getPackageCategory = (packageName: string, description: string): string => {
+        // Lista de categorías y palabras clave asociadas
+        const categories: Record<string, string[]> = {
+          "UI/Componentes": ["react", "ui", "component", "interface", "dom", "tailwind", "css", "styled", "material", "chakra", "bootstrap"],
+          "Backend/API": ["express", "server", "api", "http", "rest", "graphql", "router", "middleware", "backend"],
+          "Estado/Datos": ["redux", "state", "store", "context", "recoil", "zustand", "mobx", "query", "data"],
+          "Testing": ["jest", "test", "testing", "cypress", "mocha", "chai", "vitest", "playwright"],
+          "Utilidades": ["util", "lodash", "date", "validator", "helper", "parser", "uuid", "id", "string", "zod"],
+          "Desarrollo": ["dev", "typescript", "babel", "webpack", "eslint", "prettier", "bundler", "compiler", "linter"],
+          "Multimedia": ["image", "video", "audio", "media", "pdf", "canvas", "stream", "file"]
+        };
+
+        const nameLower = packageName.toLowerCase();
+        const descLower = description.toLowerCase();
+
+        // Buscar coincidencias en nombre y descripción
+        for (const [category, keywords] of Object.entries(categories)) {
+          for (const keyword of keywords) {
+            if (nameLower.includes(keyword) || descLower.includes(keyword)) {
+              return category;
+            }
+          }
+        }
+
+        // Si se proporcionó una categoría, usarla
+        if (category) {
+          return category;
+        }
+
+        return "Otros";
+      };
+
+      const packageDescription = getPackageDescription(packageName, lastMessage?.content || "");
+      const packageCategory = getPackageCategory(packageName, packageDescription);
 
       // Disparar evento de instalación de paquete para actualización automática
       window.dispatchEvent(new CustomEvent('package-installed', {
@@ -751,7 +821,8 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           name: packageName,
           version: result.packageDetails?.version || 'latest',
           isDev: isDev,
-          description: getPackageDescription(packageName, lastMessage?.content || ""),
+          description: packageDescription,
+          category: packageCategory,
           timestamp: new Date()
         }
       }));
@@ -768,7 +839,11 @@ ${error instanceof Error ? error.message : "Error desconocido"}
 * 🔄 La lista de paquetes se actualiza automáticamente
 * 📝 Ya puedes utilizar este paquete en tu proyecto
 * 💻 Versión instalada: \`${result.packageDetails?.version || 'latest'}\`
-* 🛠️ Tipo: ${isDev ? 'Dependencia de desarrollo' : 'Dependencia de producción'}`,
+* 🛠️ Tipo: ${isDev ? 'Dependencia de desarrollo' : 'Dependencia de producción'}
+* 📋 Categoría: ${packageCategory}
+* 📎 Descripción: ${packageDescription}
+
+🔍 **Sugerencia:** Puedes ver el historial completo de paquetes instalados en la pestaña "Paquetes" del panel lateral.`,
         },
       ]);
       sounds.play("success");
@@ -806,6 +881,86 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       setIsInstallingPackage(false);
     }
   };
+
+  // Función para procesar archivos enviados desde el explorador
+  const processFileFromExplorer = useCallback((content: string, fileName: string, message?: string) => {
+    // Detectar tipo de archivo basado en la extensión
+    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'txt';
+    
+    // Crear mensaje con formato adecuado
+    const messagePrefix = message || `He recibido el archivo "${fileName}" desde el explorador:\n\n\`\`\`${fileExtension}\n`;
+    
+    // Limitar el contenido si es muy grande
+    const maxLength = 15000;
+    const truncatedContent = content.length > maxLength 
+      ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]" 
+      : content;
+    
+    const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este código.";
+    
+    // Enviar automáticamente o preparar en el input según la configuración
+    const autoSend = true; // Se podría hacer configurable
+    
+    if (autoSend) {
+      setMessages(prev => [...prev, { role: "user", content: finalMessage }]);
+      
+      // Llamar a la API de asistente
+      setIsLoading(true);
+      fetch("/api/assistant-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: finalMessage,
+          modelId,
+          history: messages,
+          projectId: null
+        }),
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          const assistantMessage = data.message;
+          if (assistantMessage) {
+            setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
+            sounds.play("notification");
+          }
+        })
+        .catch(error => {
+          console.error("Error procesando archivo:", error);
+          setMessages(prev => [...prev, { 
+            role: "assistant", 
+            content: `## ⚠️ Error al procesar el archivo\n\nHa ocurrido un error al analizar el archivo ${fileName}. Por favor, intenta nuevamente o proporciona un archivo más pequeño.` 
+          }]);
+          sounds.play("error");
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      // Colocar en el input para que el usuario pueda editar antes de enviar
+      setInput(finalMessage);
+    }
+  }, [messages, modelId]);
+
+  // Efecto para escuchar eventos del explorador de archivos
+  useEffect(() => {
+    const handleFileToAssistant = (e: CustomEvent) => {
+      if (e.detail && e.detail.content && e.detail.fileName) {
+        processFileFromExplorer(e.detail.content, e.detail.fileName, e.detail.message);
+      }
+    };
+
+    window.addEventListener('sendToAssistant', handleFileToAssistant as EventListener);
+    return () => {
+      window.removeEventListener('sendToAssistant', handleFileToAssistant as EventListener);
+    };
+  }, [processFileFromExplorer]);
 
   return (
     <div className="flex h-full border rounded-lg overflow-hidden bg-background">
@@ -976,9 +1131,63 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       </ScrollArea>
       <div className="flex items-center justify-between p-4 border-t">
         <div className="flex items-center space-x-2">
-          <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost">
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </Button>
+          <div className="flex space-x-2">
+            <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost" title="Usar micrófono">
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <div className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <input 
+                      id="file-upload" 
+                      type="file" 
+                      className="hidden" 
+                      accept=".txt,.pdf,.doc,.docx,.md"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const content = event.target?.result as string;
+                            if (content) {
+                              // Preparar mensaje con el contenido del archivo
+                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                              const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
+                              
+                              // Limitar el contenido si es muy grande
+                              const maxLength = 10000;
+                              const truncatedContent = content.length > maxLength 
+                                ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]" 
+                                : content;
+                              
+                              const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                              setInput(finalMessage);
+                              
+                              // Notificar al usuario
+                              toast({
+                                title: "Archivo cargado",
+                                description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
+                                duration: 3000
+                              });
+                            }
+                          };
+                          reader.readAsText(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Subir documento (.txt, .pdf, .doc, .md)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          
           <Textarea
             placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
             value={input}

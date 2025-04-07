@@ -181,7 +181,32 @@ const Workspace: React.FC = () => {
     queryKey: ['/api/projects'],
   });
 
-  // Effect for organizing files into folder structure - simplified approach
+  // Escuchar eventos de documentos subidos
+  useEffect(() => {
+    const handleDocumentUploaded = (event: CustomEvent) => {
+      console.log("📄 Workspace: Detectada carga de documento:", event.detail);
+
+      // Añadir a historial cuando se carga un documento
+      if (event.detail) {
+        const documentInfo = event.detail;
+        setFileChangesHistory(prev => [...prev, {
+          timestamp: new Date(),
+          filename: documentInfo.count === 1 
+            ? documentInfo.names[0] 
+            : `${documentInfo.count} documentos`,
+          description: `Documento${documentInfo.count === 1 ? '' : 's'} cargado${documentInfo.count === 1 ? '' : 's'}`
+        }]);
+      }
+    };
+
+    window.addEventListener('document-uploaded', handleDocumentUploaded as EventListener);
+
+    return () => {
+      window.removeEventListener('document-uploaded', handleDocumentUploaded as EventListener);
+    };
+  }, []);
+
+  // Efecto para organizar files into folder structure - simplified approach
   useEffect(() => {
     if (filesData) {
       // Create a flat map of folders
@@ -547,8 +572,6 @@ const Workspace: React.FC = () => {
     };
   }, [activeTab]);
 
-  //This useEffect was duplicated, removed the duplicate.
-
   useEffect(() => {
     sounds.play('laser', 0.4);
   }, []);
@@ -618,6 +641,16 @@ const Workspace: React.FC = () => {
     }));
 
     setUploadedDocuments(prev => [...prev, ...newDocuments]);
+
+    // Dispatch custom event for document upload
+    const documentUploadedEvent = new CustomEvent('document-uploaded', {
+      detail: {
+        count: files.length,
+        names: Array.from(files).map(f => f.name)
+      }
+    });
+    window.dispatchEvent(documentUploadedEvent);
+
 
     toast({
       title: "Documentos cargados",
@@ -937,7 +970,7 @@ const Workspace: React.FC = () => {
                   ) : change.description.includes("importado") ? (
                     <GitBranch className="w-4 h-4 mr-2 mt-0.5 text-purple-500" />
                   ) : (
-                    <Upload className="w-4 h-4 mr-2 mt-0.5 text-amber-500" />
+                    <Upload className="4 h-4 mr-2 mt-0.5 text-amber-500" />
                   )}
                   <div>
                     <div className="font-medium">{change.description}</div>

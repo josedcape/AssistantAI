@@ -22,7 +22,8 @@ import {
   Copy,
   MessageSquare,
   Download,
-  Archive
+  Archive,
+  MoreHorizontal
 } from "lucide-react";
 import { 
   SidebarGroup, 
@@ -43,6 +44,7 @@ import { sounds } from "@/lib/sounds";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useForm } from "react-hook-form";
 import { File } from "@shared/schema";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // Extender el objeto Window para incluir JSZip
 declare global {
@@ -347,7 +349,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       a.download = file.name;
       document.body.appendChild(a);
       a.click();
-      
+
       // Limpiar
       setTimeout(() => {
         document.body.removeChild(a);
@@ -386,7 +388,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
           jsZipScript.onerror = reject;
           document.head.appendChild(jsZipScript);
         });
-        
+
         JSZip = window.JSZip;
       } else {
         JSZip = window.JSZip;
@@ -398,13 +400,13 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       });
 
       const zip = new JSZip();
-      
+
       // Cargar contenido de todos los archivos y añadirlos al ZIP
       for (const file of files) {
         // Solo agregar archivos reales (no carpetas)
         if (!file.name.includes('/') || file.name.endsWith('/.gitkeep')) {
           let content = file.content;
-          
+
           if (!content && file.id) {
             try {
               const response = await fetch(`/api/files/${file.id}/content`);
@@ -419,12 +421,12 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
               content = `// Error cargando el contenido de ${file.name}`;
             }
           }
-          
+
           // Añadir archivo al ZIP manteniendo la estructura de directorios
           zip.file(file.name, content || "");
         }
       }
-      
+
       // Generar el ZIP y descargarlo
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(zipBlob);
@@ -433,7 +435,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       a.download = `proyecto_${projectId}_files.zip`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Limpiar
       setTimeout(() => {
         document.body.removeChild(a);
@@ -484,10 +486,10 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
 
       // Preparar mensaje predeterminado para el asistente
       const message = `Analiza este archivo ${file.name}:\n`;
-      
+
       // Llamar a la función para enviar al asistente
       onSendToAssistant(content, file.name, message);
-      
+
       toast({
         title: "Archivo enviado al asistente",
         description: `Se ha enviado ${file.name} al chat del asistente`,
@@ -503,7 +505,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       sounds.play('error', 0.3);
     }
   };
-  
+
   // Función para enviar documento al asistente
   const handleDocumentAssistant = async (doc: any) => {
     if (!onSendToAssistant) {
@@ -524,17 +526,17 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       }
 
       const content = await response.text();
-      
+
       if (!content) {
         throw new Error("El documento no tiene contenido");
       }
 
       // Preparar mensaje para el asistente
       const message = `Analiza este documento ${doc.name}:\n`;
-      
+
       // Llamar a la función para enviar al asistente
       onSendToAssistant(content, doc.name, message);
-      
+
       toast({
         title: "Documento enviado al asistente",
         description: `Se ha enviado ${doc.name} al chat del asistente`,
@@ -608,6 +610,42 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
     acc[folderName].push(doc);
     return acc;
   }, {} as { [folderName: string]: any[] });
+
+  // Función para enviar un archivo al asistente
+  const handleFileAssistant = (file: File) => {
+    if (onSendToAssistant && file.content) {
+      // Preparar mensaje opcional basado en el tipo de archivo
+      let customMessage = "";
+      const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+      if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
+        customMessage = `Por favor analiza este archivo JavaScript/TypeScript "${file.name}" y sugiere mejoras de código, patrones de diseño apropiados y posibles optimizaciones:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+      } else if (['html', 'css'].includes(extension)) {
+        customMessage = `Por favor revisa este archivo ${extension.toUpperCase()} "${file.name}" y sugiere mejoras de estructura, accesibilidad y buenas prácticas:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+      } else if (['json', 'yml', 'yaml', 'toml'].includes(extension)) {
+        customMessage = `Por favor revisa esta configuración en "${file.name}" y explica su propósito y estructura:\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+      } else if (['md', 'txt'].includes(extension)) {
+        customMessage = `Por favor analiza el contenido de este documento "${file.name}":\n\n\`\`\`${extension}\n${file.content}\`\`\``;
+      } else {
+        customMessage = `Archivo "${file.name}" enviado para análisis.`;
+      }
+
+      // Enviar al asistente con el mensaje personalizado
+      onSendToAssistant(file.content, file.name, customMessage);
+
+      // Notificar al usuario
+      toast({
+        title: "Archivo enviado al asistente",
+        description: `${file.name} ha sido enviado al asistente para análisis`,
+        duration: 3000
+      });
+      sounds.play("send");
+
+      // Abrir automáticamente la pestaña del asistente
+      // Esto se maneja con el evento personalizado en Workspace.tsx
+    }
+  };
+
 
   return (
     <div className={`h-full flex flex-col bg-white dark:bg-slate-800 transition-all duration-300 ${isMobile ? 'fixed inset-0 z-50 overflow-hidden' : ''}`}>
@@ -809,7 +847,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                                 className="h-6 w-6"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleSendToAssistant(file);
+                                  handleFileAssistant(file);
                                 }}
                                 title="Enviar al asistente"
                               >
@@ -894,7 +932,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                                       className="h-6 w-6"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleSendToAssistant(file);
+                                        handleFileAssistant(file);
                                       }}
                                       title="Enviar al asistente"
                                     >
@@ -1096,7 +1134,7 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     {commonExtensions.map(ext => (
-                      <option key={ext.value} value={ext.value}>{ext.value}</option>
+                      <option key={ext.value} value={ext.value}>{ext.label}</option>
                     ))}
                   </select>
                 </div>

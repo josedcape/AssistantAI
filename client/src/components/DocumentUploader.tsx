@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -144,6 +144,110 @@ export function DocumentUploader({ projectId, onDocumentUploaded }: DocumentUplo
       setIsProcessing(false);
     }
   };
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+
+      const formData = new FormData();
+      let uploadName = "";
+      let totalSize = 0;
+
+      // Agregamos cada archivo al FormData
+      acceptedFiles.forEach((file) => {
+        formData.append("documents", file);
+        uploadName = file.name; // Guardamos el último nombre para la notificación
+        totalSize += file.size;
+      });
+
+      // Agregar metadatos adicionales
+      formData.append("projectId", String(projectId));
+      formData.append("uploadedBy", "user"); // Podría ser dinámico si hay un sistema de usuarios
+      formData.append("timestamp", new Date().toISOString());
+
+      setIsUploading(true);
+
+      apiRequest("POST", "/api/documents/upload", formData, true)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Error al subir documento");
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Crear un evento personalizado para notificar al historial de la aplicación
+          window.dispatchEvent(new CustomEvent('document-uploaded', {
+            detail: {
+              count: acceptedFiles.length,
+              names: acceptedFiles.map(f => f.name),
+              totalSize,
+              timestamp: new Date()
+            }
+          }));
+
+          toast({
+            title: "Documento subido",
+            description: `${acceptedFiles.length > 1 
+              ? `${acceptedFiles.length} documentos subidos` 
+              : uploadName} (${(totalSize / 1024).toFixed(1)} KB)`,
+            duration: 3000,
+          });
+
+          if (onUploadComplete) {
+            onUploadComplete(data.documents);
+          }
+
+          // Sugerir usar documentos con el asistente
+          if (acceptedFiles.length === 1 && ['txt', 'md', 'csv', 'json'].includes(
+            acceptedFiles[0].name.split('.').pop()?.toLowerCase() || ''
+          )) {
+            toast({
+              title: "Sugerencia",
+              description: "Puedes enviar este documento al asistente para analizarlo",
+              duration: 5000,
+              action: (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    // Leer el archivo y enviar al asistente
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      const content = e.target?.result as string;
+                      if (content) {
+                        window.dispatchEvent(new CustomEvent('sendToAssistant', {
+                          detail: {
+                            content,
+                            fileName: acceptedFiles[0].name,
+                            message: `He cargado el documento "${acceptedFiles[0].name}" para análisis:\n\n`
+                          }
+                        }));
+                      }
+                    };
+                    reader.readAsText(acceptedFiles[0]);
+                  }}
+                >
+                  Enviar
+                </Button>
+              )
+            });
+          }
+        })
+        .catch(error => {
+          console.error("Error:", error);
+          toast({
+            title: "Error",
+            description: "No se pudo subir el documento",
+            variant: "destructive",
+          });
+        })
+        .finally(() => {
+          setIsUploading(false);
+        });
+    },
+    [projectId, toast, onUploadComplete]
+  );
+
 
   return (
     <div className="space-y-4 p-4 border rounded-md bg-slate-50 dark:bg-slate-800">
