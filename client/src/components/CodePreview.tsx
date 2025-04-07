@@ -30,24 +30,38 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     
     setIsLoading(true);
     
-    // Asegurarse de que siempre tengamos contenido para previsualizar
-    if (file.content !== undefined && file.content !== null) {
-      setPreviewContent(file.content);
+    try {
+      // Asegurarse de que siempre tengamos contenido para previsualizar
+      if (file.content !== undefined && file.content !== null) {
+        setPreviewContent(file.content);
+        
+        // Forzar una actualización del DOM después de cambiar el contenido
+        setTimeout(() => {
+          setIsLoading(false);
+          toast({
+            title: "Archivo cargado",
+            description: `Se ha cargado el archivo "${file.name}" para previsualización`,
+          });
+        }, 100);
+      } else {
+        console.warn("Archivo sin contenido:", file.name);
+        setPreviewContent("// Archivo sin contenido");
+        setIsLoading(false);
+        toast({
+          title: "Archivo sin contenido",
+          description: "El archivo seleccionado no tiene contenido para mostrar",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error al cargar el contenido del archivo:", error);
+      setIsLoading(false);
       toast({
-        title: "Archivo cargado",
-        description: `Se ha cargado el archivo "${file.name}" para previsualización`,
-      });
-    } else {
-      console.warn("Archivo sin contenido:", file.name);
-      setPreviewContent("// Archivo sin contenido");
-      toast({
-        title: "Archivo sin contenido",
-        description: "El archivo seleccionado no tiene contenido para mostrar",
+        title: "Error",
+        description: "No se pudo cargar el contenido del archivo",
         variant: "destructive"
       });
     }
-    
-    setIsLoading(false);
   };
   
   useEffect(() => {
@@ -101,6 +115,17 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
   // Determinar el tipo de contenido y cómo mostrarlo
   const renderPreview = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-slate-500">Cargando la vista previa...</p>
+          </div>
+        </div>
+      );
+    }
+
     if (!file) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -238,18 +263,28 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
 
         <div className="flex items-center space-x-2">
           <button
-            className="px-2 py-1 rounded text-xs bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+            className={`px-2 py-1 rounded text-xs ${isLoading ? 'bg-slate-400' : 'bg-primary-500 hover:bg-primary-600'} text-white transition-colors`}
             onClick={refreshPreview}
             title="Cargar archivo para previsualización"
-            disabled={!file}
+            disabled={!file || isLoading}
           >
-            <i className="ri-file-load-line mr-1"></i>
-            Cargar archivo
+            {isLoading ? (
+              <>
+                <i className="ri-loader-4-line animate-spin mr-1"></i>
+                Cargando...
+              </>
+            ) : (
+              <>
+                <i className="ri-file-load-line mr-1"></i>
+                Cargar archivo
+              </>
+            )}
           </button>
           <button
             className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
             onClick={openInNewWindow}
             title="Abrir en nueva ventana"
+            disabled={!file || isLoading}
           >
             <i className="ri-external-link-line"></i>
           </button>
