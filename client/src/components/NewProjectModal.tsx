@@ -106,7 +106,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
     document.addEventListener('keydown', handleEscapeKey);
     return () => document.removeEventListener('keydown', handleEscapeKey);
   }, [isSubmitting, isGeneratingFiles, onClose]);
-  
+
   // Función para generar archivos utilizando el asistente GPT
   const generateFilesWithGPT = async () => {
     if (!projectName.trim() || !template) {
@@ -117,29 +117,29 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       });
       return;
     }
-    
+
     try {
       setIsGeneratingFiles(true);
-      
+
       toast({
         title: "Generando archivos",
         description: "El asistente está generando los archivos para tu proyecto...",
         duration: 5000
       });
-      
+
       // Construcción del prompt para GPT
       const prompt = `Genera los archivos iniciales para un proyecto de plantilla ${template} llamado "${projectName}". 
       La descripción del proyecto es: "${description || 'Sin descripción'}". 
       Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}. 
       Basado en esta información, genera los archivos necesarios para el proyecto siguiendo las mejores prácticas del framework o lenguaje seleccionado.`;
-      
+
       // Llamada a la API para generar los archivos
       const response = await apiRequest("POST", "/api/generate-code", {
         prompt: prompt,
         language: template,
         agents: ["architect", "coder"] // Utilizamos agentes especializados
       });
-      
+
       if (!response.ok) {
         // Intentar obtener mensaje de error si existe
         try {
@@ -152,10 +152,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
           throw new Error("Error al generar los archivos. La respuesta no es válida.");
         }
       }
-      
+
       // Procesar respuesta exitosa
       const data = await response.json();
-      
+
       // Procesar y enviar los archivos generados al panel de archivos generados
       if (data.files && data.files.length > 0) {
         data.files.forEach((file, index) => {
@@ -174,14 +174,14 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
             console.log(`Archivo generado por GPT enviado al explorador: ${file.name}`);
           }, index * 300); // Retraso escalonado para cada archivo
         });
-        
+
         toast({
           title: "Archivos generados",
           description: `Se han generado ${data.files.length} archivos para tu proyecto`,
           duration: 5000
         });
         sounds.play('success', 0.4);
-        
+
         // Refrescar el panel de archivos generados
         setTimeout(() => {
           const refreshEvent = new CustomEvent('refresh-generated-files');
@@ -203,8 +203,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       setIsGeneratingFiles(false);
     }
   };
-  };
-  
+
   // Función auxiliar para obtener la extensión desde el tipo
   const getExtensionFromType = (type: string) => {
     switch (type) {
@@ -1416,7 +1415,7 @@ gunicorn==20.1.0`;
                     <span>Usar asistente GPT para generar archivos personalizados</span>
                   </label>
                 </div>
-                
+
                 {usingGptAssistant && (
                   <div className="ml-6 border-l-2 pl-3 border-primary/30 dark:border-primary/20">
                     <p className="text-xs text-slate-600 dark:text-slate-400">
