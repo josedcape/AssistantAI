@@ -68,7 +68,7 @@ export const AssistantChat: React.FC = () => {
   const [pendingPackages, setPendingPackages] = useState<Package[]>([]);
   const [showPackageDialog, setShowPackageDialog] = useState(false);
   const [isInstallingPackage, setIsInstallingPackage] = useState(false);
-  
+
   // Estado para conversaciones
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showConversations, setShowConversations] = useState(false);
@@ -78,7 +78,7 @@ export const AssistantChat: React.FC = () => {
   // Referencias para el reconocimiento de voz
   const recognitionRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   // Inicializar reconocimiento de voz
   useEffect(() => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
@@ -161,25 +161,25 @@ export const AssistantChat: React.FC = () => {
   // Scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    
+
     // Marca la conversación como no guardada cuando cambian los mensajes
     // excepto durante la carga inicial
     if (currentConversationId && messages.length > 2) {
       setSavedStatus('unsaved');
     }
   }, [messages]);
-  
+
   // Guardar cambios automáticamente cuando hay cambios
   useEffect(() => {
     if (savedStatus === 'unsaved' && currentConversationId) {
       const saveTimer = setTimeout(() => {
         saveCurrentConversation();
       }, 2000); // Guardar después de 2 segundos de inactividad
-      
+
       return () => clearTimeout(saveTimer);
     }
   }, [messages, savedStatus, currentConversationId]);
-  
+
   // Iniciar una nueva conversación
   const startNewConversation = () => {
     const initialMessages = [
@@ -192,30 +192,30 @@ export const AssistantChat: React.FC = () => {
         content: "¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy con tu proyecto?"
       }
     ];
-    
+
     setMessages(initialMessages);
     setCurrentConversationId(null);
     setActiveConversation(null);
     setSavedStatus('unsaved');
     sounds.play("click");
   };
-  
+
   // Guardar la conversación actual
   const saveCurrentConversation = () => {
     if (messages.length <= 2) {
       // No guardar si solo tiene los mensajes iniciales
       return;
     }
-    
+
     setIsSaving(true);
     setSavedStatus('saving');
-    
+
     try {
       // Si no hay ID de conversación, crear uno nuevo
       const conversationId = currentConversationId || generateConversationId();
       const title = generateConversationTitle(messages);
       const now = new Date();
-      
+
       const conversation: Conversation = {
         id: conversationId,
         title,
@@ -226,7 +226,7 @@ export const AssistantChat: React.FC = () => {
           : now,
         updatedAt: now
       };
-      
+
       saveConversation(conversation);
       setActiveConversation(conversationId);
       setCurrentConversationId(conversationId);
@@ -238,7 +238,7 @@ export const AssistantChat: React.FC = () => {
       setIsSaving(false);
     }
   };
-  
+
   // Cargar una conversación guardada
   const loadConversation = (conversation: Conversation) => {
     setMessages(conversation.messages as Message[]);
@@ -297,7 +297,7 @@ export const AssistantChat: React.FC = () => {
       if (sounds && sounds.play) {
         sounds.play("notification");
       }
-      
+
       // Marcar como no guardado para activar el guardado automático
       setSavedStatus('unsaved');
 
@@ -406,7 +406,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     let match;
     let savedCount = 0;
     let firstSavedFilePath = "";
-    
+
     // Extraer todos los bloques de código
     const codeBlocks: { language: string, code: string }[] = [];
     while ((match = codeBlockRegex.exec(content)) !== null) {
@@ -414,7 +414,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       const codeContent = match[2];
       codeBlocks.push({ language, code: codeContent });
     }
-    
+
     if (codeBlocks.length === 0) {
       console.warn("No se encontraron bloques de código para guardar");
       return;
@@ -425,7 +425,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       for (const [index, codeBlock] of codeBlocks.entries()) {
         // Determinar la extensión del archivo basada en el lenguaje
         let fileExtension = ".js"; // Predeterminado a JavaScript
-        
+
         switch (codeBlock.language.toLowerCase()) {
           case "javascript":
           case "js":
@@ -456,10 +456,10 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             break;
           // Añadir más lenguajes según sea necesario
         }
-        
+
         // Generar nombre de archivo único basado en el contenido o tipo de código
         let fileName = `generated_code_${index + 1}${fileExtension}`;
-        
+
         // Intentar detectar un mejor nombre basado en patrones en el código
         // Por ejemplo, para un componente React, usar el nombre del componente
         if (codeBlock.code.includes("export default") && codeBlock.code.includes("function")) {
@@ -473,7 +473,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             fileName = `${classMatch[1]}${fileExtension}`;
           }
         }
-        
+
         // Enviar solicitud para crear el archivo
         const response = await fetch("/api/files/create", {
           method: "POST",
@@ -486,19 +486,19 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             path: "", // Guardar en la ruta actual
           }),
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error al guardar el archivo ${fileName}`);
         }
-        
+
         savedCount++;
         if (savedCount === 1) {
           firstSavedFilePath = fileName;
         }
       }
-      
+
       sounds.play("save");
-      
+
       // Mensaje de éxito con información sobre los archivos guardados
       let successMessage = "";
       if (savedCount === 1) {
@@ -514,7 +514,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
 
 🔄 El explorador de archivos se actualizará automáticamente para mostrar los nuevos archivos.`;
       }
-      
+
       setMessages((prev) => [
         ...prev,
         {
@@ -522,11 +522,11 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           content: successMessage
         },
       ]);
-      
+
       // Disparar evento para actualizar el explorador de archivos
       const fileEvent = new CustomEvent('files-updated');
       window.dispatchEvent(fileEvent);
-      
+
       // Buscar y actualizar el explorador de archivos si existe
       setTimeout(() => {
         const fileExplorer = document.querySelector('[data-component="file-explorer"]');
@@ -537,11 +537,11 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           }
         }
       }, 1000);
-      
+
     } catch (error) {
       console.error("Error al guardar archivos:", error);
       sounds.play("error");
-      
+
       setMessages((prev) => [
         ...prev,
         {
@@ -644,7 +644,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       };
       return emojiMap[emojiName] || match;
     });
-    
+
     // Añadir emojis en los puntos importantes (títulos, listas, etc.)
     enhancedContent = enhancedContent
       // Títulos con emojis
@@ -687,7 +687,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           return `${number} 🏁 ${item}`;
         return `${number} ▶️ ${item}`;
       });
-      
+
     return enhancedContent;
   };
 
@@ -711,6 +711,50 @@ ${error instanceof Error ? error.message : "Error desconocido"}
       }
 
       const result = await response.json();
+      const lastMessage = messages[messages.length -1];
+
+
+      // Extraer descripción del paquete de la respuesta de instalación o del contexto
+      const getPackageDescription = (packageName: string, responseText: string) => {
+        // Intentar encontrar una descripción en el texto de respuesta
+        const descriptionRegex = new RegExp(`${packageName}[^.]*(?:se usa para|permite|es una|(?:es|sirve) para)[^.]*\\.`, 'i');
+        const match = responseText.match(descriptionRegex);
+
+        if (match) {
+          return match[0].trim();
+        }
+
+        // Descripciones predefinidas para algunos paquetes comunes
+        const packageDescriptions: Record<string, string> = {
+          "react": "Biblioteca para construir interfaces de usuario",
+          "express": "Framework web para Node.js",
+          "axios": "Cliente HTTP basado en promesas",
+          "lodash": "Biblioteca de utilidades para JavaScript",
+          "mongoose": "ODM para MongoDB y Node.js",
+          "tailwindcss": "Framework CSS utilitario",
+          "typescript": "Superset tipado de JavaScript",
+          "react-dom": "Renderizador de React para el DOM",
+          "jest": "Framework de testing para JavaScript",
+          "next": "Framework React para aplicaciones web",
+          "vite": "Herramienta de desarrollo frontend",
+          "eslint": "Herramienta de linting para JavaScript",
+          "prisma": "ORM para bases de datos",
+          "redux": "Contenedor de estado predecible"
+        };
+
+        return packageDescriptions[packageName] || "Instalado a través del asistente";
+      };
+
+      // Disparar evento de instalación de paquete para actualización automática
+      window.dispatchEvent(new CustomEvent('package-installed', {
+        detail: { 
+          name: packageName,
+          version: result.packageDetails?.version || 'latest',
+          isDev: isDev,
+          description: getPackageDescription(packageName, lastMessage?.content || ""),
+          timestamp: new Date()
+        }
+      }));
 
       setMessages((prev) => [
         ...prev,
@@ -728,17 +772,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
         },
       ]);
       sounds.play("success");
-      
-      // Disparar evento personalizado para actualizar la lista de paquetes
-      const packageEvent = new CustomEvent('package-installed', { 
-        detail: { 
-          name: packageName, 
-          version: result.packageDetails?.version || 'latest',
-          isDev: isDev
-        } 
-      });
-      window.dispatchEvent(packageEvent);
-      
+
       // Actualizar la lista de paquetes después de 1 segundo para dar tiempo a que se actualice package.json
       setTimeout(() => {
         // Buscar y actualizar el explorador de paquetes si existe
@@ -750,7 +784,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           }
         }
       }, 1000);
-      
+
     } catch (error) {
       console.error("Error al instalar:", error);
       setMessages((prev) => [
@@ -785,7 +819,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
           />
         </div>
       )}
-      
+
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Barra de herramientas de conversación */}
         <div className="flex items-center justify-between px-4 py-2 border-b">
@@ -806,7 +840,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
+
             <div className="ml-2 text-sm">
               {currentConversationId ? (
                 <div className="flex items-center">
@@ -820,7 +854,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center">
             {/* Indicador de guardado */}
             <TooltipProvider>
@@ -852,7 +886,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -871,7 +905,7 @@ ${error instanceof Error ? error.message : "Error desconocido"}
             </TooltipProvider>
           </div>
         </div>
-        
+
         <ScrollArea className="flex-grow p-4">
         <div className="space-y-4">
           {messages.map((message, index) => (

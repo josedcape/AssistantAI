@@ -5,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface PackageInfo {
   name: string;
   version: string;
   isDevDependency: boolean;
+  description?: string;
+  category?: string;
 }
 
 export function PackageExplorer() {
@@ -43,6 +46,17 @@ export function PackageExplorer() {
     }
   };
 
+  // Estado para almacenar descripciones de paquetes instalados (persistencia local)
+  const [packageDescriptions, setPackageDescriptions] = useState<Record<string, string>>(() => {
+    const savedDescriptions = localStorage.getItem('package-descriptions');
+    return savedDescriptions ? JSON.parse(savedDescriptions) : {};
+  });
+
+  // Guardar descripciones en localStorage cuando cambien
+  useEffect(() => {
+    localStorage.setItem('package-descriptions', JSON.stringify(packageDescriptions));
+  }, [packageDescriptions]);
+
   // Cargar paquetes al iniciar y cuando se instale un nuevo paquete
   useEffect(() => {
     fetchPackages();
@@ -50,6 +64,22 @@ export function PackageExplorer() {
     // Escuchar evento de instalación de paquete
     const handlePackageInstalled = (event: CustomEvent) => {
       console.log("📦 Detectada instalación de paquete, actualizando lista...", event.detail);
+      
+      // Guardar descripción del paquete si está disponible
+      if (event.detail && event.detail.name) {
+        const packageName = event.detail.name;
+        const packageDescription = event.detail.description || "Instalado por el asistente";
+        const packageCategory = event.detail.category;
+
+        setPackageDescriptions(prev => ({
+          ...prev,
+          [packageName]: packageDescription
+        }));
+        
+        // Si hay una categoría específica, podríamos guardarla en otro estado
+        // Implementación futura
+      }
+      
       fetchPackages(); // Llamar a la función que carga los paquetes
     };
 
@@ -60,18 +90,76 @@ export function PackageExplorer() {
     };
   }, []);
 
-  // Filtrar paquetes cuando cambie el término de búsqueda
+  // Filtrar paquetes cuando cambie el término de búsqueda y aplicar descripciones guardadas
   useEffect(() => {
+    // Primero, enriquecer los paquetes con descripciones guardadas
+    const packagesWithDescriptions = packages.map(pkg => ({
+      ...pkg,
+      description: packageDescriptions[pkg.name] || "Sin descripción"
+    }));
+    
+    // Luego aplicar el filtro de búsqueda
     if (searchTerm.trim() === "") {
-      setFilteredPackages(packages);
+      setFilteredPackages(packagesWithDescriptions);
     } else {
       const lowercaseSearch = searchTerm.toLowerCase();
-      const filtered = packages.filter(pkg => 
-        pkg.name.toLowerCase().includes(lowercaseSearch)
+      const filtered = packagesWithDescriptions.filter(pkg => 
+        pkg.name.toLowerCase().includes(lowercaseSearch) || 
+        (pkg.description && pkg.description.toLowerCase().includes(lowercaseSearch))
       );
       setFilteredPackages(filtered);
     }
-  }, [searchTerm, packages]);
+  }, [searchTerm, packages, packageDescriptions]);
+
+  // Función para organizar los paquetes por categorías
+  const categorizarPaquetes = (paquetes: PackageInfo[]) => {
+    const categoriasConocidas: Record<string, string[]> = {
+      "UI/Componentes": ["react", "react-dom", "tailwindcss", "shadcn", "bootstrap", "mui", "chakra", "styled-components", "emotion"],
+      "Backend/API": ["express", "axios", "node-fetch", "cors", "body-parser", "jwt", "passport", "mongoose", "sequelize", "prisma"],
+      "Testing": ["jest", "mocha", "chai", "cypress", "testing-library", "vitest", "playwright"],
+      "Utilidades": ["lodash", "moment", "luxon", "date-fns", "uuid", "nanoid", "js-cookie", "zod", "yup"],
+      "Estado/Datos": ["redux", "mobx", "zustand", "recoil", "swr", "react-query", "graphql", "apollo"],
+      "Desarrollo": ["eslint", "prettier", "typescript", "babel", "webpack", "vite", "rollup", "esbuild"],
+      "Multimedia": ["sharp", "jimp", "canvas", "pdf-lib", "ffmpeg", "tone"]
+    };
+
+    return paquetes.map(pkg => {
+      // Intentar asignar una categoría basada en el nombre del paquete
+      let foundCategory = "Otros";
+      
+      for (const [category, keywords] of Object.entries(categoriasConocidas)) {
+        if (keywords.some(keyword => pkg.name.toLowerCase().includes(keyword.toLowerCase()))) {
+          foundCategory = category;
+          break;
+        }
+      }
+      
+      return {
+        ...pkg,
+        category: pkg.category || foundCategory,
+        description: pkg.description || "Paquete instalado por el proyecto"
+      };
+    });
+  };
+
+  // Agrupar paquetes por categoría
+  const agruparPorCategoria = (paquetes: PackageInfo[]) => {
+    const paquetesCategorizados = categorizarPaquetes(paquetes);
+    const grupos: Record<string, PackageInfo[]> = {};
+    
+    paquetesCategorizados.forEach(pkg => {
+      if (!grupos[pkg.category || "Otros"]) {
+        grupos[pkg.category || "Otros"] = [];
+      }
+      grupos[pkg.category || "Otros"].push(pkg);
+    });
+    
+    return grupos;
+  };
+
+  // Obtener paquetes agrupados
+  const paquetesPorCategoria = agruparPorCategoria(filteredPackages);
+  const categorias = Object.keys(paquetesPorCategoria).sort();
 
   return (
     <Card className="w-full" data-component="package-explorer">
@@ -112,6 +200,46 @@ export function PackageExplorer() {
           </div>
         ) : (
           <Accordion type="multiple" className="w-full">
+            <AccordionItem value="byCategory" className="border-b">
+              <AccordionTrigger className="py-2">
+                Por Categoría
+              </AccordionTrigger>
+              <AccordionContent>
+                <Accordion type="multiple" className="w-full">
+                  {categorias.map(categoria => (
+                    <AccordionItem key={categoria} value={`cat-${categoria}`}>
+                      <AccordionTrigger className="py-1.5 text-sm">
+                        {categoria} ({paquetesPorCategoria[categoria].length})
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-1.5 mt-1 pl-2">
+                          {paquetesPorCategoria[categoria].map(pkg => (
+                            <div key={pkg.name} className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/30">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono text-sm">{pkg.name}</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Info size={14} className="text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-xs">{pkg.description}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              <Badge variant="outline" className={`text-xs ${pkg.isDevDependency ? 'bg-amber-100 dark:bg-amber-900/30' : ''}`}>
+                                {pkg.version}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </AccordionContent>
+            </AccordionItem>
             <AccordionItem value="dependencies" className="border-b">
               <AccordionTrigger className="py-2">
                 Dependencias ({filteredPackages.filter(p => !p.isDevDependency).length})
@@ -122,7 +250,19 @@ export function PackageExplorer() {
                     .filter(pkg => !pkg.isDevDependency)
                     .map(pkg => (
                       <div key={pkg.name} className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/30">
-                        <span className="font-mono text-sm">{pkg.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-sm">{pkg.name}</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Info size={14} className="text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">{pkg.description || "Sin descripción"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <Badge variant="outline" className="text-xs">{pkg.version}</Badge>
                       </div>
                     ))}
@@ -139,7 +279,19 @@ export function PackageExplorer() {
                     .filter(pkg => pkg.isDevDependency)
                     .map(pkg => (
                       <div key={pkg.name} className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/30">
-                        <span className="font-mono text-sm">{pkg.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-sm">{pkg.name}</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Info size={14} className="text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">{pkg.description || "Sin descripción"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <Badge variant="outline" className="text-xs">{pkg.version}</Badge>
                       </div>
                     ))}

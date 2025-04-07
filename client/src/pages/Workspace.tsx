@@ -516,7 +516,7 @@ const Workspace: React.FC = () => {
   useEffect(() => {
     const handlePackageInstalled = (event: CustomEvent) => {
       console.log("📦 Workspace: Detectada instalación de paquete:", event.detail);
-      
+
       // Refrescar la pestaña de paquetes si está activa
       if (activeTab === "packages") {
         // Buscar y actualizar el explorador de paquetes
@@ -528,55 +528,26 @@ const Workspace: React.FC = () => {
           }
         }
       }
-      
-      // Añadir a historial
+
+      // Añadir a historial con descripción mejorada
       setFileChangesHistory(prev => [...prev, {
         timestamp: new Date(),
         filename: event.detail.name + (event.detail.version ? `@${event.detail.version}` : ''),
-        description: `Paquete ${event.detail.isDev ? 'de desarrollo ' : ''}instalado`
+        description: event.detail.description 
+          ? `Paquete ${event.detail.isDev ? 'de desarrollo ' : ''}instalado: ${event.detail.description}` 
+          : `Paquete ${event.detail.isDev ? 'de desarrollo ' : ''}instalado`
       }]);
     };
 
     // Registrar el evento personalizado
     window.addEventListener('package-installed', handlePackageInstalled as EventListener);
-    
+
     return () => {
       window.removeEventListener('package-installed', handlePackageInstalled as EventListener);
     };
   }, [activeTab]);
 
-  // Escuchar eventos de instalación de paquetes
-  useEffect(() => {
-    const handlePackageInstalled = (event: CustomEvent) => {
-      console.log("📦 Workspace: Detectada instalación de paquete:", event.detail);
-      
-      // Refrescar la pestaña de paquetes si está activa
-      if (activeTab === "packages") {
-        // Buscar y actualizar el explorador de paquetes
-        const packageExplorer = document.querySelector('[data-component="package-explorer"]');
-        if (packageExplorer) {
-          const refreshButton = packageExplorer.querySelector('button[title="Actualizar lista de paquetes"]');
-          if (refreshButton) {
-            (refreshButton as HTMLButtonElement).click();
-          }
-        }
-      }
-      
-      // Añadir a historial
-      setFileChangesHistory(prev => [...prev, {
-        timestamp: new Date(),
-        filename: event.detail.name + (event.detail.version ? `@${event.detail.version}` : ''),
-        description: `Paquete ${event.detail.isDev ? 'de desarrollo ' : ''}instalado`
-      }]);
-    };
-
-    // Registrar el evento personalizado
-    window.addEventListener('package-installed', handlePackageInstalled as EventListener);
-    
-    return () => {
-      window.removeEventListener('package-installed', handlePackageInstalled as EventListener);
-    };
-  }, [activeTab]);
+  //This useEffect was duplicated, removed the duplicate.
 
   useEffect(() => {
     sounds.play('laser', 0.4);
@@ -849,7 +820,7 @@ const Workspace: React.FC = () => {
           setFileChangesHistory(prev => [...prev, {
             timestamp: new Date(),
             filename: update.file,
-            description: "Archivo actualizado"
+            description: "Archivo actualizado manualmente"
           }]);
         } else {
           // Create new file
@@ -1419,10 +1390,10 @@ const Workspace: React.FC = () => {
                   onSendToAssistant={(fileContent, fileName, message) => {
                     // Cambiar a la pestaña del asistente y enviar el contenido del archivo
                     const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
-                    
+
                     // Cambiar a la pestaña del asistente
                     setActiveTab("assistant-chat");
-                    
+
                     // Enviar el contenido al componente AssistantChat (simulado aquí)
                     // Esta parte depende de cómo implementes la comunicación entre componentes
                     // Una opción es usar un evento personalizado
@@ -1430,7 +1401,7 @@ const Workspace: React.FC = () => {
                       detail: { content: formattedMessage, fileName } 
                     });
                     window.dispatchEvent(event);
-                    
+
                     toast({
                       title: "Archivo enviado al asistente",
                       description: `${fileName} enviado al asistente`,
