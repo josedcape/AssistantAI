@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,22 +153,22 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         await apiRequest("POST", "/api/directories/create", {
           path: `src`
         });
-        
+
         if (template === "react" || template === "vue") {
           await apiRequest("POST", "/api/directories/create", {
             path: `src/components`
           });
-          
+
           await apiRequest("POST", "/api/directories/create", {
             path: `public`
           });
         }
-        
+
         if (template === "node") {
           await apiRequest("POST", "/api/directories/create", {
             path: `src/routes`
           });
-          
+
           await apiRequest("POST", "/api/directories/create", {
             path: `src/controllers`
           });
@@ -272,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const title = document.querySelector('h1');
   title.style.opacity = '0';
   title.style.transition = 'opacity 0.5s ease-in-out';
-  
+
   requestAnimationFrame(() => {
     title.style.opacity = '1';
   });` : ''}
@@ -385,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const title = document.querySelector('h1');
   title.style.opacity = '0';
   title.style.transition = 'opacity 0.5s ease-in-out';
-  
+
   requestAnimationFrame(() => {
     title.style.opacity = '1';
   });` : ''}
@@ -403,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       window.dispatchEvent(sendFilesToExplorer);
-      
+
       // Activar la pestaña de archivos generados después de un breve retraso
       setTimeout(() => {
         // Cambiar a la pestaña de archivos generados
@@ -412,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         window.dispatchEvent(activateGeneratedEvent);
       }, 500);
-      
+
       // Luego refrescar archivos después de un breve retraso
       setTimeout(() => {
         // Solo refrescar la lista de archivos sin modificar el explorador
