@@ -394,14 +394,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       ];
 
-      // Enviar archivos directamente al explorador de archivos
+      // Enviar archivos al panel de archivos generados
       const sendFilesToExplorer = new CustomEvent('send-files-to-explorer', {
         detail: {
           files: createdFiles,
-          projectId: newProject.id
+          projectId: newProject.id,
+          fromTemplate: true
         }
       });
       window.dispatchEvent(sendFilesToExplorer);
+      
+      // Activar la pestaña de archivos generados después de un breve retraso
+      setTimeout(() => {
+        const activateGeneratedEvent = new CustomEvent('activate-generated-tab', {
+          detail: { projectId: newProject.id }
+        });
+        window.dispatchEvent(activateGeneratedEvent);
+      }, 500);
       
       // Luego refrescar archivos después de un breve retraso
       setTimeout(() => {

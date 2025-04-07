@@ -48,7 +48,8 @@ import {
   MessageSquare,
   BookOpen,
   Package,
-  History
+  History,
+  FileCode
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -106,7 +107,7 @@ const Workspace: React.FC = () => {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Main state
-  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history">("development");
+  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -455,7 +456,7 @@ const Workspace: React.FC = () => {
 
       // Update UI - simplified approach with more direct state update
       setFiles(prevFiles => [...prevFiles, newFile]);
-      
+
       // Disparar evento para actualizar exploradores de archivos
       const fileEvent = new CustomEvent('files-updated', {
         detail: { file: newFile }
@@ -972,7 +973,7 @@ const Workspace: React.FC = () => {
                   {change.description.includes("creado") ? (
                     <Plus className="w-4 h-4 mr-2 mt-0.5 text-green-500" />
                   ) : change.description.includes("actualizado") ? (
-                    <Save className="w-4 h-4 mr-2 mt-0.5 text-blue-500" />
+                    <Save className="w-4 h-4 mr-2 mt-0.5 text-blue500" />
                   ) : change.description.includes("importado") ? (
                     <GitBranch className="w-4 h-4 mr-2 mt-0.5 text-purple-500" />
                   ) : (
@@ -1272,6 +1273,14 @@ const Workspace: React.FC = () => {
             {!isMobile && <span className="ml-1">Archivos</span>}
           </TabsTrigger>
           <TabsTrigger 
+            value="generated" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Generados"
+          >
+            <FileCode className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Generados</span>}
+          </TabsTrigger>
+          <TabsTrigger 
             value="documents" 
             className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
             title="Documentos"
@@ -1397,6 +1406,9 @@ const Workspace: React.FC = () => {
                   <DropdownMenuItem onClick={() => setActiveTab("history")}>
                     Historial
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("generated")}>
+                    Generados
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1421,33 +1433,57 @@ const Workspace: React.FC = () => {
           <FileSystemProvider projectId={projectId}>
             {(!isMobile || showMobileMenu) && (
               <div className={`${showMobileMenu ? 'absolute inset-0 z-50 bg-white dark:bg-slate-900' : 'w-64 border-r border-border'}`}>
-                <FileExplorer 
-                  projectId={projectId}
-                  onFileSelect={handleFileSelect}
-                  selectedFileId={activeFile?.id}
-                  onClose={isMobile ? () => setShowMobileMenu(false) : undefined}
-                  onSendToAssistant={(fileContent, fileName, message) => {
-                    // Cambiar a la pestaña del asistente y enviar el contenido del archivo
-                    const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
+                <Sidebar>
+                  <SidebarTrigger/>
+                  <SidebarContent>
+                    <SidebarNavigation/>
+                    {/* Contenido de la barra lateral */}
+                    {activeTab === 'files' && (
+                      <FileExplorer
+                        projectId={Number(projectId)}
+                        onFileSelect={handleFileSelect}
+                        selectedFileId={activeFile?.id}
+                        onClose={isMobile ? () => setShowMobileMenu(false) : undefined}
+                        onSendToAssistant={(fileContent, fileName, message) => {
+                          // Cambiar a la pestaña del asistente y enviar el contenido del archivo
+                          const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
 
-                    // Cambiar a la pestaña del asistente
-                    setActiveTab("assistant-chat");
+                          // Cambiar a la pestaña del asistente
+                          setActiveTab("assistant-chat");
 
-                    // Enviar el contenido al componente AssistantChat (simulado aquí)
-                    // Esta parte depende de cómo implementes la comunicación entre componentes
-                    // Una opción es usar un evento personalizado
-                    const event = new CustomEvent('sendToAssistant', { 
-                      detail: { content: formattedMessage, fileName } 
-                    });
-                    window.dispatchEvent(event);
+                          // Enviar el contenido al componente AssistantChat (simulado aquí)
+                          // Esta parte depende de cómo implementes la comunicación entre componentes
+                          // Una opción es usar un evento personalizado
+                          const event = new CustomEvent('sendToAssistant', { 
+                            detail: { content: formattedMessage, fileName } 
+                          });
+                          window.dispatchEvent(event);
 
-                    toast({
-                      title: "Archivo enviado al asistente",
-                      description: `${fileName} enviado al asistente`,
-                      duration: 3000
-                    });
-                  }}
-                />
+                          toast({
+                            title: "Archivo enviado al asistente",
+                            description: `${fileName} enviado al asistente`,
+                            duration: 3000
+                          });
+                        }}
+                      />
+                    )}
+                    {activeTab === 'generated' && (
+                      <GeneratedFilesPanel
+                        projectId={Number(projectId)}
+                      />
+                    )}
+                    {activeTab === 'docs' && (
+                      <div className="h-full p-4 overflow-y-auto">
+                        <DocumentUploader 
+                          projectId={Number(projectId)} 
+                          onDocumentUploaded={refetchFiles}
+                        />
+                      </div>
+                    )}
+                    {activeTab === 'repository' && <SidebarRepository />}
+                    {activeTab === 'projects' && <SidebarProjects />}
+                  </SidebarContent>
+                </Sidebar>
               </div>
             )}
           </FileSystemProvider>
@@ -1493,6 +1529,10 @@ const Workspace: React.FC = () => {
                     <TabsTrigger value="history" className="text-xs flex items-center">
                       <History className="h-4 w-4 mr-1.5 text-teal-500" />
                       Historial
+                    </TabsTrigger>
+                    <TabsTrigger value="generated" className="text-xs flex items-center">
+                      <FileCode className="h-4 w-4 mr-1.5 text-teal-500" />
+                      Generados
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -1579,6 +1619,12 @@ const Workspace: React.FC = () => {
                 )}
 
                 {activeTab === "history" && <HistoryComponent />}
+                {activeTab === "generated" && (
+                  <div>
+                    {/* Contenido del panel de archivos generados */}
+                    <p>Panel de archivos generados</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
