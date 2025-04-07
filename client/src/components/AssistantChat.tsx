@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Loader2, Mic, MicOff, Send, Save, Copy, Check, 
-  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List
+  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import * as sounds from "@/lib/sounds"; //Import sounds module
