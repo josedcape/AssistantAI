@@ -1257,7 +1257,7 @@ if __name__ == '__main__':
 
         // requirements.txt
         const requirementsTxtContent = `flask==2.3.2
-${selectedFeatures.includes('database') ? "flask-sqlalchemy==3.0.5\nflask-migrate==4.0.4${selectedFeatures.includes('authentication') ? "\nflask-jwt-extended==4.5.2" : ""}" : ""}
+${selectedFeatures.includes('database') ? `flask-sqlalchemy==3.0.5\nflask-migrate==4.0.4${selectedFeatures.includes('authentication') ? "\nflask-jwt-extended==4.5.2" : ""}` : ""}
 ${selectedFeatures.includes('authentication') && !selectedFeatures.includes('database') ? "flask-jwt-extended==4.5.2" : ""}
 gunicorn==20.1.0`;
         sendFileToExplorer("requirements", requirementsTxtContent, ".txt", 1000);
