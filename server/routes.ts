@@ -375,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Validar de manera explícita antes de procesar los datos
-      if (!req.body.content || req.body.content.trim() === '') {
+      if (req.body.content === undefined || req.body.content === null || req.body.content.trim() === '') {
         return res.status(400).json({
           message: "Invalid request data",
           errors: [{ code: "too_small", path: ["content"], message: "El contenido del código no puede estar vacío" }]

@@ -313,7 +313,10 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
 
       {showCorrectionModal && (
         <CodeCorrectionModal
-          file={file}
+          file={{
+            ...file,
+            content: content // Pasar el contenido actual del editor, no el original del archivo
+          }}
           onClose={() => setShowCorrectionModal(false)}
           onApplyChanges={handleApplyCorrections}
           projectId={file.projectId}

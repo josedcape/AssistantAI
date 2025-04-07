@@ -27,7 +27,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [correctionResult, setCorrectionResult] = useState<CodeCorrectionResponse | null>(null);
   const [diffView, setDiffView] = useState(false);
-  const [editedCode, setEditedCode] = useState(file.content);
+  const [editedCode, setEditedCode] = useState(file.content || '');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,8 +38,13 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
     setCorrectionResult(null);
     setInstructions("");
     setDiffView(false);
-    setEditedCode(file.content);
+    setEditedCode(file.content || '');
   };
+
+  // Asegurarse de que se actualice el contenido cuando cambia el archivo
+  useEffect(() => {
+    setEditedCode(file.content || '');
+  }, [file.content]);
 
   const requestCorrection = async () => {
     if (!instructions.trim()) {
