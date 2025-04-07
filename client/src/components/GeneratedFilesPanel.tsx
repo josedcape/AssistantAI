@@ -77,12 +77,17 @@ const GeneratedFilesPanelContent = () => {
     // Listen for custom events to add new files
     const handleNewFileEvent = (e: CustomEvent) => {
       if (e.detail && e.detail.file) {
-        const newFile = e.detail.file;
-        setGeneratedFiles(prev => {
-          const updated = [...prev, newFile];
-          saveFilesToStorage(updated);
-          return updated;
-        });
+        // Agregar un retraso de 20 segundos para dar tiempo al procesamiento
+        console.log("Archivo generado recibido, procesando en 20 segundos...");
+        setTimeout(() => {
+          const newFile = e.detail.file;
+          setGeneratedFiles(prev => {
+            const updated = [...prev, newFile];
+            saveFilesToStorage(updated);
+            return updated;
+          });
+          console.log("Archivo generado procesado y agregado correctamente");
+        }, 20000); // 20 segundos de retraso
       }
     };
 
