@@ -190,15 +190,16 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       }, 500);
     };
 
-    // Handler para recibir archivos del asistente
+    // Handler para recibir archivos del asistente o de las plantillas
     const handleFilesFromAssistant = (e: CustomEvent) => {
       console.log("Evento send-files-to-explorer recibido", e.detail);
       if (e.detail?.files && Array.isArray(e.detail.files)) {
         const files = e.detail.files;
-
+        const isFromTemplate = e.detail.projectId === projectId;
+        
         toast({
-          title: "Archivos recibidos",
-          description: `Procesando ${files.length} archivo(s) del asistente...`,
+          title: isFromTemplate ? "Plantilla detectada" : "Archivos recibidos",
+          description: `Procesando ${files.length} archivo(s)${isFromTemplate ? " de la plantilla" : " del asistente"}...`,
           duration: 3000
         });
 
@@ -223,13 +224,44 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
 
           // Expandir los tipos de archivo correspondientes
           files.forEach((file: any) => {
-            if (file.extension) {
-              setOpenTypes(prev => ({ ...prev, [file.extension]: true }));
+            const extension = file.extension || file.name.split('.').pop() || '';
+            if (extension) {
+              setOpenTypes(prev => ({ ...prev, [extension]: true }));
             }
           });
+          
+          // Si viene de una plantilla, asegurarse de que todos los tipos estén expandidos
+          if (isFromTemplate) {
+            setOpenTypes(prev => ({
+              ...prev,
+              'html': true,
+              'css': true,
+              'js': true,
+              'jsx': true,
+              'ts': true,
+              'tsx': true,
+              'json': true
+            }));
+            
+            // También abrir todas las carpetas
+            setOpenFolders(prev => {
+              const allFolders = getFolders();
+              const newOpenFolders = { ...prev };
+              allFolders.forEach(folder => {
+                newOpenFolders[folder] = true;
+              });
+              newOpenFolders['/'] = true;
+              return newOpenFolders;
+            });
+            
+            // Forzar una segunda actualización después de un breve retraso
+            setTimeout(() => {
+              refreshFiles();
+            }, 500);
+          }
         })
         .catch(error => {
-          console.error("Error procesando archivos del asistente:", error);
+          console.error("Error procesando archivos:", error);
           toast({
             title: "Error",
             description: "No se pudieron procesar todos los archivos",

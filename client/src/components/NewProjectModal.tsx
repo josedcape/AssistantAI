@@ -291,24 +291,129 @@ document.addEventListener('DOMContentLoaded', () => {
         duration: 3000
       });
 
-      // Emitir dos eventos para asegurar que se actualiza correctamente
-      // Primer evento inmediato
-      const refreshEvent = new CustomEvent('refresh-files', {
-        detail: { projectId: newProject.id, forceRefresh: true }
+      // Preparar los archivos creados para enviarlos al explorador
+      const createdFiles = [
+        { 
+          name: "index.html", 
+          content: `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projectName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Bienvenido a ${projectName}</h1>
+    <p>${description || "Mi nuevo proyecto"}</p>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>`,
+          extension: "html"
+        },
+        { 
+          name: "styles.css", 
+          content: `/* Estilos para ${projectName} */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h1 {
+  color: #333;
+}
+
+${selectedFeatures.includes('responsive') ? `
+/* Diseño responsive */
+@media (max-width: 768px) {
+  #app {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+}` : ''}
+
+${selectedFeatures.includes('dark-mode') ? `
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a1a1a;
+    color: #fff;
+  }
+
+  #app {
+    background-color: #2d2d2d;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  h1 {
+    color: #fff;
+  }
+}` : ''}`,
+          extension: "css"
+        },
+        { 
+          name: "app.js", 
+          content: `// Código JavaScript para ${projectName}
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Aplicación iniciada');
+
+  ${selectedFeatures.includes('responsive') ? `
+  // Detectar si es un dispositivo móvil
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    console.log('Versión móvil cargada');
+  }` : ''}
+
+  ${selectedFeatures.includes('animations') ? `
+  // Agregar animaciones
+  const title = document.querySelector('h1');
+  title.style.opacity = '0';
+  title.style.transition = 'opacity 0.5s ease-in-out';
+  
+  requestAnimationFrame(() => {
+    title.style.opacity = '1';
+  });` : ''}
+});`,
+          extension: "js"
+        }
+      ];
+
+      // Enviar archivos directamente al explorador de archivos
+      const sendFilesToExplorer = new CustomEvent('send-files-to-explorer', {
+        detail: {
+          files: createdFiles,
+          projectId: newProject.id
+        }
       });
-      window.dispatchEvent(refreshEvent);
+      window.dispatchEvent(sendFilesToExplorer);
       
-      // Segundo evento con retraso para asegurar que los archivos se han creado completamente
+      // Luego refrescar archivos después de un breve retraso
       setTimeout(() => {
-        const delayedRefreshEvent = new CustomEvent('files-updated', {
-          detail: { projectId: newProject.id }
+        const refreshEvent = new CustomEvent('refresh-files', {
+          detail: { projectId: newProject.id, forceRefresh: true }
         });
-        window.dispatchEvent(delayedRefreshEvent);
-        
+        window.dispatchEvent(refreshEvent);
+
         // Activar la pestaña de archivos
         const activateFilesEvent = new CustomEvent('activate-files-tab');
         window.dispatchEvent(activateFilesEvent);
-      }, 1000);
+      }, 800);
 
       toast({
         title: "Proyecto creado",
