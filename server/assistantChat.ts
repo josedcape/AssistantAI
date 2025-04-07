@@ -316,6 +316,26 @@ function detectPackageManager(message: string): 'npm' | 'yarn' | 'pnpm' | 'bun' 
 }
 
 /**
+ * Crea un archivo y lo registra en el almacenamiento
+ */
+async function createFile(fileName: string, content: string, projectId: number | null): Promise<void> {
+  try {
+    // Agregar al almacenamiento para que se refleje en el explorador
+    await storage.addFile({
+      name: fileName,
+      content,
+      type: 'file',
+      projectId
+    });
+
+    console.log(`Archivo ${fileName} creado y agregado al proyecto ${projectId}`);
+  } catch (error) {
+    console.error("Error creating file:", error);
+    throw error;
+  }
+}
+
+/**
  * Procesa los mensajes del asistente, incluyendo comandos de paquetes
  */
 export async function processAssistantChat(request: AssistantRequest): Promise<AssistantResponse> {
@@ -328,6 +348,36 @@ export async function processAssistantChat(request: AssistantRequest): Promise<A
     const packageCommand = detectPackageCommand(request.message);
     if (packageCommand) {
       return await handlePackageCommand(packageCommand);
+    }
+
+    // Verificar si es una solicitud de creación de archivo
+    if (request.message.toLowerCase().includes("crear archivo")) {
+      try {
+        const fileName = request.message.match(/crear archivo\s+["']?([^"']+)["']?/i)?.[1];
+        if (!fileName) {
+          return {
+            message: "❌ Por favor especifica un nombre de archivo válido."
+          };
+        }
+
+        const content = request.message.includes("contenido:") 
+          ? request.message.split("contenido:")[1].trim()
+          : "";
+
+        await createFile(fileName, content, request.projectId);
+
+        return {
+          message: `✅ Archivo **${fileName}** creado correctamente.`,
+          fileChanges: [{
+            file: fileName,
+            content: content
+          }]
+        };
+      } catch (error) {
+        return {
+          message: `❌ Error al crear el archivo: ${error instanceof Error ? error.message : "Error desconocido"}`
+        };
+      }
     }
 
     // Obtener archivos del proyecto si existe un ID de proyecto
