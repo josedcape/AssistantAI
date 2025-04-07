@@ -246,8 +246,18 @@ export const AssistantChat: React.FC = () => {
 
   // Inicializar reconocimiento de voz
   useEffect(() => {
+    // Detectar si es móvil para adaptar configuración
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Verificar soporte para reconocimiento de voz
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
       console.warn("El reconocimiento de voz no está soportado en este navegador");
+      toast({
+        title: "Reconocimiento de voz no soportado",
+        description: "Tu navegador no soporta el reconocimiento de voz nativo",
+        variant: "destructive",
+        duration: 5000
+      });
       return;
     }
 
@@ -255,27 +265,72 @@ export const AssistantChat: React.FC = () => {
     recognitionRef.current = new SpeechRecognition();
 
     if (recognitionRef.current) {
-      recognitionRef.current.continuous = true;
+      // Configuración adaptada según el dispositivo
+      recognitionRef.current.continuous = !isMobile; // En móvil mejor no continuo para ahorrar batería
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'es-ES';
+      recognitionRef.current.maxAlternatives = 3; // Obtener varias alternativas para mejorar precisión
+
+      // Ajustar tiempos de reconocimiento en móvil
+      if (isMobile) {
+        // En móvil usamos tiempos más cortos para evitar consumo excesivo de batería
+        recognitionRef.current.interimResults = false; // Mejora rendimiento en móvil
+      }
 
       recognitionRef.current.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0])
-          .map((result: any) => result.transcript)
-          .join('');
-
-        setInput(transcript);
+        // Obtener la transcripción completa de todos los resultados
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        // Si hay un resultado final, usarlo, de lo contrario usar el interino
+        const transcriptToUse = finalTranscript || interimTranscript;
+        
+        if (transcriptToUse.trim()) {
+          // Actualizar input con el texto reconocido
+          setInput(prevInput => {
+            // Si ya hay texto, agregar espacio y el nuevo texto
+            if (prevInput && !prevInput.endsWith(' ')) {
+              return prevInput + ' ' + transcriptToUse.trim();
+            }
+            return prevInput + transcriptToUse.trim();
+          });
+          
+          // Reproducir feedback sonoro para confirmar captura (opcional)
+          if (finalTranscript && sounds) {
+            sounds.play("click", 0.1);
+          }
+        }
       };
 
       recognitionRef.current.onend = () => {
         if (isListening) {
           // Si queremos seguir escuchando pero se detuvo, reiniciar
           try {
-            recognitionRef.current?.start();
+            // Pequeño retraso para evitar errores en reinicio rápido 
+            // (especialmente útil en móviles)
+            setTimeout(() => {
+              if (isListening && recognitionRef.current) {
+                recognitionRef.current.start();
+              }
+            }, 300);
           } catch (e) {
             console.error("Error al reiniciar reconocimiento:", e);
             setIsListening(false);
+            toast({
+              title: "Error en reconocimiento de voz",
+              description: "No se pudo reiniciar el micrófono",
+              variant: "destructive",
+              duration: 3000
+            });
           }
         } else {
           setIsListening(false);
@@ -284,12 +339,42 @@ export const AssistantChat: React.FC = () => {
 
       recognitionRef.current.onerror = (event: any) => {
         console.error("Error de reconocimiento de voz:", event.error);
-        setIsListening(false);
-
-        if (event.error !== "no-speech") {
-          // Mostrar error con toast cuando sea implementado
-          console.error(`No se pudo activar el micrófono: ${event.error}`);
+        
+        // No detener completamente por errores menores
+        if (event.error === "no-speech") {
+          // Continuar escuchando si solo fue un periodo de silencio
+          return;
         }
+        
+        // Para errores más graves, detener y notificar
+        setIsListening(false);
+        
+        let errorMessage = "Error al utilizar el micrófono";
+        
+        switch (event.error) {
+          case "network":
+            errorMessage = "Error de red al usar el reconocimiento de voz";
+            break;
+          case "aborted":
+            errorMessage = "Reconocimiento de voz interrumpido";
+            break;
+          case "audio-capture":
+            errorMessage = "No se pudo acceder al micrófono";
+            break;
+          case "not-allowed":
+            errorMessage = "Permiso de micrófono denegado";
+            break;
+          case "service-not-allowed":
+            errorMessage = "El servicio de reconocimiento de voz no está disponible";
+            break;
+        }
+        
+        toast({
+          title: "Error en reconocimiento de voz",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 5000
+        });
       };
     }
 
@@ -303,7 +388,7 @@ export const AssistantChat: React.FC = () => {
         console.error("Error al detener reconocimiento:", e);
       }
     };
-  }, []);
+  }, [toast]); // Incluir toast en dependencias
 
   // Cargar conversación activa al iniciar
   useEffect(() => {
@@ -528,27 +613,86 @@ ${error instanceof Error ? error.message : "Error desconocido"}
 
   // Función para alternar el reconocimiento de voz
   const toggleSpeechRecognition = useCallback(() => {
+    // Detectar si es móvil para adaptar comportamiento
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     if (!recognitionRef.current) {
       console.error("No soportado: El reconocimiento de voz no está soportado en este navegador");
+      toast({
+        title: "Reconocimiento de voz no disponible",
+        description: "Tu navegador no soporta esta función",
+        variant: "destructive"
+      });
       return;
     }
 
     try {
       if (isListening) {
+        // Detener reconocimiento
         recognitionRef.current.stop();
         setIsListening(false);
         sounds.play('click', 0.2);
+        
+        // Notificación visual para confirmación
+        toast({
+          title: "Micrófono desactivado",
+          duration: 1500
+        });
       } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-        console.log("Micrófono activado. Hable ahora. El texto aparecerá en el chat.");
-        sounds.play('pop', 0.3);
+        // En iOS y algunos navegadores móviles, necesitamos solicitar permisos primero
+        if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          // Solicitar permisos explícitamente primero en dispositivos móviles
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+              startRecognition();
+            })
+            .catch((err) => {
+              console.error("Error al acceder al micrófono:", err);
+              toast({
+                title: "Error de acceso al micrófono",
+                description: "No se pudo acceder al micrófono. Verifica los permisos.",
+                variant: "destructive",
+                duration: 4000
+              });
+            });
+        } else {
+          // En escritorio, iniciar directamente
+          startRecognition();
+        }
       }
     } catch (error) {
       console.error("Error al alternar reconocimiento de voz:", error);
       setIsListening(false);
+      toast({
+        title: "Error al activar el micrófono",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive"
+      });
     }
-  }, [isListening]);
+  }, [isListening, toast]);
+  
+  // Función auxiliar para iniciar el reconocimiento
+  const startRecognition = useCallback(() => {
+    if (!recognitionRef.current) return;
+    
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+      
+      console.log("Micrófono activado. Hable ahora. El texto aparecerá en el chat.");
+      sounds.play('pop', 0.3);
+      
+      // Notificación para el usuario
+      toast({
+        title: "Micrófono activado",
+        description: "Habla ahora. El texto aparecerá mientras hablas.",
+        duration: 3000
+      });
+    } catch (error) {
+      console.error("Error al iniciar reconocimiento:", error);
+      setIsListening(false);
+    }
+  }, [toast]);
 
   // Detectar paquetes mencionados en el mensaje
   const detectPackages = (content: string) => {
