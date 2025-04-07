@@ -279,12 +279,27 @@ document.addEventListener('DOMContentLoaded', () => {
       // Invalidar caché de proyectos y actualizar los archivos en el explorador
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
 
-      // Emitir evento para actualizar archivos generados
-      const filesCreatedEvent = new CustomEvent('add-generated-file', {
-        detail: {
-          file: {
-            name: "index.html",
-            content: `<!DOCTYPE html>
+      // Crear una función para enviar archivos generados al explorador
+      const sendFileToExplorer = (name, content, extension, delay = 0) => {
+        setTimeout(() => {
+          const fileEvent = new CustomEvent('add-generated-file', {
+            detail: {
+              file: {
+                name: name,
+                content: content,
+                extension: extension
+              }
+            }
+          });
+          window.dispatchEvent(fileEvent);
+          console.log(`Archivo generado enviado al explorador: ${name}${extension}`);
+        }, delay);
+      };
+
+      // Enviar archivos para el template HTML-CSS-JS
+      if (template === "html-css-js") {
+        // HTML file
+        const htmlContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -299,21 +314,11 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
   <script src="app.js"></script>
 </body>
-</html>`,
-            extension: ".html"
-          }
-        }
-      });
-      window.dispatchEvent(filesCreatedEvent);
+</html>`;
+        sendFileToExplorer("index", htmlContent, ".html", 0);
 
-      // Emitir eventos para cada archivo creado en la plantilla
-      if (template === "html-css-js") {
-        setTimeout(() => {
-          const cssEvent = new CustomEvent('add-generated-file', {
-            detail: {
-              file: {
-                name: "styles",
-                content: `/* Estilos para ${projectName} */
+        // CSS file
+        const cssContent = `/* Estilos para ${projectName} */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -360,20 +365,11 @@ ${selectedFeatures.includes('dark-mode') ? `/* Modo oscuro */
   h1 {
     color: #fff;
   }
-}` : ''}`,
-                extension: ".css"
-              }
-            }
-          });
-          window.dispatchEvent(cssEvent);
-        }, 1000);
-        
-        setTimeout(() => {
-          const jsEvent = new CustomEvent('add-generated-file', {
-            detail: {
-              file: {
-                name: "app",
-                content: `// Código JavaScript para ${projectName}
+}` : ''}`;
+        sendFileToExplorer("styles", cssContent, ".css", 1000);
+
+        // JS file
+        const jsContent = `// Código JavaScript para ${projectName}
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Aplicación iniciada');
 
@@ -391,14 +387,785 @@ document.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => {
     title.style.opacity = '1';
   });` : ''}
-});`,
-                extension: ".js"
-              }
-            }
-          });
-          window.dispatchEvent(jsEvent);
-        }, 2000);
+});`;
+        sendFileToExplorer("app", jsContent, ".js", 2000);
       }
+      
+      // Enviar archivos para el template React
+      else if (template === "react") {
+        // index.html file
+        const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projectName}</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+</html>`;
+        sendFileToExplorer("index", htmlContent, ".html", 0);
+
+        // index.tsx file
+        const indexContent = `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);`;
+        sendFileToExplorer("src/index", indexContent, ".tsx", 500);
+
+        // App.tsx file
+        const appContent = `import React, { useState } from 'react';
+import './App.css';
+${selectedFeatures.includes('routing') ? "import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';" : ""}
+
+function App() {
+  ${selectedFeatures.includes('state-management') ? "const [count, setCount] = useState(0);" : ""}
+
+  return (
+    ${selectedFeatures.includes('routing') ? 
+     `<Router>
+      <div className="app">
+        <header>
+          <h1>${projectName}</h1>
+          <nav>
+            <Link to="/">Inicio</Link>
+            <Link to="/about">Acerca de</Link>
+          </nav>
+        </header>
+        <main>
+          <Routes>
+            <Route path="/" element={
+              <div>
+                <h2>Página de inicio</h2>
+                <p>${description || 'Bienvenido a mi aplicación React'}</p>
+                ${selectedFeatures.includes('state-management') ? 
+                `<div className="counter">
+                  <p>Contador: {count}</p>
+                  <button onClick={() => setCount(count + 1)}>Incrementar</button>
+                </div>` : ''}
+              </div>
+            } />
+            <Route path="/about" element={
+              <div>
+                <h2>Acerca de</h2>
+                <p>Esta es una aplicación React creada con ${projectName}.</p>
+              </div>
+            } />
+          </Routes>
+        </main>
+      </div>
+    </Router>` : 
+    `<div className="app">
+      <header>
+        <h1>${projectName}</h1>
+      </header>
+      <main>
+        <p>${description || 'Bienvenido a mi aplicación React'}</p>
+        ${selectedFeatures.includes('state-management') ? 
+        `<div className="counter">
+          <p>Contador: {count}</p>
+          <button onClick={() => setCount(count + 1)}>Incrementar</button>
+        </div>` : ''}
+      </main>
+    </div>`}
+  );
+}
+
+export default App;`;
+        sendFileToExplorer("src/App", appContent, ".tsx", 1000);
+
+        // App.css file
+        const appCssContent = `.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  margin-bottom: 20px;
+}
+
+h1 {
+  color: #333;
+}
+
+${selectedFeatures.includes('routing') ? 
+`nav {
+  margin-top: 10px;
+}
+
+nav a {
+  margin-right: 15px;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}` : ''}
+
+.counter {
+  margin-top: 20px;
+}
+
+button {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0055aa;
+}`;
+        sendFileToExplorer("src/App", appCssContent, ".css", 1500);
+
+        // index.css file
+        const indexCssContent = `body {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+}`;
+        sendFileToExplorer("src/index", indexCssContent, ".css", 2000);
+      }
+      
+      // Enviar archivos para el template Vue
+      else if (template === "vue") {
+        // index.html file
+        const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projectName}</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>`;
+        sendFileToExplorer("index", htmlContent, ".html", 0);
+
+        // main.js file
+        const mainJsContent = `import { createApp } from 'vue'
+import App from './App.vue'
+${selectedFeatures.includes('routing') ? "import router from './router'" : ""}
+${selectedFeatures.includes('state-management') ? "import store from './store'" : ""}
+import './assets/main.css'
+
+const app = createApp(App)
+${selectedFeatures.includes('routing') ? "app.use(router)" : ""}
+${selectedFeatures.includes('state-management') ? "app.use(store)" : ""}
+app.mount('#app')`;
+        sendFileToExplorer("src/main", mainJsContent, ".js", 500);
+
+        // App.vue file
+        const appVueContent = `<template>
+  <div class="app">
+    <header>
+      <h1>${projectName}</h1>
+      ${selectedFeatures.includes('routing') ? 
+      `<nav>
+        <router-link to="/">Inicio</router-link> | 
+        <router-link to="/about">Acerca de</router-link>
+      </nav>` : ''}
+    </header>
+    
+    ${selectedFeatures.includes('routing') ? `<router-view/>` : 
+    `<main>
+      <p>${description || 'Bienvenido a mi aplicación Vue'}</p>
+      ${selectedFeatures.includes('state-management') ? 
+      `<div class="counter">
+        <p>Contador: {{ count }}</p>
+        <button @click="increment">Incrementar</button>
+      </div>` : ''}
+    </main>`}
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'App',
+  ${selectedFeatures.includes('state-management') && !selectedFeatures.includes('routing') ? 
+  `data() {
+    return {
+      count: 0
+    }
+  },
+  methods: {
+    increment() {
+      this.count++
+    }
+  }` : ''}
+}
+</script>
+
+<style>
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  margin-bottom: 20px;
+}
+
+h1 {
+  color: #333;
+}
+
+${selectedFeatures.includes('routing') ? 
+`nav {
+  margin-top: 10px;
+}
+
+nav a {
+  margin-right: 15px;
+  color: #42b983;
+  text-decoration: none;
+}
+
+nav a.router-link-active {
+  font-weight: bold;
+}` : ''}
+
+.counter {
+  margin-top: 20px;
+}
+
+button {
+  background-color: #42b983;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #3aa876;
+}
+</style>`;
+        sendFileToExplorer("src/App", appVueContent, ".vue", 1000);
+
+        // Si incluye routing, crear los componentes de página
+        if (selectedFeatures.includes('routing')) {
+          // Home.vue
+          const homeVueContent = `<template>
+  <div>
+    <h2>Página de inicio</h2>
+    <p>${description || 'Bienvenido a mi aplicación Vue'}</p>
+    ${selectedFeatures.includes('state-management') ? 
+    `<div class="counter">
+      <p>Contador: {{ $store.state.count }}</p>
+      <button @click="$store.commit('increment')">Incrementar</button>
+    </div>` : ''}
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'HomePage'
+}
+</script>`;
+          sendFileToExplorer("src/components/Home", homeVueContent, ".vue", 1500);
+
+          // About.vue
+          const aboutVueContent = `<template>
+  <div>
+    <h2>Acerca de</h2>
+    <p>Esta es una aplicación Vue creada con ${projectName}.</p>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'AboutPage'
+}
+</script>`;
+          sendFileToExplorer("src/components/About", aboutVueContent, ".vue", 2000);
+
+          // router.js
+          const routerJsContent = `import { createRouter, createWebHistory } from 'vue-router'
+import Home from './components/Home.vue'
+import About from './components/About.vue'
+
+const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: Home
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: About
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+export default router`;
+          sendFileToExplorer("src/router", routerJsContent, ".js", 2500);
+        }
+
+        // Si incluye state management, crear store
+        if (selectedFeatures.includes('state-management')) {
+          const storeJsContent = `import { createStore } from 'vuex'
+
+export default createStore({
+  state() {
+    return {
+      count: 0
+    }
+  },
+  mutations: {
+    increment(state) {
+      state.count++
+    }
+  },
+  actions: {
+    incrementAsync({ commit }) {
+      setTimeout(() => {
+        commit('increment')
+      }, 1000)
+    }
+  }
+})`;
+          sendFileToExplorer("src/store", storeJsContent, ".js", 3000);
+        }
+
+        // CSS principal
+        const mainCssContent = `body {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+}`;
+        sendFileToExplorer("src/assets/main", mainCssContent, ".css", 3500);
+      }
+
+      // Enviar archivos para el template Node.js
+      else if (template === "node") {
+        // index.js file
+        const indexJsContent = `const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+${selectedFeatures.includes('database') ? "const mongoose = require('mongoose');" : ""}
+${selectedFeatures.includes('authentication') ? "const jwt = require('jsonwebtoken');" : ""}
+
+// Middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+${selectedFeatures.includes('authentication') ? 
+`
+// Middleware de autenticación
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
+  
+  jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
+    if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
+    req.user = user;
+    next();
+  });
+};` : ''}
+
+${selectedFeatures.includes('database') ? 
+`
+// Conexión a MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName.toLowerCase().replace(/\s+/g, '_')}')
+  .then(() => console.log('Conectado a MongoDB'))
+  .catch(err => console.error('Error de conexión a MongoDB:', err));` : ''}
+
+// Rutas
+${selectedFeatures.includes('api-endpoints') ? 
+`app.use('/api', require('./src/routes/api'));` : 
+`app.get('/', (req, res) => {
+  res.send('¡Bienvenido a ${projectName}!');
+});`}
+
+// Iniciar servidor
+app.listen(port, () => {
+  console.log(\`Servidor corriendo en http://localhost:\${port}\`);
+});`;
+        sendFileToExplorer("index", indexJsContent, ".js", 0);
+
+        // Si incluye API endpoints, crear rutas
+        if (selectedFeatures.includes('api-endpoints')) {
+          const apiRoutesContent = `const express = require('express');
+const router = express.Router();
+const ${selectedFeatures.includes('authentication') ? 'authMiddleware = require(\'../middlewares/auth\'),' : ''} ${selectedFeatures.includes('database') ? 'itemController = require(\'../controllers/item\')' : 'demoController = require(\'../controllers/demo\')'};
+
+// Rutas públicas
+router.get('/', (req, res) => {
+  res.json({ message: 'API de ${projectName}' });
+});
+
+${selectedFeatures.includes('authentication') ? 
+`// Rutas de autenticación
+router.post('/auth/register', (req, res) => {
+  // Implementar registro
+  res.json({ message: 'Usuario registrado' });
+});
+
+router.post('/auth/login', (req, res) => {
+  // Implementar login
+  const token = jwt.sign({ id: 1 }, process.env.TOKEN_SECRET || 'secret_key', { expiresIn: '1h' });
+  res.json({ token });
+});` : ''}
+
+${selectedFeatures.includes('database') ? 
+`// Rutas de items
+router.get('/items', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.getAll);
+router.get('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.getById);
+router.post('/items', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.create);
+router.put('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.update);
+router.delete('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.delete);` : 
+`// Rutas de demo
+router.get('/demo', demoController.getInfo);`}
+
+module.exports = router;`;
+          sendFileToExplorer("src/routes/api", apiRoutesContent, ".js", 500);
+
+          // Controlador
+          if (selectedFeatures.includes('database')) {
+            const itemControllerContent = `const Item = require('../models/item');
+
+// Controlador de items
+exports.getAll = async (req, res) => {
+  try {
+    const items = await Item.find();
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getById = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
+    res.json(item);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.create = async (req, res) => {
+  try {
+    const item = new Item(req.body);
+    const savedItem = await item.save();
+    res.status(201).json(savedItem);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.update = async (req, res) => {
+  try {
+    const item = await Item.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
+    res.json(item);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.delete = async (req, res) => {
+  try {
+    const item = await Item.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
+    res.json({ message: 'Item eliminado' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};`;
+            sendFileToExplorer("src/controllers/item", itemControllerContent, ".js", 1000);
+
+            // Modelo
+            const itemModelContent = `const mongoose = require('mongoose');
+
+const itemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  price: {
+    type: Number,
+    default: 0
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+module.exports = mongoose.model('Item', itemSchema);`;
+            sendFileToExplorer("src/models/item", itemModelContent, ".js", 1500);
+          } else {
+            const demoControllerContent = `// Controlador de demo
+exports.getInfo = (req, res) => {
+  res.json({
+    appName: '${projectName}',
+    description: '${description || "Una API Node.js"}',
+    version: '1.0.0',
+    endpoints: [
+      { method: 'GET', path: '/api', description: 'Información de la API' },
+      { method: 'GET', path: '/api/demo', description: 'Información de demostración' }
+    ]
+  });
+};`;
+            sendFileToExplorer("src/controllers/demo", demoControllerContent, ".js", 1000);
+          }
+
+          // Middleware de autenticación
+          if (selectedFeatures.includes('authentication')) {
+            const authMiddlewareContent = `const jwt = require('jsonwebtoken');
+
+module.exports = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
+  
+  jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
+    if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
+    req.user = user;
+    next();
+  });
+};`;
+            sendFileToExplorer("src/middlewares/auth", authMiddlewareContent, ".js", 2000);
+          }
+        }
+
+        // package.json
+        const packageJsonContent = `{
+  "name": "${projectName.toLowerCase().replace(/\s+/g, '-')}",
+  "version": "1.0.0",
+  "description": "${description || 'Aplicación Node.js'}",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \\"Error: no test specified\\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"${selectedFeatures.includes('database') ? ',\n    "mongoose": "^7.0.0"' : ''}${selectedFeatures.includes('authentication') ? ',\n    "jsonwebtoken": "^9.0.0",\n    "bcrypt": "^5.1.0"' : ''}
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}`;
+        sendFileToExplorer("package", packageJsonContent, ".json", 2500);
+      }
+      
+      // Enviar archivos para el template Python
+      else if (template === "python") {
+        // app.py file
+        const appPyContent = `from flask import Flask, jsonify, request
+${selectedFeatures.includes('database') ? "from flask_sqlalchemy import SQLAlchemy\nfrom flask_migrate import Migrate" : ""}
+${selectedFeatures.includes('authentication') ? "from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity" : ""}
+import os
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
+${selectedFeatures.includes('database') ? "app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')\napp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False\n\ndb = SQLAlchemy(app)\nMigrate(app, db)" : ""}
+${selectedFeatures.includes('authentication') ? "app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt_dev_key')\njwt = JWTManager(app)" : ""}
+
+${selectedFeatures.includes('database') ? `
+# Modelos
+class Item(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Float, default=0.0)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'price': self.price
+        }
+` : ""}
+
+${selectedFeatures.includes('authentication') ? `
+# Modelo de usuario
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username
+        }
+` : ""}
+
+@app.route('/')
+def home():
+    return jsonify({
+        'message': '¡Bienvenido a ${projectName}!',
+        'description': '${description || "Una aplicación Flask"}'
+    })
+
+${selectedFeatures.includes('api-endpoints') ? `
+@app.route('/api/info')
+def info():
+    return jsonify({
+        'app_name': '${projectName}',
+        'version': '1.0.0',
+        'endpoints': [
+            {'method': 'GET', 'path': '/', 'description': 'Página principal'},
+            {'method': 'GET', 'path': '/api/info', 'description': 'Información de la API'}
+        ]
+    })
+` : ""}
+
+${selectedFeatures.includes('authentication') ? `
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'Username y password son requeridos'}), 400
+    
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': 'El usuario ya existe'}), 400
+    
+    user = User(username=username, password_hash=password)  # En un caso real, hash la contraseña
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({'message': 'Usuario registrado correctamente'}), 201
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'Username y password son requeridos'}), 400
+    
+    user = User.query.filter_by(username=username).first()
+    if not user or user.password_hash != password:  # En un caso real, verificar hash
+        return jsonify({'error': 'Credenciales inválidas'}), 401
+    
+    access_token = create_access_token(identity=user.id)
+    return jsonify({'access_token': access_token}), 200
+` : ""}
+
+${selectedFeatures.includes('database') && selectedFeatures.includes('api-endpoints') ? `
+@app.route('/api/items', methods=['GET'])
+${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
+def get_items():
+    items = Item.query.all()
+    return jsonify([item.to_dict() for item in items])
+
+@app.route('/api/items/<int:item_id>', methods=['GET'])
+${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
+def get_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    return jsonify(item.to_dict())
+
+@app.route('/api/items', methods=['POST'])
+${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
+def create_item():
+    data = request.get_json()
+    item = Item(
+        name=data.get('name'),
+        description=data.get('description'),
+        price=data.get('price', 0.0)
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify(item.to_dict()), 201
+
+@app.route('/api/items/<int:item_id>', methods=['PUT'])
+${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
+def update_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    data = request.get_json()
+    
+    item.name = data.get('name', item.name)
+    item.description = data.get('description', item.description)
+    item.price = data.get('price', item.price)
+    
+    db.session.commit()
+    return jsonify(item.to_dict())
+
+@app.route('/api/items/<int:item_id>', methods=['DELETE'])
+${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
+def delete_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'message': 'Item eliminado correctamente'}), 200
+` : ""}
+
+if __name__ == '__main__':
+    ${selectedFeatures.includes('database') ? "with app.app_context():\n        db.create_all()" : ""}
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))`;
+        sendFileToExplorer("app", appPyContent, ".py", 0);
+
+        // requirements.txt
+        const requirementsTxtContent = `flask==2.3.2
+${selectedFeatures.includes('database') ? "flask-sqlalchemy==3.0.5\nflask-migrate==4.0.4${selectedFeatures.includes('authentication') ? "\nflask-jwt-extended==4.5.2" : ""}" : ""}
+${selectedFeatures.includes('authentication') && !selectedFeatures.includes('database') ? "flask-jwt-extended==4.5.2" : ""}
+gunicorn==20.1.0`;
+        sendFileToExplorer("requirements", requirementsTxtContent, ".txt", 1000);
+      }
+
+      // Enviar evento general para actualizar explorador de archivos
+      setTimeout(() => {
+        const refreshEvent = new CustomEvent('refresh-files', {
+          detail: { 
+            projectId: newProject.id,
+            forceRefresh: true
+          }
+        });
+        window.dispatchEvent(refreshEvent);
+
+        console.log("Enviado evento de actualización de archivos");
+      }, 4000);
 
       // Emitir evento para refrescar archivos en el explorador
       const refreshEvent = new CustomEvent('refresh-files', {
