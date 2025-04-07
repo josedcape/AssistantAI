@@ -6,16 +6,23 @@ class SoundSystem {
   private initialized: boolean = false;
 
   constructor() {
-    // Recuperar preferencia de sonido del usuario
-    const soundEnabled = localStorage.getItem('sound-enabled');
-    this.enabled = soundEnabled === null ? true : soundEnabled === 'true';
-    
-    // Inicializar sonidos cuando el DOM esté listo
-    if (typeof document !== 'undefined') {
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        this.preloadSounds();
-      } else {
-        document.addEventListener('DOMContentLoaded', () => this.preloadSounds());
+    // Solo ejecutar en el navegador
+    if (typeof window !== 'undefined') {
+      try {
+        // Recuperar preferencia de sonido del usuario
+        const soundEnabled = localStorage.getItem('sound-enabled');
+        this.enabled = soundEnabled === null ? true : soundEnabled === 'true';
+        
+        // Inicializar sonidos cuando el DOM esté listo
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          this.preloadSounds();
+        } else {
+          document.addEventListener('DOMContentLoaded', () => this.preloadSounds());
+        }
+      } catch (error) {
+        // Capturar errores de acceso a localStorage
+        console.debug('No se pudo acceder a localStorage:', error);
+        this.enabled = true;
       }
     }
   }
@@ -53,7 +60,7 @@ class SoundSystem {
   }
   
   play(name: string, volume: number = 0.4): void {
-    if (!this.enabled || !this.initialized) return;
+    if (!this.enabled || !this.initialized || typeof window === 'undefined') return;
     
     try {
       const sound = this.sounds[name];
@@ -73,8 +80,14 @@ class SoundSystem {
   }
   
   toggle(): boolean {
-    this.enabled = !this.enabled;
-    localStorage.setItem('sound-enabled', this.enabled.toString());
+    if (typeof window === 'undefined') return this.enabled;
+    
+    try {
+      this.enabled = !this.enabled;
+      localStorage.setItem('sound-enabled', this.enabled.toString());
+    } catch (error) {
+      // Silenciar errores de localStorage
+    }
     return this.enabled;
   }
   
