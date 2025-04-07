@@ -735,35 +735,16 @@ export default {
 }
 </script>
 
-<style>
-.app {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-header {
-  margin-bottom: 20px;
-}
-
-h1 {
-  color: #333;
-}
-
+<style scoped>
 ${selectedFeatures.includes('routing') ? 
 `nav {
-  margin-top: 10px;
+  margin: 20px 0;
 }
 
-nav a {
-  margin-right: 15px;
+a {
   color: #42b983;
   text-decoration: none;
-}
-
-nav a.router-link-active {
-  font-weight: bold;
+  margin: 0 10px;
 }` : ''}
 
 .counter {
@@ -778,11 +759,8 @@ button {
   border-radius: 4px;
   cursor: pointer;
 }
-
-button:hover {
-  background-color: #3aa876;
-}
-</style>`;
+</style>
+</template>`;
         sendFileToExplorer("src/App", appVueContent, ".vue", 1000);
 
         // Si incluye routing, crear los componentes de página
