@@ -574,90 +574,136 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     }
     return suggestedPackages;
   };
+  // Función para guardar el código de un mensaje y crear un archivo automáticamente
+  const handleSaveCode = async (content: string) => {
+    // Expresión regular para extraer bloques de código con su respectivo lenguaje
+    const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
 
-        // Enviar solicitud para crear el archivo
+    let match;
+    let savedCount = 0;
+    let firstSavedFilePath = "";
+
+    // Lista para almacenar los bloques de código extraídos
+    const codeBlocks: { language: string, code: string }[] = [];
+
+    // Extraer los bloques de código del contenido
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || "js";  // Asigna 'js' por defecto si no se encuentra un lenguaje
+      const codeContent = match[2];
+      codeBlocks.push({ language, code: codeContent });
+    }
+
+    // Si no se encontraron bloques de código, salir de la función
+    if (codeBlocks.length === 0) {
+      console.warn("No se encontraron bloques de código para guardar.");
+      return;
+    }
+
+    // Preparar el guardado de archivos
+    try {
+      for (const [index, codeBlock] of codeBlocks.entries()) {
+        // Determinar la extensión del archivo según el lenguaje de programación
+        let fileExtension = ".js"; // Valor por defecto como JavaScript
+
+        switch (codeBlock.language.toLowerCase()) {
+          case "javascript":
+          case "js":
+            fileExtension = ".js";
+            break;
+          case "typescript":
+          case "ts":
+            fileExtension = ".ts";
+            break;
+          case "html":
+            fileExtension = ".html";
+            break;
+          case "css":
+            fileExtension = ".css";
+            break;
+          case "json":
+            fileExtension = ".json";
+            break;
+          case "jsx":
+            fileExtension = ".jsx";
+            break;
+          case "tsx":
+            fileExtension = ".tsx";
+            break;
+          case "python":
+          case "py":
+            fileExtension = ".py";
+            break;
+          // Puedes agregar más lenguajes si es necesario
+          default:
+            console.warn(`Lenguaje desconocido: ${codeBlock.language}. Usando extensión predeterminada (.js).`);
+        }
+
+        // Realizar la solicitud para guardar el archivo
         const response = await fetch("/api/files/create", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            fileName,
+            fileName: `generated_code_${index + 1}${fileExtension}`,
             content: codeBlock.code,
             path: "", // Guardar en la ruta actual
           }),
         });
 
+        // Verificar si la respuesta es exitosa
         if (!response.ok) {
-          throw new Error(`Error al guardar el archivo ${fileName}`);
+          throw new Error(`Error al guardar el archivo ${fileExtension}`);
         }
 
-        savedCount++;
+        savedCount++;  // Incrementar el contador de archivos guardados
+
+        // Establecer el primer archivo guardado
         if (savedCount === 1) {
-          firstSavedFilePath = fileName;
+          firstSavedFilePath = `generated_code_${index + 1}${fileExtension}`;
         }
       }
 
+      // Notificar que los archivos han sido guardados con éxito
+      console.log(`${savedCount} archivo(s) guardado(s) correctamente.`);
       sounds.play("save");
 
-      // Mensaje de éxito con información sobre los archivos guardados
-      let successMessage = "";
-      if (savedCount === 1) {
-        successMessage = `## ✅ Código guardado exitosamente
-
-📝 Se ha creado el archivo **${firstSavedFilePath}** con el código proporcionado.
-
-🔄 El explorador de archivos se actualizará automáticamente para mostrar el nuevo archivo.`;
-      } else {
-        successMessage = `## ✅ Código guardado exitosamente
-
-📝 Se han creado **${savedCount} archivos** con el código proporcionado.
-
-🔄 El explorador de archivos se actualizará automáticamente para mostrar los nuevos archivos.`;
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: successMessage
-        },
-      ]);
-
-      // Disparar evento para actualizar el explorador de archivos
-      const fileEvent = new CustomEvent('files-updated');
-      window.dispatchEvent(fileEvent);
-
-      // Buscar y actualizar el explorador de archivos si existe
-      setTimeout(() => {
-        const fileExplorer = document.querySelector('[data-component="file-explorer"]');
-        if (fileExplorer) {
-          const refreshButton = fileExplorer.querySelector('button[aria-label="Refrescar"]');
-          if (refreshButton) {
-            (refreshButton as HTMLButtonElement).click();
-          }
-        }
-      }, 1000);
-
     } catch (error) {
-      console.error("Error al guardar archivos:", error);
+      // Manejo de errores si algo sale mal al guardar el código
+      console.error("Error al guardar el código:", error);
       sounds.play("error");
 
+      // Enviar un mensaje al usuario sobre el error
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: `## ⚠️ Error al guardar el código
 
-❌ No se pudieron guardar los archivos debido a un error:
-\`\`\`
-${error instanceof Error ? error.message : "Error desconocido"}
-\`\`\`
+  ❌ No se pudieron guardar los archivos debido a un error:
+  \`\`\`
+  ${error instanceof Error ? error.message : "Error desconocido"}
+  \`\`\`
 
-*Por favor, intenta nuevamente o crea los archivos manualmente.*`
+  *Por favor, intenta nuevamente o crea los archivos manualmente.*`
         },
       ]);
     }
+
+    // Disparar evento para actualizar el explorador de archivos
+    const fileEvent = new CustomEvent('files-updated');
+    window.dispatchEvent(fileEvent);
+
+    // Actualizar el explorador de archivos si existe
+    setTimeout(() => {
+      const fileExplorer = document.querySelector('[data-component="file-explorer"]');
+      if (fileExplorer) {
+        const refreshButton = fileExplorer.querySelector('button[aria-label="Refrescar"]');
+        if (refreshButton) {
+          (refreshButton as HTMLButtonElement).click();
+        }
+      }
+    }, 1000);
   };
 
   // Función para copiar código al portapapeles
