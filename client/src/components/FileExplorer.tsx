@@ -188,10 +188,75 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       }, 500);
     };
     
+    // Escuchar evento para recibir archivos del asistente
+    const handleFilesFromAssistant = (e: CustomEvent) => {
+      console.log("Evento send-files-to-explorer recibido", e.detail);
+      
+      if (e.detail && e.detail.files && Array.isArray(e.detail.files)) {
+        const files = e.detail.files;
+        
+        toast({
+          title: "Archivos recibidos",
+          description: `Procesando ${files.length} archivo(s) del asistente...`,
+          duration: 3000
+        });
+        
+        // Procesar cada archivo
+        Promise.all(files.map(async (file: any) => {
+          // Si el archivo ya existe, lo actualizamos en lugar de crear uno nuevo
+          return createFile(file.name, file.content);
+        }))
+        .then(results => {
+          const successCount = results.filter(Boolean).length;
+          
+          toast({
+            title: "Archivos procesados",
+            description: `Se han añadido ${successCount} de ${files.length} archivos al explorador`,
+            duration: 3000
+          });
+          
+          sounds.play('success', 0.3);
+          
+          // Refrescar archivos después de procesarlos todos
+          refreshFiles();
+          
+          // Expandir los tipos de archivo correspondientes
+          files.forEach((file: any) => {
+            if (file.extension) {
+              setOpenTypes(prev => ({ ...prev, [file.extension]: true }));
+            }
+          });
+        })
+        .catch(error => {
+          console.error("Error procesando archivos del asistente:", error);
+          toast({
+            title: "Error",
+            description: "No se pudieron procesar todos los archivos",
+            variant: "destructive",
+            duration: 3000
+          });
+          sounds.play('error', 0.3);
+        });
+      }
+    };
+    
+    // Escuchar evento para cambiar a la pestaña de archivos
+    const handleActivateFilesTab = () => {
+      // Este evento permite cambiar automáticamente a la pestaña de archivos
+      setOpenSections(prev => ({
+        ...prev,
+        files: true
+      }));
+    };
+    
     window.addEventListener('files-updated', handleFileUpdated as EventListener);
+    window.addEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
+    window.addEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
     
     return () => {
       window.removeEventListener('files-updated', handleFileUpdated as EventListener);
+      window.removeEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
+      window.removeEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
