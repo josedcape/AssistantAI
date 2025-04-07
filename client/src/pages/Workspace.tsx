@@ -545,6 +545,39 @@ const Workspace: React.FC = () => {
     };
   }, [activeTab]);
 
+  // Escuchar eventos de instalación de paquetes
+  useEffect(() => {
+    const handlePackageInstalled = (event: CustomEvent) => {
+      console.log("📦 Workspace: Detectada instalación de paquete:", event.detail);
+      
+      // Refrescar la pestaña de paquetes si está activa
+      if (activeTab === "packages") {
+        // Buscar y actualizar el explorador de paquetes
+        const packageExplorer = document.querySelector('[data-component="package-explorer"]');
+        if (packageExplorer) {
+          const refreshButton = packageExplorer.querySelector('button[title="Actualizar lista de paquetes"]');
+          if (refreshButton) {
+            (refreshButton as HTMLButtonElement).click();
+          }
+        }
+      }
+      
+      // Añadir a historial
+      setFileChangesHistory(prev => [...prev, {
+        timestamp: new Date(),
+        filename: event.detail.name + (event.detail.version ? `@${event.detail.version}` : ''),
+        description: `Paquete ${event.detail.isDev ? 'de desarrollo ' : ''}instalado`
+      }]);
+    };
+
+    // Registrar el evento personalizado
+    window.addEventListener('package-installed', handlePackageInstalled as EventListener);
+    
+    return () => {
+      window.removeEventListener('package-installed', handlePackageInstalled as EventListener);
+    };
+  }, [activeTab]);
+
   useEffect(() => {
     sounds.play('laser', 0.4);
   }, []);
