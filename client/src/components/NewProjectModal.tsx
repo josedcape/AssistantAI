@@ -24,6 +24,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usingGptAssistant, setUsingGptAssistant] = useState(false);
   const [isGeneratingFiles, setIsGeneratingFiles] = useState(false);
+  const [showGeneratedFiles, setShowGeneratedFiles] = useState(false);
+  const [generatedFiles, setGeneratedFiles] = useState([{ name: '', content: '', extension: '', selected: false }]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
@@ -120,6 +122,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
 
     try {
       setIsGeneratingFiles(true);
+      setGeneratedFiles([{ name: '', content: '', extension: '', selected: false }]); // Clear generated files
 
       toast({
         title: "Generando archivos",
@@ -158,22 +161,14 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
 
       // Procesar y enviar los archivos generados al panel de archivos generados
       if (data.files && data.files.length > 0) {
-        data.files.forEach((file, index) => {
-          // Enviar cada archivo al panel de archivos generados con un retraso escalonado
-          setTimeout(() => {
-            const fileEvent = new CustomEvent('add-generated-file', {
-              detail: {
-                file: {
-                  name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
-                  content: file.content,
-                  extension: `.${file.language || getExtensionFromType(file.type)}`
-                }
-              }
-            });
-            window.dispatchEvent(fileEvent);
-            console.log(`Archivo generado por GPT enviado al explorador: ${file.name}`);
-          }, index * 300); // Retraso escalonado para cada archivo
-        });
+        const newGeneratedFiles = data.files.map(file => ({
+          name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
+          content: file.content,
+          extension: `.${file.language || getExtensionFromType(file.type)}`,
+          selected: false
+        }));
+        setGeneratedFiles(newGeneratedFiles);
+        setShowGeneratedFiles(true);
 
         toast({
           title: "Archivos generados",
@@ -181,12 +176,6 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
           duration: 5000
         });
         sounds.play('success', 0.4);
-
-        // Refrescar el panel de archivos generados
-        setTimeout(() => {
-          const refreshEvent = new CustomEvent('refresh-generated-files');
-          window.dispatchEvent(refreshEvent);
-        }, data.files.length * 300 + 500);
       } else {
         throw new Error("No se generaron archivos");
       }
@@ -1298,6 +1287,56 @@ gunicorn==20.1.0`;
       onClose();  // Cierra el modal cuando se hace clic fuera de él
     }
   };
+
+  const toggleFileSelection = (index: number) => {
+    setGeneratedFiles(prevFiles => {
+      const updatedFiles = [...prevFiles];
+      updatedFiles[index].selected = !updatedFiles[index].selected;
+      return updatedFiles;
+    });
+  };
+
+  const addSelectedFilesToExplorer = () => {
+    const selectedFiles = generatedFiles.filter(file => file.selected);
+    if (selectedFiles.length > 0) {
+      selectedFiles.forEach(file => {
+        const fileEvent = new CustomEvent('add-generated-file', {
+          detail: {
+            file: {
+              name: file.name,
+              content: file.content,
+              extension: file.extension
+            }
+          }
+        });
+        window.dispatchEvent(fileEvent);
+      });
+      setShowGeneratedFiles(false);
+      toast({
+        title: 'Archivos añadidos',
+        description: `${selectedFiles.length} archivo(s) añadido(s) al explorador`
+      });
+    }
+  };
+
+  const getLanguageIcon = (language: string): string => {
+    switch (language) {
+      case 'html': return 'html5';
+      case 'js': return 'javascript';
+      case 'css': return 'css3';
+      case 'ts': return 'typescript';
+      case 'py': return 'python';
+      case 'json': return 'json';
+      default: return 'file-code'; // Icono por defecto
+    }
+  };
+
+  const previewFileContent = (file: { name: string; content: string; extension: string }) => {
+    // Implementa aquí la lógica para mostrar el contenido del archivo en un diálogo o modal
+    const content = file.content;
+    alert(`Contenido de ${file.name}${file.extension}:\n\n${content.substring(0, 500)}${content.length > 500 ? '...' : ''}`);
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={handleBackdropClick}>
       <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full ${isMobile ? 'max-h-[90vh] overflow-y-auto' : ''}`} style={{ maxWidth: isMobile ? '100%' : '500px' }}>
@@ -1399,21 +1438,103 @@ gunicorn==20.1.0`;
                     <p className="text-xs text-slate-600 dark:text-slate-400">
                       El asistente generará archivos adaptados a las características seleccionadas y la descripción del proyecto que has proporcionado.
                     </p>
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="outline" 
-                      className="mt-2 text-xs"
-                      onClick={generateFilesWithGPT}
-                      disabled={isSubmitting || isGeneratingFiles}
-                    >
-                      {isGeneratingFiles ? (
-                        <>
-                          <i className="ri-loader-4-line animate-spin mr-1"></i>
-                          Generando archivos...
-                        </>
-                      ) : "Generar archivos ahora"}
-                    </Button>
+                    {!showGeneratedFiles ? (
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        variant="outline" 
+                        className="mt-2 text-xs"
+                        onClick={generateFilesWithGPT}
+                        disabled={isSubmitting || isGeneratingFiles}
+                      >
+                        {isGeneratingFiles ? (
+                          <>
+                            <i className="ri-loader-4-line animate-spin mr-1"></i>
+                            Generando archivos...
+                          </>
+                        ) : "Generar archivos ahora"}
+                      </Button>
+                    ) : (
+                      <div className="mt-3 border rounded-md p-3 bg-slate-50 dark:bg-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-sm font-medium">Archivos generados</h4>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="text-xs"
+                              onClick={addSelectedFilesToExplorer}
+                              disabled={isGeneratingFiles || generatedFiles.filter(f => f.selected).length === 0}
+                            >
+                              <i className="ri-add-line mr-1"></i>
+                              Añadir seleccionados
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setShowGeneratedFiles(false)}
+                              disabled={isGeneratingFiles}
+                            >
+                              <i className="ri-close-line mr-1"></i>
+                              Cerrar
+                            </Button>
+                          </div>
+                        </div>
+
+                        {isGeneratingFiles ? (
+                          <div className="flex flex-col items-center justify-center py-6">
+                            <i className="ri-loader-4-line animate-spin text-3xl text-primary mb-2"></i>
+                            <p className="text-sm text-center">Generando archivos para tu proyecto...</p>
+                          </div>
+                        ) : generatedFiles.length === 0 ? (
+                          <p className="text-sm text-center py-4 text-slate-500">No se han generado archivos todavía</p>
+                        ) : (
+                          <div className="max-h-[300px] overflow-y-auto pr-2">
+                            <ul className="space-y-1.5">
+                              {generatedFiles.map((file, index) => (
+                                <li key={index} className="flex items-center gap-2 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
+                                  <Checkbox
+                                    id={`file-${index}`}
+                                    checked={file.selected}
+                                    onCheckedChange={() => toggleFileSelection(index)}
+                                  />
+                                  <label 
+                                    htmlFor={`file-${index}`} 
+                                    className="flex items-center flex-1 cursor-pointer text-sm"
+                                  >
+                                    <i className={`ri-file-code-line text-${getLanguageIcon(file.extension.replace('.', ''))}-500 mr-2`}></i>
+                                    <span className="truncate">
+                                      {file.name}{file.extension}
+                                    </span>
+                                  </label>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    title="Ver contenido"
+                                    onClick={() => previewFileContent(file)}
+                                  >
+                                    <i className="ri-eye-line text-blue-500"></i>
+                                  </Button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="mt-3 text-xs text-slate-500">
+                          {generatedFiles.length > 0 && (
+                            <p>
+                              {generatedFiles.filter(f => f.selected).length} de {generatedFiles.length} archivos seleccionados
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
