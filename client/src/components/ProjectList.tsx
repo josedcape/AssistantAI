@@ -74,37 +74,37 @@ const ProjectList = () => {
   // Función para eliminar un proyecto
   const handleDeleteProject = async (projectId: number) => {
     if (!projectId) return;
-    
+
     setIsDeleting(true);
-    
+
     try {
       // Realizar la solicitud para eliminar el proyecto
       const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
-      
+
       if (!response.ok) {
         throw new Error("Error al eliminar el proyecto");
       }
-      
+
       // Reproducir sonido de éxito
       sounds.play('success', 0.4);
-      
+
       // Actualizar la caché de proyectos
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      
+
       // Mostrar un toast de éxito
       toast({
         title: "Proyecto eliminado",
         description: "El proyecto ha sido eliminado correctamente",
       });
-      
+
       // Resetear el proyecto a eliminar
       setProjectToDelete(null);
     } catch (error) {
       console.error("Error eliminando proyecto:", error);
-      
+
       // Reproducir sonido de error
       sounds.play('error', 0.4);
-      
+
       // Mostrar un toast de error
       toast({
         title: "Error",
@@ -221,48 +221,6 @@ const ProjectList = () => {
       {isModalOpen && <NewProjectModal onClose={() => setIsModalOpen(false)} />}
     </>
   );
-    if (!projectId) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      // Realizar la solicitud para eliminar el proyecto
-      const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
-      
-      if (!response.ok) {
-        throw new Error("Error al eliminar el proyecto");
-      }
-      
-      // Reproducir sonido de éxito
-      sounds.play('success', 0.4);
-      
-      // Actualizar la caché de proyectos
-      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      
-      // Mostrar un toast de éxito
-      toast({
-        title: "Proyecto eliminado",
-        description: "El proyecto ha sido eliminado correctamente",
-      });
-      
-      // Resetear el proyecto a eliminar
-      setProjectToDelete(null);
-    } catch (error) {
-      console.error("Error eliminando proyecto:", error);
-      
-      // Reproducir sonido de error
-      sounds.play('error', 0.4);
-      
-      // Mostrar un toast de error
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el proyecto. Inténtalo de nuevo.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 };
 
 export default ProjectList;
