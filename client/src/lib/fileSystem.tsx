@@ -397,16 +397,38 @@ export function FileSystemProvider({ children, projectId }: { children: React.Re
   // Efecto para escuchar evento de actualización de archivos
   useEffect(() => {
     const handleRefreshEvent = (e: CustomEvent) => {
-      console.log("Evento refresh-files recibido");
-      refreshFiles();
+      console.log("Evento refresh-files recibido", e.detail);
+      const forceRefresh = e.detail?.forceRefresh === true;
+      
+      // Si es una actualización forzada, esperamos un momento para que los archivos se creen en el backend
+      if (forceRefresh) {
+        setTimeout(() => {
+          refreshFiles();
+        }, 300);
+      } else {
+        refreshFiles();
+      }
+    };
+
+    const handleFilesUpdatedEvent = (e: CustomEvent) => {
+      console.log("Evento files-updated recibido", e.detail);
+      
+      // Verificar si es para este proyecto específico
+      if (!e.detail?.projectId || e.detail.projectId === projectId) {
+        setTimeout(() => {
+          refreshFiles();
+        }, 300);
+      }
     };
 
     window.addEventListener('refresh-files', handleRefreshEvent as EventListener);
+    window.addEventListener('files-updated', handleFilesUpdatedEvent as EventListener);
 
     return () => {
       window.removeEventListener('refresh-files', handleRefreshEvent as EventListener);
+      window.removeEventListener('files-updated', handleFilesUpdatedEvent as EventListener);
     };
-  }, []);
+  }, [projectId]);
 
 
   // Handle repository extraction

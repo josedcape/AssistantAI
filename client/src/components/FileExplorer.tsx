@@ -256,8 +256,10 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       console.log("Evento refresh-files recibido", e.detail);
       if (e.detail?.projectId === projectId || !e.detail?.projectId) {
         refreshFiles();
-        // Expandir todas las carpetas después de cargar una plantilla
+        
+        // Expandir todas las carpetas y tipos de archivos después de cargar una plantilla
         setTimeout(() => {
+          // Expandir todas las carpetas
           setOpenFolders(prev => {
             const allFolders = getFolders();
             const newOpenFolders = { ...prev };
@@ -267,6 +269,22 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
             newOpenFolders['/'] = true;
             return newOpenFolders;
           });
+          
+          // Expandir también los tipos de archivos comunes
+          setOpenTypes(prev => {
+            return {
+              ...prev,
+              'html': true,
+              'css': true,
+              'js': true,
+              'jsx': true,
+              'ts': true,
+              'tsx': true
+            };
+          });
+          
+          // Forzar una actualización adicional para asegurar que se muestran todos los archivos
+          setTimeout(refreshFiles, 500);
         }, 300);
       }
     };

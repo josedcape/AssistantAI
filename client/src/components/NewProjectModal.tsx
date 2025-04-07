@@ -285,12 +285,30 @@ document.addEventListener('DOMContentLoaded', () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
 
       // Disparar evento de actualización de archivos para que el explorador se actualice
+      toast({
+        title: "Actualizando archivos",
+        description: "Preparando archivos del proyecto...",
+        duration: 3000
+      });
+
+      // Emitir dos eventos para asegurar que se actualiza correctamente
+      // Primer evento inmediato
+      const refreshEvent = new CustomEvent('refresh-files', {
+        detail: { projectId: newProject.id, forceRefresh: true }
+      });
+      window.dispatchEvent(refreshEvent);
+      
+      // Segundo evento con retraso para asegurar que los archivos se han creado completamente
       setTimeout(() => {
-        const refreshEvent = new CustomEvent('refresh-files', {
+        const delayedRefreshEvent = new CustomEvent('files-updated', {
           detail: { projectId: newProject.id }
         });
-        window.dispatchEvent(refreshEvent);
-      }, 500);
+        window.dispatchEvent(delayedRefreshEvent);
+        
+        // Activar la pestaña de archivos
+        const activateFilesEvent = new CustomEvent('activate-files-tab');
+        window.dispatchEvent(activateFilesEvent);
+      }, 1000);
 
       toast({
         title: "Proyecto creado",
