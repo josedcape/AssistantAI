@@ -42,27 +42,33 @@ function App() {
 
   // Initialize dark mode from localStorage or use dark theme by default
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme");
-    
-    if (storedTheme === "light") {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove("dark");
-    } else {
-      // Default to dark theme or respect stored dark preference
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-      if (!storedTheme) localStorage.theme = "dark";
+    if (typeof localStorage !== "undefined") {
+      const storedTheme = localStorage.getItem("theme");
+
+      if (storedTheme === "light") {
+        setIsDarkMode(false);
+        document.documentElement.classList.remove("dark");
+      } else {
+        // Default to dark theme or respect stored dark preference
+        setIsDarkMode(true);
+        document.documentElement.classList.add("dark");
+        if (!storedTheme) localStorage.setItem("theme", "dark");
+      }
     }
   }, []);
 
   const setTheme = (theme: "light" | "dark") => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
-      localStorage.theme = "dark";
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("theme", "dark");
+      }
       setIsDarkMode(true);
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.theme = "light";
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("theme", "light");
+      }
       setIsDarkMode(false);
     }
   };
