@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });`;
         sendFileToExplorer("app", jsContent, ".js", 2000);
       }
-      
+
       // Enviar archivos para el template React
       else if (template === "react") {
         // index.html file
@@ -543,7 +543,7 @@ button:hover {
 }`;
         sendFileToExplorer("src/index", indexCssContent, ".css", 2000);
       }
-      
+
       // Enviar archivos para el template Vue
       else if (template === "vue") {
         // index.html file
@@ -585,7 +585,7 @@ app.mount('#app')`;
         <router-link to="/about">Acerca de</router-link>
       </nav>` : ''}
     </header>
-    
+
     ${selectedFeatures.includes('routing') ? `<router-view/>` : 
     `<main>
       <p>${description || 'Bienvenido a mi aplicación Vue'}</p>
@@ -786,9 +786,9 @@ ${selectedFeatures.includes('authentication') ?
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-  
+
   jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
     if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
     req.user = user;
@@ -956,9 +956,9 @@ exports.getInfo = (req, res) => {
 module.exports = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-  
+
   jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
     if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
     req.user = user;
@@ -981,7 +981,7 @@ module.exports = (req, res, next) => {
     "test": "echo \\"Error: no test specified\\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author":"",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2"${selectedFeatures.includes('database') ? ',\n    "mongoose": "^7.0.0"' : ''}${selectedFeatures.includes('authentication') ? ',\n    "jsonwebtoken": "^9.0.0",\n    "bcrypt": "^5.1.0"' : ''}
@@ -992,7 +992,7 @@ module.exports = (req, res, next) => {
 }`;
         sendFileToExplorer("package", packageJsonContent, ".json", 2500);
       }
-      
+
       // Enviar archivos para el template Python
       else if (template === "python") {
         // app.py file
@@ -1013,7 +1013,7 @@ class Item(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     price = db.Column(db.Float, default=0.0)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -1029,7 +1029,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -1063,17 +1063,17 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     if not username or not password:
         return jsonify({'error': 'Username y password son requeridos'}), 400
-    
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'El usuario ya existe'}), 400
-    
+
     user = User(username=username, password_hash=password)  # En un caso real, hash la contraseña
     db.session.add(user)
     db.session.commit()
-    
+
     return jsonify({'message': 'Usuario registrado correctamente'}), 201
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -1081,14 +1081,14 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     if not username or not password:
         return jsonify({'error': 'Username y password son requeridos'}), 400
-    
+
     user = User.query.filter_by(username=username).first()
     if not user or user.password_hash != password:  # En un caso real, verificar hash
         return jsonify({'error': 'Credenciales inválidas'}), 401
-    
+
     access_token = create_access_token(identity=user.id)
     return jsonify({'access_token': access_token}), 200
 ` : ""}
@@ -1124,11 +1124,11 @@ ${selectedFeatures.includes('authentication') ? "@jwt_required()" : ""}
 def update_item(item_id):
     item = Item.query.get_or_404(item_id)
     data = request.get_json()
-    
+
     item.name = data.get('name', item.name)
     item.description = data.get('description', item.description)
     item.price = data.get('price', item.price)
-    
+
     db.session.commit()
     return jsonify(item.to_dict())
 
@@ -1279,20 +1279,28 @@ gunicorn==20.1.0`;
                   </div>
                 ))}
               </div>
-            </div>
+
+            {template !== "" && (
+              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <i className="ri-robot-line"></i>
+                <span>Puedes usar GPT-4 para personalizar los archivos de tu proyecto después de completar este formulario.</span>
+              </div>
+            )}
           </div>
 
-          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? (
-                <>
-                  <i className="ri-loader-4-line animate-spin mr-2"></i>
-                  Creando...
-                </>
-              ) : "Crear proyecto"}
-            </Button>
-          </div>
+          {projectName && (
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                {isSubmitting ? (
+                  <>
+                    <i className="ri-loader-4-line animate-spin mr-2"></i>
+                    Creando...
+                  </>
+                ) : "Crear proyecto"}
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </div>
