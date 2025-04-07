@@ -1388,6 +1388,7 @@ gunicorn==20.1.0`;
                   </div>
                 ))}
               </div>
+            </div>
 
             {template !== "" && (
               <div className="mt-4 space-y-2 border-t pt-3 dark:border-slate-700">
