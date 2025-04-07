@@ -574,25 +574,6 @@ ${error instanceof Error ? error.message : "Error desconocido"}
     }
     return suggestedPackages;
   };
-  
-
-
-        // Generar nombre de archivo único basado en el contenido o tipo de código
-        let fileName = `generated_code_${index + 1}${fileExtension}`;
-
-        // Intentar detectar un mejor nombre basado en patrones en el código
-        // Por ejemplo, para un componente React, usar el nombre del componente
-        if (codeBlock.code.includes("export default") && codeBlock.code.includes("function")) {
-          const componentMatch = codeBlock.code.match(/export\s+default\s+function\s+(\w+)/);
-          if (componentMatch && componentMatch[1]) {
-            fileName = `${componentMatch[1]}${fileExtension}`;
-          }
-        } else if (codeBlock.code.includes("class") && codeBlock.code.includes("extends")) {
-          const classMatch = codeBlock.code.match(/class\s+(\w+)\s+extends/);
-          if (classMatch && classMatch[1]) {
-            fileName = `${classMatch[1]}${fileExtension}`;
-          }
-        }
 
         // Enviar solicitud para crear el archivo
         const response = await fetch("/api/files/create", {
