@@ -9,11 +9,11 @@ import CodeCorrectionModal from "./CodeCorrectionModal";
 
 // Local storage utility
 const projectStorage = {
-  saveFileContent: (fileId: string | number, content: string) => {
-    localStorage.setItem(`file_${fileId}`, content);
+  saveFileContent: (fileId: string, content: string) => {
+    localStorage.setItem(fileId, content);
   },
-  loadFileContent: (fileId: string | number) => {
-    return localStorage.getItem(`file_${fileId}`);
+  loadFileContent: (fileId: string) => {
+    return localStorage.getItem(fileId);
   }
 };
 
@@ -22,8 +22,6 @@ interface CodeEditorProps {
   onUpdate?: (updatedFile: File) => void;
 }
 
-// Simple code editor implementation
-// In a production app, this would be replaced with Monaco Editor or CodeMirror
 const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   const [content, setContent] = useState(file.content);
   const [isDirty, setIsDirty] = useState(false);
@@ -37,46 +35,6 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
   const language = getLanguageFromFileType(file.type);
   const languageIcon = getLanguageIcon(file.type);
 
-  // Función para actualizar el archivo con el código corregido
-  const handleApplyCorrections = async (correctedCode: string) => {
-    if (!file || !correctedCode) {
-      toast({
-        title: "Error",
-        description: "No se pudo aplicar la corrección: código vacío o inválido.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log("Aplicando correcciones al archivo:", {
-        fileId: file.id,
-        fileName: file.name,
-        originalLength: content.length,
-        correctedLength: correctedCode.length
-      });
-      
-      // Primero actualizamos la interfaz del editor
-      setContent(correctedCode);
-      setIsDirty(true);
-
-      // Luego guardamos el archivo (esto ejecutará handleSave)
-      await saveFile(correctedCode);
-
-      toast({
-        title: "Correcciones aplicadas",
-        description: "Los cambios se han aplicado y guardado correctamente.",
-      });
-    } catch (error) {
-      console.error("Error al aplicar correcciones:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron aplicar las correcciones. Intente nuevamente.",
-        variant: "destructive"
-      });
-    }
-  };
-
   useEffect(() => {
     const loadedContent = projectStorage.loadFileContent(file.id);
     if (loadedContent) {
@@ -87,7 +45,6 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     setIsDirty(false);
   }, [file]);
 
-  // Auto-focus when in mobile to ensure keyboard appears
   useEffect(() => {
     if (isMobile && textareaRef.current) {
       const timer = setTimeout(() => {
@@ -97,30 +54,16 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     }
   }, [isMobile, file.id]);
 
-  // Handle textarea indentation with tab key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLTextAreaElement;
       if (!textareaRef.current || target !== textareaRef.current) return;
 
-      // Handle Tab key for indentation
       if (e.key === 'Tab') {
         e.preventDefault();
-        const start = target.selectionStart;
-        const end = target.selectionEnd;
-
-        // Insert tab at cursor position
-        const newContent = content.substring(0, start) + '  ' + content.substring(end);
-        setContent(newContent);
-        setIsDirty(true);
-
-        // Move cursor after the tab
-        setTimeout(() => {
-          target.selectionStart = target.selectionEnd = start + 2;
-        }, 0);
+        insertTextAtCursor('  ');
       }
 
-      // Save with Ctrl+S or Cmd+S
       if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         saveFile();
@@ -134,26 +77,35 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     }
   }, [content]);
 
+  const insertTextAtCursor = (text: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newContent = content.substring(0, start) + text + content.substring(end);
+    setContent(newContent);
+    setIsDirty(true);
+
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    }, 0);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     setIsDirty(true);
-    // Auto-save content to localStorage
     if (file?.id) {
       projectStorage.saveFileContent(file.id, e.target.value);
     }
   };
 
-  const saveFile = async (correctedCode?: string) => {
+  const saveFile = async () => {
     if (!isDirty) return;
 
     try {
       setIsSaving(true);
-
-      const sendContent = correctedCode || content;
-      const response = await apiRequest("PUT", `/api/files/${file.id}`, {
-        content: sendContent
-      });
-
+      const response = await apiRequest("PUT", `/api/files/${file.id}`, { content });
       const updatedFile = await response.json();
       setIsDirty(false);
 
@@ -177,20 +129,39 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
     }
   };
 
+  const handleApplyCorrections = async (correctedCode: string) => {
+    setContent(correctedCode);
+    setIsDirty(true);
+
+    const shouldSaveImmediately = true;
+    if (shouldSaveImmediately) {
+      try {
+        setIsSaving(true);
+        const response = await apiRequest("PUT", `/api/files/${file.id}`, { content: correctedCode });
+        const updatedFile = await response.json();
+        setIsDirty(false);
+
+        if (onUpdate) {
+          onUpdate(updatedFile);
+        }
+      } catch (error) {
+        console.error("Error saving corrected code:", error);
+        return Promise.reject(error);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
-    // Focus the textarea when entering fullscreen mode
     if (!isFullscreen && textareaRef.current) {
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   };
 
   return (
-    <div 
-      className={`flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${
-        isFullscreen ? 'fixed inset-0 z-50' : ''
-      }`}
-    >
+    <div className={`flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="flex items-center space-x-2 overflow-hidden">
           <i className={`${languageIcon} flex-shrink-0`}></i>
@@ -201,23 +172,7 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
         <div className="flex space-x-1">
           <button
             className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
-            onClick={() => {
-              // Verificar que el archivo tiene un ID válido
-              if (!file || !file.id) {
-                toast({
-                  title: "Error",
-                  description: "No se puede corregir: archivo inválido o no guardado.",
-                  variant: "destructive"
-                });
-                return;
-              }
-              console.log("Abriendo modal de corrección para archivo:", {
-                id: file.id, 
-                name: file.name, 
-                contentLength: content.length
-              });
-              setShowCorrectionModal(true);
-            }}
+            onClick={() => setShowCorrectionModal(true)}
             aria-label="Corregir código con IA"
             title="Corregir código con IA"
           >
@@ -230,13 +185,9 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
             aria-label="Guardar archivo"
             title="Guardar (Ctrl+S)"
           >
-            {isSaving ? (
-              <i className="ri-loader-4-line animate-spin"></i>
-            ) : (
-              <i className="ri-save-line"></i>
-            )}
+            {isSaving ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-save-line"></i>}
           </button>
-          <button 
+          <button
             className="p-1.5 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none"
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
@@ -280,43 +231,21 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
           {isMobile && (
             <div className={`${isFullscreen ? 'flex' : 'hidden'} bg-slate-100 dark:bg-slate-700 border-t border-slate-200 dark:border-slate-600 p-1.5 overflow-x-auto whitespace-nowrap`}>
               <div className="flex space-x-1">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="font-mono text-xs"
-                  onClick={() => {
-                    const textarea = textareaRef.current;
-                    if (!textarea) return;
-
-                    const start = textarea.selectionStart;
-                    const end = textarea.selectionEnd;
-                    const newContent = content.substring(0, start) + "  " + content.substring(end);
-                    setContent(newContent);
-                    setIsDirty(true);
-
-                    setTimeout(() => {
-                      textarea.selectionStart = textarea.selectionEnd = start + 2;
-                      textarea.focus();
-                    }, 0);
-                  }}
+                  onClick={() => insertTextAtCursor('  ')}
                 >
                   Tab
                 </Button>
                 {['()', '{}', '[]', '<>', '""', "''", '``', ';', ':', '=>', '->', '/**/'].map((char) => (
-                  <Button 
+                  <Button
                     key={char}
-                    variant="ghost" 
-                    size="sm" 
+                    variant="ghost"
+                    size="sm"
                     className="font-mono text-xs"
                     onClick={() => {
-                      const textarea = textareaRef.current;
-                      if (!textarea) return;
-
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      let insertText = char;
-
-                      // For paired characters, place cursor in the middle
                       const pairs: {[key: string]: [number, string]} = {
                         '()': [1, '()'],
                         '{}': [1, '{}'],
@@ -330,24 +259,22 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
 
                       if (pairs[char]) {
                         const [cursorOffset, pairText] = pairs[char];
-                        insertText = pairText;
-
-                        const newContent = content.substring(0, start) + insertText + content.substring(end);
+                        const newContent = content.substring(0, textareaRef.current!.selectionStart) + pairText + content.substring(textareaRef.current!.selectionEnd);
                         setContent(newContent);
                         setIsDirty(true);
 
                         setTimeout(() => {
-                          textarea.selectionStart = textarea.selectionEnd = start + cursorOffset;
-                          textarea.focus();
+                          textareaRef.current!.selectionStart = textareaRef.current!.selectionEnd = textareaRef.current!.selectionStart + cursorOffset;
+                          textareaRef.current!.focus();
                         }, 0);
                       } else {
-                        const newContent = content.substring(0, start) + insertText + content.substring(end);
+                        const newContent = content.substring(0, textareaRef.current!.selectionStart) + char + content.substring(textareaRef.current!.selectionEnd);
                         setContent(newContent);
                         setIsDirty(true);
 
                         setTimeout(() => {
-                          textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
-                          textarea.focus();
+                          textareaRef.current!.selectionStart = textareaRef.current!.selectionEnd = textareaRef.current!.selectionStart + char.length;
+                          textareaRef.current!.focus();
                         }, 0);
                       }
                     }}
@@ -384,7 +311,6 @@ const CodeEditor = ({ file, onUpdate }: CodeEditorProps) => {
         </div>
       )}
 
-      {/* Modal de corrección de código con IA */}
       {showCorrectionModal && (
         <CodeCorrectionModal
           file={file}

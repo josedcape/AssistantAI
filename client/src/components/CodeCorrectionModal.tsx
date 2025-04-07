@@ -17,9 +17,9 @@ interface CodeCorrectionModalProps {
   projectId?: number;
 }
 
-const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({ 
-  file, 
-  onClose, 
+const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
+  file,
+  onClose,
   onApplyChanges,
   projectId
 }) => {
@@ -27,74 +27,67 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [correctionResult, setCorrectionResult] = useState<CodeCorrectionResponse | null>(null);
   const [diffView, setDiffView] = useState(false);
+  const [editedCode, setEditedCode] = useState(file.content);
   const { toast } = useToast();
 
-  // Actualizar cuando cambia el archivo
   useEffect(() => {
-    // Reset state when file changes
+    resetState();
+  }, [file.id]);
+
+  const resetState = () => {
     setCorrectionResult(null);
     setInstructions("");
     setDiffView(false);
-  }, [file.id]);
+    setEditedCode(file.content);
+  };
 
-  // Función para solicitar una corrección de código
   const requestCorrection = async () => {
     if (!instructions.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor, describe las correcciones que necesitas",
-        variant: "destructive"
-      });
+      showErrorToast("Por favor, describe las correcciones que necesitas");
       return;
     }
 
-    // Verificar que el contenido del archivo no esté vacío
-    if (!file.content || file.content.trim() === '') {
-      toast({
-        title: "Error",
-        description: "El contenido del archivo está vacío",
-        variant: "destructive"
-      });
+    if (!editedCode.trim()) {
+      showErrorToast("El contenido del archivo está vacío");
       return;
     }
 
     try {
       setIsLoading(true);
-
-      // Verificar que file.id es válido antes de la solicitud
-      if (!file.id) {
-        throw new Error("ID de archivo inválido o no especificado");
-      }
-      
-      console.log("Enviando solicitud de corrección:", {
-        fileId: file.id,
-        contentLength: file.content?.length || 0,
-        language: getLanguageFromType(file.type)
-      });
+      validateFileId();
 
       const response = await apiRequest("POST", "/api/correct", {
-        fileId: file.id, // Enviar el ID como está para evitar conversiones innecesarias
-        content: file.content,
+        fileId: file.id,
+        content: editedCode,
         instructions,
         language: getLanguageFromType(file.type),
-        projectId: projectId // Mantener projectId como está
+        projectId
       });
 
       const result: CodeCorrectionResponse = await response.json();
       setCorrectionResult(result);
     } catch (error) {
       console.error("Error al corregir el código:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo corregir el código. Intente con instrucciones más claras.",
-        variant: "destructive"
-      });
+      showErrorToast("No se pudo corregir el código. Intente con instrucciones más claras.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Función para aplicar los cambios al archivo
+  const validateFileId = () => {
+    if (!file.id) {
+      throw new Error("ID de archivo inválido o no especificado");
+    }
+  };
+
+  const showErrorToast = (message: string) => {
+    toast({
+      title: "Error",
+      description: message,
+      variant: "destructive"
+    });
+  };
+
   const handleApplyChanges = async () => {
     if (!correctionResult) return;
 
@@ -107,15 +100,10 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
       onClose();
     } catch (error) {
       console.error("Error al aplicar correcciones:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron aplicar las correcciones",
-        variant: "destructive"
-      });
+      showErrorToast("No se pudieron aplicar las correcciones");
     }
   };
 
-  // Función para obtener el lenguaje a partir del tipo de archivo
   const getLanguageFromType = (type: string): string => {
     const typeToLanguage: Record<string, string> = {
       'javascript': 'javascript',
@@ -133,7 +121,7 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
           <h2 className="text-xl font-semibold">Corrección de Código: {file.name}</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
             aria-label="Cerrar"
@@ -157,9 +145,13 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium mb-1">Código actual:</label>
-                <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[300px] text-sm whitespace-pre-wrap">
-                  {file.content}
-                </pre>
+                <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[300px] text-sm whitespace-pre-wrap">
+                  <pre>
+                    <code className="language-{getLanguageFromType(file.type)}">
+                      {editedCode}
+                    </code>
+                  </pre>
+                </div>
               </div>
             </div>
           ) : (
@@ -167,8 +159,8 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Resultado de la corrección</h3>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setDiffView(!diffView)}
                   >
@@ -218,7 +210,9 @@ const CodeCorrectionModal: React.FC<CodeCorrectionModalProps> = ({
                   <h4 className="text-sm font-medium mb-2">Código corregido:</h4>
                   {correctionResult.correctedCode ? (
                     <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md overflow-auto max-h-[400px] text-sm whitespace-pre-wrap">
-                      {correctionResult.correctedCode}
+                      <code className="language-{getLanguageFromType(file.type)}">
+                        {correctionResult.correctedCode}
+                      </code>
                     </pre>
                   ) : (
                     <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md">
