@@ -22,6 +22,7 @@ import { DocumentUploader } from "@/components/DocumentUploader";
 import ProjectDeployment from "@/components/ProjectDeployment";
 import { sounds } from '@/lib/sounds';
 import PackageExplorer from "@/components/PackageExplorer";
+import GeneratedFilesPanel from "@/components/GeneratedFilesPanel";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { 
   PanelLeft, 
@@ -1274,6 +1275,14 @@ const Workspace: React.FC = () => {
             {!isMobile && <span className="ml-1">Archivos</span>}
           </TabsTrigger>
           <TabsTrigger 
+            value="generated" 
+            className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
+            title="Generados"
+          >
+            <FileCode className="h-4 w-4" />
+            {!isMobile && <span className="ml-1">Generados</span>}
+          </TabsTrigger>
+          <TabsTrigger 
             value="documents" 
             className="text-xs px-1 py-1 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700"
             title="Documentos"
@@ -1399,6 +1408,9 @@ const Workspace: React.FC = () => {
                   <DropdownMenuItem onClick={() => setActiveTab("history")}>
                     Historial
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("generated")}>
+                    Generados
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1428,7 +1440,7 @@ const Workspace: React.FC = () => {
                   <SidebarContent>
                     <SidebarNavigation/>
                     {/* Contenido de la barra lateral */}
-                    {sidebarTab === 'files' && (
+                    {activeTab === 'files' && (
                       <FileExplorer
                         projectId={Number(projectId)}
                         onFileSelect={handleFileSelect}
@@ -1457,7 +1469,12 @@ const Workspace: React.FC = () => {
                         }}
                       />
                     )}
-                    {sidebarTab === 'documents' && (
+                    {activeTab === 'generated' && (
+                      <GeneratedFilesPanel
+                        projectId={Number(projectId)}
+                      />
+                    )}
+                    {activeTab === 'docs' && (
                       <div className="h-full p-4 overflow-y-auto">
                         <DocumentUploader 
                           projectId={Number(projectId)} 
@@ -1514,6 +1531,10 @@ const Workspace: React.FC = () => {
                     <TabsTrigger value="history" className="text-xs flex items-center">
                       <History className="h-4 w-4 mr-1.5 text-teal-500" />
                       Historial
+                    </TabsTrigger>
+                    <TabsTrigger value="generated" className="text-xs flex items-center">
+                      <FileCode className="h-4 w-4 mr-1.5 text-teal-500" />
+                      Generados
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -1600,6 +1621,12 @@ const Workspace: React.FC = () => {
                 )}
 
                 {activeTab === "history" && <HistoryComponent />}
+                {activeTab === "generated" && (
+                  <div>
+                    {/* Contenido del panel de archivos generados */}
+                    <p>Panel de archivos generados</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
