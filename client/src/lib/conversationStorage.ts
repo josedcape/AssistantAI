@@ -1,3 +1,4 @@
+
 import { localStorageUtils } from './storage';
 
 // Tipos para el almacenamiento de conversaciones
@@ -123,15 +124,16 @@ export const setActiveConversation = (id: string | null): boolean => {
   }
 };
 
-export {
-  getConversation,
-  getConversations,
-  saveConversation,
-  deleteConversation,
-  setActiveConversation,
-  getActiveConversation,
-  generateConversationId,
-  generateConversationTitle,
-  type Conversation,
-  type Message
-};
+// Eliminamos la exportación duplicada al final del archivo
+// export {
+//   getConversation,
+//   getConversations,
+//   saveConversation,
+//   deleteConversation,
+//   setActiveConversation,
+//   getActiveConversation,
+//   generateConversationId,
+//   generateConversationTitle,
+//   type Conversation,
+//   type Message
+// };
