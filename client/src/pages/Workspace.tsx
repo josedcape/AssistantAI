@@ -798,6 +798,10 @@ const Workspace: React.FC = () => {
     setShowMobileMenu(prev => !prev);
   }, []);
 
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value as "development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated");
+  }, []);
+
   const updatePreview = useCallback(() => {
     if (isNaN(projectId) || projectId <= 0) {
       toast({
