@@ -1440,7 +1440,7 @@ const Workspace: React.FC = () => {
                   <SidebarContent>
                     <SidebarNavigation/>
                     {/* Contenido de la barra lateral */}
-                    {activeTab === 'files' && (
+                    {sidebarTab === 'files' && (
                       <FileExplorer
                         projectId={Number(projectId)}
                         onFileSelect={handleFileSelect}
@@ -1469,12 +1469,12 @@ const Workspace: React.FC = () => {
                         }}
                       />
                     )}
-                    {activeTab === 'generated' && (
+                    {sidebarTab === 'generated' && (
                       <GeneratedFilesPanel
                         projectId={Number(projectId)}
                       />
                     )}
-                    {activeTab === 'docs' && (
+                    {sidebarTab === 'documents' && (
                       <div className="h-full p-4 overflow-y-auto">
                         <DocumentUploader 
                           projectId={Number(projectId)} 
