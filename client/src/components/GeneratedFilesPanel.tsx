@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import {
   Copy,
   Edit
 } from "lucide-react";
-import { useFileSystem } from "@/lib/fileSystem";
+import { useFileSystem, FileSystemProvider } from "@/lib/fileSystem";
 import { sounds } from "@/lib/sounds";
 
 interface GeneratedFile {
@@ -35,7 +35,7 @@ interface GeneratedFilesPanelProps {
   projectId: number;
 }
 
-const GeneratedFilesPanel = ({ projectId }: GeneratedFilesPanelProps) => {
+const GeneratedFilesPanelContent = ({ projectId }: GeneratedFilesPanelProps) => {
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [viewContent, setViewContent] = useState(false);
@@ -398,6 +398,15 @@ const GeneratedFilesPanel = ({ projectId }: GeneratedFilesPanelProps) => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+// Componente contenedor que provee el contexto del sistema de archivos
+const GeneratedFilesPanel = ({ projectId }: GeneratedFilesPanelProps) => {
+  return (
+    <FileSystemProvider projectId={projectId}>
+      <GeneratedFilesPanelContent projectId={projectId} />
+    </FileSystemProvider>
   );
 };
 
