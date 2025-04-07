@@ -621,11 +621,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-      });
-    }
-  });
-
   apiRouter.get("/projects/:projectId/documents/search", async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
