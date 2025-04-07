@@ -44,7 +44,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         setAvailableAgents(["project_architect", "frontend_designer", "backend_developer"]);
       }
     };
-    
+
     fetchAvailableAgents();
   }, []);
 
@@ -152,7 +152,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       let prompt = `Genera los archivos iniciales para un proyecto de ${getTemplateDisplayName(template)} llamado "${projectName}". 
       La descripción del proyecto es: "${description || 'Sin descripción'}". 
       Las características seleccionadas son: ${selectedFeatures.join(", ") || 'ninguna'}.`;
-      
+
       // Añadir instrucciones específicas según el tipo de proyecto
       if (template === "node") {
         prompt += `
@@ -186,10 +186,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         3. Un script JavaScript principal.
         4. Un archivo README.md que explique el proyecto.`;
       }
-      
+
       prompt += `
       Genera archivos completos y funcionales siguiendo las mejores prácticas actuales del framework o lenguaje seleccionado. Asegúrate de que los archivos estén bien estructurados y comentados para facilitar su comprensión.`;
-      
+
       // Función auxiliar para obtener el nombre descriptivo de la plantilla
       function getTemplateDisplayName(templateId: string): string {
         const templateMap: Record<string, string> = {
@@ -207,7 +207,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       if (availableAgents.includes("project_architect")) {
         selectedAgents.push("project_architect");
       }
-      
+
       if (template === "html-css-js" && availableAgents.includes("frontend_designer")) {
         selectedAgents.push("frontend_designer");
       } else if ((template === "react" || template === "vue") && availableAgents.includes("frontend_designer")) {
@@ -215,12 +215,12 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       } else if ((template === "node" || template === "python") && availableAgents.includes("backend_developer")) {
         selectedAgents.push("backend_developer");
       }
-      
+
       // Si no hay agentes disponibles, no enviar el parámetro
       const agentsParam = selectedAgents.length > 0 ? { agents: selectedAgents } : {};
-      
+
       console.log("Usando agentes:", selectedAgents);
-      
+
       // Llamada a la API para generar los archivos
       const response = await apiRequest("POST", "/api/generate-code", {
         prompt: prompt,
@@ -257,10 +257,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
             file.name === '.env.example' ||
             file.name === 'vite.config.js' ||
             file.name === 'tsconfig.json';
-          
+
           // Determinar si se debe preseleccionar el archivo (para los archivos de configuración)
           const shouldPreselect = isConfigFile;
-          
+
           return {
             name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
             content: file.content,
@@ -268,7 +268,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
             selected: shouldPreselect
           };
         });
-        
+
         setGeneratedFiles(newGeneratedFiles);
         setShowGeneratedFiles(true);
 
@@ -278,7 +278,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
           duration: 5000
         });
         sounds.play('success', 0.4);
-        
+
         // Enviar archivos de configuración importantes automáticamente al panel de archivos generados
         setTimeout(() => {
           newGeneratedFiles.forEach(file => {
@@ -296,7 +296,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
               console.log(`Archivo de configuración enviado automáticamente: ${file.name}${file.extension}`);
             }
           });
-          
+
           // Refrescar el panel de archivos generados
           const refreshEvent = new CustomEvent('refresh-generated-files');
           window.dispatchEvent(refreshEvent);
@@ -306,10 +306,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       }
     } catch (error) {
       console.error("Error generando archivos con GPT:", error);
-      
+
       // Intentar extraer mensaje de error más específico
       let errorMessage = "No se pudieron generar los archivos. Inténtalo de nuevo.";
-      
+
       if (error instanceof Error) {
         if (error.message.includes("architect")) {
           errorMessage = "Error con los agentes de generación. Usando configuración alternativa.";
@@ -320,18 +320,18 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
               description: "Generando archivos con configuración alternativa...",
               duration: 3000
             });
-            
+
             const fallbackResponse = await apiRequest("POST", "/api/generate-code", {
               prompt: prompt,
               language: template
             });
-            
+
             if (!fallbackResponse.ok) {
               throw new Error("Error en la generación alternativa");
             }
-            
+
             const fallbackData = await fallbackResponse.json();
-            
+
             if (fallbackData.files && fallbackData.files.length > 0) {
               const newGeneratedFiles = fallbackData.files.map((file: any) => ({
                 name: file.name.replace(/\.[^/.]+$/, ""), // Nombre sin extensión
@@ -341,7 +341,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
               }));
               setGeneratedFiles(newGeneratedFiles);
               setShowGeneratedFiles(true);
-              
+
               toast({
                 title: "Archivos generados",
                 description: `Se han generado ${fallbackData.files.length} archivos para tu proyecto`,
@@ -359,7 +359,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
           errorMessage = error.message;
         }
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -465,9 +465,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
 
       // Crear archivos iniciales basados en la plantilla
       if (template === "html-css-js") {
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "index.html",
-          content: `<!DOCTYPE html>
+        // Contenido para HTML básico
+        const htmlContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -482,13 +481,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   </div>
   <script src="app.js"></script>
 </body>
-</html>`,
-          type: "html"
-        });
+</html>`;
 
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "styles.css",
-          content: `/* Estilos para ${projectName} */
+        // Contenido CSS
+        const cssContent = `/* Estilos para ${projectName} */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -535,13 +531,10 @@ ${selectedFeatures.includes('dark-mode') ? `/* Modo oscuro */
   h1 {
     color: #fff;
   }
-}` : ''}`,
-          type: "css"
-        });
+}` : ''}`;
 
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "app.js",
-          content: `// Código JavaScript para ${projectName}
+        // Contenido JS
+        const jsContent = `// Código JavaScript para ${projectName}
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Aplicación iniciada');
 
@@ -559,11 +552,526 @@ document.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => {
     title.style.opacity = '1';
   });` : ''}
-});`,
+});`;
+
+        // Contenido README
+        const readmeContent = `# ${projectName}
+
+${description || "Una aplicación web simple usando HTML, CSS y JavaScript."}
+
+## Características
+
+${selectedFeatures.map(feature => `- ${featureLabels[feature]}`).join('\n')}
+
+## Cómo usar
+
+1. Abre el archivo \`index.html\` en tu navegador
+2. Para desarrollo, puedes usar la extensión Live Server en VSCode o similar
+`;
+
+        // Contenido .gitignore
+        const gitignoreContent = `# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Dependencias
+node_modules/
+
+# Archivos de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Directorios de compilación
+dist/
+build/
+
+# IDE y editores
+.idea/
+.vscode/
+*.swp
+*.swo
+`;
+
+        // Crear los archivos
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "index.html",
+          content: htmlContent,
+          type: "html"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "styles.css",
+          content: cssContent,
+          type: "css"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "app.js",
+          content: jsContent,
           type: "javascript"
         });
-      }
 
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "README.md",
+          content: readmeContent,
+          type: "markdown"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: ".gitignore",
+          content: gitignoreContent,
+          type: "text"
+        });
+
+        // Enviar estos archivos al panel de archivos generados
+        sendFileToExplorer("index", htmlContent, ".html", 0);
+        sendFileToExplorer("styles", cssContent, ".css", 500);
+        sendFileToExplorer("app", jsContent, ".js", 1000);
+        sendFileToExplorer("README", readmeContent, ".md", 1500);
+        sendFileToExplorer(".gitignore", gitignoreContent, "", 2000);
+      } else if (template === "react" || template === "vue") {
+        // Crear archivos comunes para React/Vue
+        // Contenido README para React/Vue
+        const readmeContent = `# ${projectName}
+
+${description || `Una aplicación ${template === "react" ? "React" : "Vue.js"}.`}
+
+## Características
+
+${selectedFeatures.map(feature => `- ${featureLabels[feature]}`).join('\n')}
+
+## Instalación
+
+\`\`\`bash
+npm install
+\`\`\`
+
+## Desarrollo
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+## Construcción para producción
+
+\`\`\`bash
+npm run build
+\`\`\`
+`;
+
+        // Contenido .gitignore
+        const gitignoreContent = `# Dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Producción
+/dist
+/build
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+`;
+
+        // Contenido package.json específico para cada plantilla
+        let packageJsonContent = "";
+
+        if (template === "react") {
+          packageJsonContent = `{
+  "name": "${projectName.toLowerCase().replace(/\s+/g, '-')}",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"${selectedFeatures.includes('routing') ? ',\n    "react-router-dom": "^6.10.0"' : ''}${selectedFeatures.includes('state-management') ? ',\n    "zustand": "^4.3.7"' : ''}${selectedFeatures.includes('api-integration') ? ',\n    "axios": "^1.3.5"' : ''}
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@vitejs/plugin-react": "^3.1.0",
+    "typescript": "^5.0.2",
+    "vite": "^4.2.1"${selectedFeatures.includes('dark-mode') ? ',\n    "autoprefixer": "^10.4.14",\n    "postcss": "^8.4.21",\n    "tailwindcss": "^3.3.1"' : ''}
+  }
+}`;
+
+          // Crear vite.config.js para React
+          const viteConfigContent = `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: '0.0.0.0',
+    port: 5001
+  }
+})`;
+
+          await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+            name: "vite.config.js",
+            content: viteConfigContent,
+            type: "javascript"
+          });
+
+          sendFileToExplorer("vite.config", viteConfigContent, ".js", 3000);
+        } else if (template === "vue") {
+          packageJsonContent = `{
+  "name": "${projectName.toLowerCase().replace(/\s+/g, '-')}",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.2.47"${selectedFeatures.includes('routing') ? ',\n    "vue-router": "^4.1.6"' : ''}${selectedFeatures.includes('state-management') ? ',\n    "pinia": "^2.0.34"' : ''}${selectedFeatures.includes('api-integration') ? ',\n    "axios": "^1.3.5"' : ''}
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.1.0",
+    "typescript": "^5.0.2",
+    "vite": "^4.2.1",
+    "vue-tsc": "^1.2.0"${selectedFeatures.includes('dark-mode') ? ',\n    "autoprefixer": "^10.4.14",\n    "postcss": "^8.4.21",\n    "tailwindcss": "^3.3.1"' : ''}
+  }
+}`;
+
+          // Crear vite.config.js para Vue
+          const viteConfigContent = `import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    host: '0.0.0.0',
+    port: 5001
+  }
+})`;
+
+          await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+            name: "vite.config.js",
+            content: viteConfigContent,
+            type: "javascript"
+          });
+
+          sendFileToExplorer("vite.config", viteConfigContent, ".js", 3000);
+        }
+
+        // Crear archivos comunes para ambos frameworks
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "package.json",
+          content: packageJsonContent,
+          type: "json"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "README.md",
+          content: readmeContent,
+          type: "markdown"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: ".gitignore",
+          content: gitignoreContent,
+          type: "text"
+        });
+
+        // Enviar estos archivos al panel de archivos generados
+        sendFileToExplorer("package", packageJsonContent, ".json", 2500);
+        sendFileToExplorer("README", readmeContent, ".md", 1500);
+        sendFileToExplorer(".gitignore", gitignoreContent, "", 2000);
+
+      } else if (template === "node") {
+        // Contenido para package.json Node.js
+        const packageJsonContent = `{
+  "name": "${projectName.toLowerCase().replace(/\s+/g, '-')}",
+  "version": "1.0.0",
+  "description": "${description || 'Aplicación Node.js con Express'}",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \\"Error: no test specified\\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"${selectedFeatures.includes('database') ? ',\n    "mongoose": "^7.0.3"' : ''}${selectedFeatures.includes('authentication') ? ',\n    "jsonwebtoken": "^9.0.0",\n    "bcrypt": "^5.1.0"' : ''}
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}`;
+
+        // Contenido README para Node.js
+        const readmeContent = `# ${projectName}
+
+${description || "Una aplicación de servidor Node.js con Express."}
+
+## Características
+
+${selectedFeatures.map(feature => `- ${featureLabels[feature]}`).join('\n')}
+
+## Instalación
+
+\`\`\`bash
+npm install
+\`\`\`
+
+## Desarrollo
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+## Producción
+
+\`\`\`bash
+npm start
+\`\`\`
+
+${selectedFeatures.includes('database') ? '## Base de datos\n\nEsta aplicación utiliza MongoDB. Asegúrate de tener MongoDB instalado o configura la variable de entorno `MONGODB_URI` para conectarte a una instancia remota.' : ''}
+`;
+
+        // Contenido .gitignore
+        const gitignoreContent = `# Dependencias
+/node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Directorio de compilación
+/dist
+/build
+
+# Archivos de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Directorio de cobertura
+/coverage
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+`;
+
+        // Contenido para .env.example
+        const envExampleContent = `PORT=5001
+NODE_ENV=development
+${selectedFeatures.includes('database') ? 'MONGODB_URI=mongodb://localhost:27017/' + projectName.toLowerCase().replace(/\s+/g, '_') : ''}
+${selectedFeatures.includes('authentication') ? 'JWT_SECRET=your_jwt_secret_key\nTOKEN_EXPIRY=1h' : ''}
+`;
+
+        // Crear archivos
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "package.json",
+          content: packageJsonContent,
+          type: "json"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "README.md",
+          content: readmeContent,
+          type: "markdown"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: ".gitignore",
+          content: gitignoreContent,
+          type: "text"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: ".env.example",
+          content: envExampleContent,
+          type: "text"
+        });
+
+        // Enviar estos archivos al panel de archivos generados
+        sendFileToExplorer("package", packageJsonContent, ".json", 1000);
+        sendFileToExplorer("README", readmeContent, ".md", 1500);
+        sendFileToExplorer(".gitignore", gitignoreContent, "", 2000);
+        sendFileToExplorer(".env.example", envExampleContent, "", 2500);
+
+      } else if (template === "python") {
+        // Contenido para main.py Python/Flask
+        const mainPyContent = `from flask import Flask, jsonify
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return jsonify({
+        'message': '¡Bienvenido a ${projectName}!',
+        'description': '${description || "Una aplicación Flask"}'
+    })
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
+`;
+
+        // Contenido para requirements.txt
+        const requirementsTxtContent = `flask==2.2.3
+${selectedFeatures.includes('database') ? 'flask-sqlalchemy==3.0.3\nflask-migrate==4.0.4' : ''}
+${selectedFeatures.includes('authentication') ? 'flask-jwt-extended==4.4.4' : ''}
+gunicorn==20.1.0
+`;
+
+        // Contenido README para Python
+        const readmeContent = `# ${projectName}
+
+${description || "Una aplicación Python con Flask."}
+
+## Características
+
+${selectedFeatures.map(feature => `- ${featureLabels[feature]}`).join('\n')}
+
+## Instalación
+
+\`\`\`bash
+pip install -r requirements.txt
+\`\`\`
+
+## Desarrollo
+
+\`\`\`bash
+python app.py
+\`\`\`
+
+## Producción
+
+\`\`\`bash
+gunicorn app:app
+\`\`\`
+
+${selectedFeatures.includes('database') ? '## Base de datos\n\nEsta aplicación utiliza SQLAlchemy. Configura la variable de entorno `DATABASE_URL` para conectarte a tu base de datos.' : ''}
+`;
+
+        // Contenido .gitignore
+        const gitignoreContent = `# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# Distribución / packaging
+dist/
+build/
+*.egg-info/
+
+# Archivos de entorno
+.env
+.env.local
+.flaskenv
+
+# Logs
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests
+.coverage
+htmlcov/
+.pytest_cache/
+`;
+
+        // Crear archivos
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "app.py",
+          content: mainPyContent,
+          type: "python"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "requirements.txt",
+          content: requirementsTxtContent,
+          type: "text"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: "README.md",
+          content: readmeContent,
+          type: "markdown"
+        });
+
+        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
+          name: ".gitignore",
+          content: gitignoreContent,
+          type: "text"
+        });
+
+        // Enviar estos archivos al panel de archivos generados
+        sendFileToExplorer("app", mainPyContent, ".py", 1000);
+        sendFileToExplorer("requirements", requirementsTxtContent, ".txt", 1500);
+        sendFileToExplorer("README", readmeContent, ".md", 2000);
+        sendFileToExplorer(".gitignore", gitignoreContent, "", 2500);
+      }
       // Invalidar caché de proyectos y actualizar los archivos en el explorador
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
 

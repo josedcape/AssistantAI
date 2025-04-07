@@ -89,12 +89,11 @@ const GeneratedFilesPanelContent = () => {
           console.error("Error verificando archivos almacenados:", error);
         }
       }
-    }, 5000); // Verificar cada 5 segundos
+    }, 3000); // Verificar cada 3 segundos para mejor respuesta
 
     // Listen for custom events to add new files
     const handleNewFileEvent = (e: CustomEvent) => {
       if (e.detail && e.detail.file) {
-        // Agregar un retraso para dar tiempo al procesamiento
         console.log(`Archivo generado recibido: ${e.detail.file.name}${e.detail.file.extension}, procesando...`);
 
         // Verificar si el archivo ya existe para evitar duplicados
@@ -109,15 +108,24 @@ const GeneratedFilesPanelContent = () => {
           return;
         }
 
+        // Reducir el retraso para una mejor experiencia de usuario
         setTimeout(() => {
           const newFile = e.detail.file;
           setGeneratedFiles(prev => {
             const updated = [...prev, newFile];
             saveFilesToStorage(updated);
+            
+            // Toast informativo
+            toast({
+              title: "Archivo añadido",
+              description: `${newFile.name}${newFile.extension} añadido al panel`,
+              duration: 3000
+            });
+            
             console.log(`Archivo ${newFile.name}${newFile.extension} procesado y agregado correctamente`);
             return updated;
           });
-        }, 5000); // 5 segundos de retraso (más razonable que 20)
+        }, 500); // Reducido a 500ms para mejor respuesta
       }
     };
 
@@ -131,12 +139,46 @@ const GeneratedFilesPanelContent = () => {
 
     window.addEventListener('refresh-generated-files', handleRefreshGeneratedFiles);
 
+    // Escuchar eventos para añadir múltiples archivos a la vez
+    const handleMultipleFilesEvent = (e: CustomEvent) => {
+      if (e.detail && Array.isArray(e.detail.files) && e.detail.files.length > 0) {
+        console.log(`Recibidos ${e.detail.files.length} archivos para procesar...`);
+        
+        const filesToAdd = e.detail.files.filter(file => {
+          // Filtrar duplicados
+          return !generatedFiles.some(
+            existingFile => 
+              existingFile.name === file.name && 
+              existingFile.extension === file.extension
+          );
+        });
+        
+        if (filesToAdd.length > 0) {
+          setGeneratedFiles(prev => {
+            const updated = [...prev, ...filesToAdd];
+            saveFilesToStorage(updated);
+            
+            toast({
+              title: "Archivos añadidos",
+              description: `${filesToAdd.length} archivos añadidos al panel`,
+              duration: 3000
+            });
+            
+            return updated;
+          });
+        }
+      }
+    };
+
+    window.addEventListener('add-multiple-generated-files', handleMultipleFilesEvent as EventListener);
+
     return () => {
       window.removeEventListener('add-generated-file', handleNewFileEvent as EventListener);
       window.removeEventListener('refresh-generated-files', handleRefreshGeneratedFiles);
+      window.removeEventListener('add-multiple-generated-files', handleMultipleFilesEvent as EventListener);
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [generatedFiles, toast]); // Añadir toast y generatedFiles como dependencias
 
   // Function to add a new file
   const addFile = (file: GeneratedFile) => {
