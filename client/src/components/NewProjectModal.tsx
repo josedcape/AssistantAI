@@ -27,6 +27,7 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [showGeneratedFiles, setShowGeneratedFiles] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState([{ name: '', content: '', extension: '', selected: false }]);
   const [availableAgents, setAvailableAgents] = useState<string[]>([]);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]); // Added state for selected agents
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
@@ -51,11 +52,15 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       try {
         const response = await apiRequest("GET", "/api/agents");
         const agents = await response.json();
-        setAvailableAgents(agents.map((agent: any) => agent.name));
+        setAvailableAgents(agents.map((agent: any) => ({ name: agent.name, description: getAgentDescription(agent.name) }))); // Map to include descriptions
       } catch (error) {
         console.error("Error obteniendo agentes disponibles:", error);
         // Por defecto, usar estos agentes que sabemos que existen
-        setAvailableAgents(["project_architect", "frontend_designer", "backend_developer"]);
+        setAvailableAgents([
+          { name: "project_architect", description: getAgentDescription("project_architect") },
+          { name: "frontend_designer", description: getAgentDescription("frontend_designer") },
+          { name: "backend_developer", description: getAgentDescription("backend_developer") }
+        ]);
       }
     };
 
@@ -237,30 +242,31 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       }
 
       // Seleccionar los agentes adecuados según la plantilla
-      let selectedAgents = [];
-      if (availableAgents.includes("project_architect")) {
-        selectedAgents.push("project_architect");
+      let selectedAgentsForRequest = [];
+      if (selectedAgents.includes("project_architect")) {
+        selectedAgentsForRequest.push("project_architect");
       }
 
-      if (template === "html-css-js" && availableAgents.includes("frontend_designer")) {
-        selectedAgents.push("frontend_designer");
-      } else if ((template === "react" || template === "vue") && availableAgents.includes("frontend_designer")) {
-        selectedAgents.push("frontend_designer");
-      } else if ((template === "node" || template === "python") && availableAgents.includes("backend_developer")) {
-        selectedAgents.push("backend_developer");
+      if (template === "html-css-js" && selectedAgents.includes("frontend_designer")) {
+        selectedAgentsForRequest.push("frontend_designer");
+      } else if ((template === "react" || template === "vue") && selectedAgents.includes("frontend_designer")) {
+        selectedAgentsForRequest.push("frontend_designer");
+      } else if ((template === "node" || template === "python") && selectedAgents.includes("backend_developer")) {
+        selectedAgentsForRequest.push("backend_developer");
       }
 
       // Si no hay agentes disponibles, no enviar el parámetro
-      const agentsParam = selectedAgents.length > 0 ? { agents: selectedAgents } : {};
+      const agentsParam = selectedAgentsForRequest.length > 0 ? { agents: selectedAgentsForRequest } : {};
 
-      console.log("Usando agentes:", selectedAgents);
+      console.log("Usando agentes:", selectedAgentsForRequest);
 
       // Llamada a la API para generar los archivos
       const response = await apiRequest("POST", "/api/generate-code", {
         prompt: prompt,
         language: template,
         projectAgent: projectAgent,
-        features: selectedFeatures
+        features: selectedFeatures,
+        agents: selectedAgentsForRequest // Pass selected agents to the API
       });
 
       if (!response.ok) {
@@ -284,10 +290,10 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
         // Procesar los archivos generados
         const newGeneratedFiles = data.files.map(file => {
           // Detectar si es un archivo de configuración especial
-          const isConfigFile = 
-            file.name === 'package.json' || 
-            file.name === 'README.md' || 
-            file.name === '.gitignore' || 
+          const isConfigFile =
+            file.name === 'package.json' ||
+            file.name === 'README.md' ||
+            file.name === '.gitignore' ||
             file.name === 'requirements.txt' ||
             file.name === '.env.example' ||
             file.name === 'vite.config.js' ||
@@ -982,830 +988,7 @@ ${selectedFeatures.includes('authentication') ? 'JWT_SECRET=your_jwt_secret_key\
 
       } else if (template === "python") {
         // Contenido para main.py Python/Flask
-        const mainPyContent = `from flask import Flask, jsonify
-import os
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return jsonify({
-        'message': '¡Bienvenido a ${projectName}!',
-        'description': '${description || "Una aplicación Flask"}'
-    })
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
-`;
-
-        // Contenido para requirements.txt
-        const requirementsTxtContent = `flask==2.2.3
-${selectedFeatures.includes('database') ? 'flask-sqlalchemy==3.0.3\nflask-migrate==4.0.4' : ''}
-${selectedFeatures.includes('authentication') ? 'flask-jwt-extended==4.4.4' : ''}
-gunicorn==20.1.0
-`;
-
-        // Contenido README para Python
-        const readmeContent = `# ${projectName}
-
-${description || "Una aplicación Python con Flask."}
-
-## Características
-
-${selectedFeatures.map(feature => `- ${featureLabels[feature]}`).join('\n')}
-
-## Instalación
-
-\`\`\`bash
-pip install -r requirements.txt
-\`\`\`
-
-## Desarrollo
-
-\`\`\`bash
-python app.py
-\`\`\`
-
-## Producción
-
-\`\`\`bash
-gunicorn app:app
-\`\`\`
-
-${selectedFeatures.includes('database') ? '## Base de datos\n\nEsta aplicación utiliza SQLAlchemy. Configura la variable de entorno `DATABASE_URL` para conectarte a tu base de datos.' : ''}
-`;
-
-        // Contenido .gitignore
-        const gitignoreContent = `# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Entornos virtuales
-venv/
-env/
-ENV/
-
-# Distribución / packaging
-dist/
-build/
-*.egg-info/
-
-# Archivos de entorno
-.env
-.env.local
-.flaskenv
-
-# Logs
-*.log
-
-# Archivos del sistema
-.DS_Store
-Thumbs.db
-
-# Editor
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Tests
-.coverage
-htmlcov/
-.pytest_cache/
-`;
-
-        // Crear archivos
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "app.py",
-          content: mainPyContent,
-          type: "python"
-        });
-
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "requirements.txt",
-          content: requirementsTxtContent,
-          type: "text"
-        });
-
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: "README.md",
-          content: readmeContent,
-          type: "markdown"
-        });
-
-        await apiRequest("POST", `/api/projects/${newProject.id}/files`, {
-          name: ".gitignore",
-          content: gitignoreContent,
-          type: "text"
-        });
-
-        // Enviar estos archivos al panel de archivos generados
-        sendFileToExplorer("app", mainPyContent, ".py", 1000);
-        sendFileToExplorer("requirements", requirementsTxtContent, ".txt", 1500);
-        sendFileToExplorer("README", readmeContent, ".md", 2000);
-        sendFileToExplorer(".gitignore", gitignoreContent, "", 2500);
-      }
-      // Invalidar caché de proyectos y actualizar los archivos en el explorador
-      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-
-      // Crear una función para enviar archivos generados al explorador
-      const sendFileToExplorer = (name, content, extension, delay = 0) => {
-        setTimeout(() => {
-          const fileEvent = new CustomEvent('add-generated-file', {
-            detail: {
-              file: {
-                name: name,
-                content: content,
-                extension: extension
-              }
-            }
-          });
-          window.dispatchEvent(fileEvent);
-          console.log(`Archivo generado enviado al explorador: ${name}${extension}`);
-        }, delay);
-      };
-
-      // Enviar archivos para el template HTML-CSS-JS
-      if (template === "html-css-js") {
-        // HTML file
-        const htmlContent = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${projectName}</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div id="app">
-    <h1>Bienvenido a ${projectName}</h1>
-    <p>${description || "Mi nuevo proyecto"}</p>
-  </div>
-  <script src="app.js"></script>
-</body>
-</html>`;
-        sendFileToExplorer("index", htmlContent, ".html", 0);
-
-        // CSS file
-        const cssContent = `/* Estilos para ${projectName} */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 20px;
-  background-color: #f5f5f5;
-}
-
-#app {
-  max-width: 800px;
-  margin: 0 auto;
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-h1 {
-  color: #333;
-}
-
-${selectedFeatures.includes('responsive') ? `/* Diseño responsive */
-@media (max-width: 768px) {
-  #app {
-    padding: 15px;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-  }
-}` : ''}
-
-${selectedFeatures.includes('dark-mode') ? `/* Modo oscuro */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #1a1a1a;
-    color: #fff;
-  }
-
-  #app {
-    background-color: #2d2d2d;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  }
-
-  h1 {
-    color: #fff;
-  }
-}` : ''}`;
-        sendFileToExplorer("styles", cssContent, ".css", 1000);
-
-        // JS file
-        const jsContent = `// Código JavaScript para ${projectName}
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Aplicación iniciada');
-
-  ${selectedFeatures.includes('responsive') ? `
-  const isMobile = window.innerWidth < 768;
-  if (isMobile) {
-    console.log('Versión móvil cargada');
-  }` : ''}
-
-  ${selectedFeatures.includes('animations') ? `
-  const title = document.querySelector('h1');
-  title.style.opacity = '0';
-  title.style.transition = 'opacity 0.5s ease-in-out';
-
-  requestAnimationFrame(() => {
-    title.style.opacity = '1';
-  });` : ''}
-});`;
-        sendFileToExplorer("app", jsContent, ".js", 2000);
-      }
-
-      // Enviar archivos para el template React
-      else if (template === "react") {
-        // index.html file
-        const htmlContent = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${projectName}</title>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/index.tsx"></script>
-</body>
-</html>`;
-        sendFileToExplorer("index", htmlContent, ".html", 0);
-
-        // index.tsx file
-        const indexContent = `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);`;
-        sendFileToExplorer("src/index", indexContent, ".tsx", 500);
-
-        // App.tsx file
-        const appContent = `import React, { useState } from 'react';
-import './App.css';
-${selectedFeatures.includes('routing') ? "import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';" : ""}
-
-function App() {
-  ${selectedFeatures.includes('state-management') ? "const [count, setCount] = useState(0);" : ""}
-
-  return (
-    ${selectedFeatures.includes('routing') ? 
-     `<Router>
-      <div className="app">
-        <header>
-          <h1>${projectName}</h1>
-          <nav>
-            <Link to="/">Inicio</Link>
-            <Link to="/about">Acerca de</Link>
-          </nav>
-        </header>
-        <main>
-          <Routes>
-            <Route path="/" element={
-              <div>
-                <h2>Página de inicio</h2>
-                <p>${description || 'Bienvenido a mi aplicación React'}</p>
-                ${selectedFeatures.includes('state-management') ? 
-                `<div className="counter">
-                  <p>Contador: {count}</p>
-                  <button onClick={() => setCount(count + 1)}>Incrementar</button>
-                </div>` : ''}
-              </div>
-            } />
-            <Route path="/about" element={
-              <div>
-                <h2>Acerca de</h2>
-                <p>Esta es una aplicación React creada con ${projectName}.</p>
-              </div>
-            } />
-          </Routes>
-        </main>
-      </div>
-    </Router>` : 
-    `<div className="app">
-      <header>
-        <h1>${projectName}</h1>
-      </header>
-      <main>
-        <p>${description || 'Bienvenido a mi aplicación React'}</p>
-        ${selectedFeatures.includes('state-management') ? 
-        `<div className="counter">
-          <p>Contador: {count}</p>
-          <button onClick={() => setCount(count + 1)}>Incrementar</button>
-        </div>` : ''}
-      </main>
-    </div>`}
-  );
-}
-
-export default App;`;
-        sendFileToExplorer("src/App", appContent, ".tsx", 1000);
-
-        // App.css file
-        const appCssContent = `.app {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-header {
-  margin-bottom: 20px;
-}
-
-h1 {
-  color: #333;
-}
-
-${selectedFeatures.includes('routing') ? 
-`nav {
-  margin-top: 10px;
-}
-
-nav a {
-  margin-right: 15px;
-  color: #0066cc;
-  text-decoration: none;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}` : ''}
-
-.counter {
-  margin-top: 20px;
-}
-
-button {
-  background-color: #0066cc;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0055aa;
-}`;
-        sendFileToExplorer("src/App", appCssContent, ".css", 1500);
-
-        // index.css file
-        const indexCssContent = `body {
-  margin: 0;
-  padding: 0;
-  background-color: #f5f5f5;
-}
-
-* {
-  box-sizing: border-box;
-}`;
-        sendFileToExplorer("src/index", indexCssContent, ".css", 2000);
-      }
-
-      // Enviar archivos para el template Vue
-      else if (template === "vue") {
-        // index.html file
-        const htmlContent = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${projectName}</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.js"></script>
-</body>
-</html>`;
-        sendFileToExplorer("index", htmlContent, ".html", 0);
-
-        // main.js file
-        const mainJsContent = `import { createApp } from 'vue'
-import App from './App.vue'
-${selectedFeatures.includes('routing') ? "import router from './router'" : ""}
-${selectedFeatures.includes('state-management') ? "import store from './store'" : ""}
-import './assets/main.css'
-
-const app = createApp(App)
-${selectedFeatures.includes('routing') ? "app.use(router)" : ""}
-${selectedFeatures.includes('state-management') ? "app.use(store)" : ""}
-app.mount('#app')`;
-        sendFileToExplorer("src/main", mainJsContent, ".js", 500);
-
-        // App.vue file
-        const appVueContent = `<template>
-  <div class="app">
-    <header>
-      <h1>${projectName}</h1>
-      ${selectedFeatures.includes('routing') ? 
-      `<nav>
-        <router-link to="/">Inicio</router-link> | 
-        <router-link to="/about">Acerca de</router-link>
-      </nav>` : ''}
-    </header>
-
-    ${selectedFeatures.includes('routing') ? `<router-view/>` : 
-    `<main>
-      <p>${description || 'Bienvenido a mi aplicación Vue'}</p>
-      ${selectedFeatures.includes('state-management') ? 
-      `<div class="counter">
-        <p>Contador: {{ count }}</p>
-        <button @click="increment">Incrementar</button>
-      </div>` : ''}
-    </main>`}
-  </div>
-</template>
-
-<script>
-export default {
-  name: 'App',
-  ${selectedFeatures.includes('state-management') && !selectedFeatures.includes('routing') ? 
-  `data() {
-    return {
-      count: 0
-    }
-  },
-  methods: {
-    increment() {
-      this.count++
-    }
-  }` : ''}
-}
-</script>
-
-<style scoped>
-${selectedFeatures.includes('routing') ? 
-`nav {
-  margin: 20px 0;
-}
-
-a {
-  color: #42b983;
-  text-decoration: none;
-  margin: 0 10px;
-}` : ''}
-
-.counter {
-  margin-top: 20px;
-}
-
-button {
-  background-color: #42b983;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-</style>
-</template>`;
-        sendFileToExplorer("src/App", appVueContent, ".vue", 1000);
-
-        // Si incluye routing, crear los componentes de página
-        if (selectedFeatures.includes('routing')) {
-          // Home.vue
-          const homeVueContent = `<template>
-  <div>
-    <h2>Página de inicio</h2>
-    <p>${description || 'Bienvenido a mi aplicación Vue'}</p>
-    ${selectedFeatures.includes('state-management') ? 
-    `<div class="counter">
-      <p>Contador: {{ $store.state.count }}</p>
-      <button @click="$store.commit('increment')">Incrementar</button>
-    </div>` : ''}
-  </div>
-</template>
-
-<script>
-export default {
-  name: 'HomePage'
-}
-</script>`;
-          sendFileToExplorer("src/components/Home", homeVueContent, ".vue", 1500);
-
-          // About.vue
-          const aboutVueContent = `<template>
-  <div>
-    <h2>Acerca de</h2>
-    <p>Esta es una aplicación Vue creada con ${projectName}.</p>
-  </div>
-</template>
-
-<script>
-export default {
-  name: 'AboutPage'
-}
-</script>`;
-          sendFileToExplorer("src/components/About", aboutVueContent, ".vue", 2000);
-
-          // router.js
-          const routerJsContent = `import { createRouter, createWebHistory } from 'vue-router'
-import Home from './components/Home.vue'
-import About from './components/About.vue'
-
-const routes = [
-  {
-    path: '/',
-    name: 'Home',
-    component: Home
-  },
-  {
-    path: '/about',
-    name: 'About',
-    component: About
-  }
-]
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
-
-export default router`;
-          sendFileToExplorer("src/router", routerJsContent, ".js", 2500);
-        }
-
-        // Si incluye state management, crear store
-        if (selectedFeatures.includes('state-management')) {
-          const storeJsContent = `import { createStore } from 'vuex'
-
-export default createStore({
-  state() {
-    return {
-      count: 0
-    }
-  },
-  mutations: {
-    increment(state) {
-      state.count++
-    }
-  },
-  actions: {
-    incrementAsync({ commit }) {
-      setTimeout(() => {
-        commit('increment')
-      }, 1000)
-    }
-  }
-})`;
-          sendFileToExplorer("src/store", storeJsContent, ".js", 3000);
-        }
-
-        // CSS principal
-        const mainCssContent = `body {
-  margin: 0;
-  padding: 0;
-  background-color: #f5f5f5;
-}
-
-* {
-  box-sizing: border-box;
-}`;
-        sendFileToExplorer("src/assets/main", mainCssContent, ".css", 3500);
-      }
-
-      // Enviar archivos para el template Node.js
-      else if (template === "node") {
-        // index.js file
-        const indexJsContent = `const express = require('express');
-const app = express();
-const port = process.env.PORT || 3000;
-${selectedFeatures.includes('database') ? "const mongoose = require('mongoose');" : ""}
-${selectedFeatures.includes('authentication') ? "const jwt = require('jsonwebtoken');" : ""}
-
-// Middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-${selectedFeatures.includes('authentication') ? 
-`
-// Middleware de autenticación
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-
-  jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
-    if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
-    req.user = user;
-    next();
-  });
-};` : ''}
-
-${selectedFeatures.includes('database') ? 
-`
-// Conexión a MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName.toLowerCase().replace(/\s+/g, '_')}')
-  .then(() => console.log('Conectado a MongoDB'))
-  .catch(err => console.error('Error de conexión a MongoDB:', err));` : ''}
-
-// Rutas
-${selectedFeatures.includes('api-endpoints') ? 
-`app.use('/api', require('./src/routes/api'));` : 
-`app.get('/', (req, res) => {
-  res.send('¡Bienvenido a ${projectName}!');
-});`}
-
-// Iniciar servidor
-app.listen(port, () => {
-  console.log(\`Servidor corriendo en http://localhost:\${port}\`);
-});`;
-        sendFileToExplorer("index", indexJsContent, ".js", 0);
-
-        // Si incluye API endpoints, crear rutas
-        if (selectedFeatures.includes('api-endpoints')) {
-          const apiRoutesContent = `const express = require('express');
-const router = express.Router();
-const ${selectedFeatures.includes('authentication') ? 'authMiddleware = require(\'../middlewares/auth\'),' : ''} ${selectedFeatures.includes('database') ? 'itemController = require(\'../controllers/item\')' : 'demoController = require(\'../controllers/demo\')'};
-
-// Rutas públicas
-router.get('/', (req, res) => {
-  res.json({ message: 'API de ${projectName}' });
-});
-
-${selectedFeatures.includes('authentication') ? 
-`// Rutas de autenticación
-router.post('/auth/register', (req, res) => {
-  // Implementar registro
-  res.json({ message: 'Usuario registrado' });
-});
-
-router.post('/auth/login', (req, res) => {
-  // Implementar login
-  const token = jwt.sign({ id: 1 }, process.env.TOKEN_SECRET || 'secret_key', { expiresIn: '1h' });
-  res.json({ token });
-});` : ''}
-
-${selectedFeatures.includes('database') ? 
-`// Rutas de items
-router.get('/items', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.getAll);
-router.get('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.getById);
-router.post('/items', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.create);
-router.put('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.update);
-router.delete('/items/:id', ${selectedFeatures.includes('authentication') ? 'authMiddleware, ' : ''}itemController.delete);` : 
-`// Rutas de demo
-router.get('/demo', demoController.getInfo);`}
-
-module.exports = router;`;
-          sendFileToExplorer("src/routes/api", apiRoutesContent, ".js", 500);
-
-          // Controlador
-          if (selectedFeatures.includes('database')) {
-            const itemControllerContent = `const Item = require('../models/item');
-
-// Controlador de items
-exports.getAll = async (req, res) => {
-  try {
-    const items = await Item.find();
-    res.json(items);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.getById = async (req, res) => {
-  try {
-    const item = await Item.findById(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
-    res.json(item);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.create = async (req, res) => {
-  try {
-    const item = new Item(req.body);
-    const savedItem = await item.save();
-    res.status(201).json(savedItem);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-exports.update = async (req, res) => {
-  try {
-    const item = await Item.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
-    res.json(item);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-exports.delete = async (req, res) => {
-  try {
-    const item = await Item.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Item no encontrado' });
-    res.json({ message: 'Item eliminado' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};`;
-            sendFileToExplorer("src/controllers/item", itemControllerContent, ".js", 1000);
-
-            // Modelo
-            const itemModelContent = `const mongoose = require('mongoose');
-
-const itemSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  price: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-module.exports = mongoose.model('Item', itemSchema);`;
-            sendFileToExplorer("src/models/item", itemModelContent, ".js", 1500);
-          } else {
-            const demoControllerContent = `// Controlador de demo
-exports.getInfo = (req, res) => {
-  res.json({
-    appName: '${projectName}',
-    description: '${description || "Una API Node.js"}',
-    version: '1.0.0',
-    endpoints: [
-      { method: 'GET', path: '/api', description: 'Información de la API' },
-      { method: 'GET', path: '/api/demo', description: 'Información de demostración' }
-    ]
-  });
-};`;
-            sendFileToExplorer("src/controllers/demo", demoControllerContent, ".js", 1000);
-          }
-
-          // Middleware de autenticación
-          if (selectedFeatures.includes('authentication')) {
-            const authMiddlewareContent = `const jwt = require('jsonwebtoken');
-
-module.exports = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-
-  jwt.verify(token, process.env.TOKEN_SECRET || 'secret_key', (err, user) => {
-    if (err) return res.status(403).json({ message: 'Token inválido o expirado' });
-    req.user = user;
-    next();
-  });
-};`;
-            sendFileToExplorer("src/middlewares/auth", authMiddlewareContent, ".js", 2000);
-          }
-        }
-
-        // package.json
-        const packageJsonContent = `{
-  "name": "${projectName.toLowerCase().replace(/\s+/g, '-')}",
-  "version": "1.0.0",
-  "description": "${description || 'Aplicación Node.js'}",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \\"Error: no test specified\\" && exit 1"
-  },
-  "keywords": [],
-  "author":"",
-  "license": "ISC",
-  "dependencies": {
-    "express": "^4.18.2"${selectedFeatures.includes('database') ? ',\n    "mongoose": "^7.0.0"' : ''}${selectedFeatures.includes('authentication') ? ',\n    "jsonwebtoken": "^9.0.0",\n    "bcrypt": "^5.1.0"' : ''}
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.22"
-  }
-}`;
-        sendFileToExplorer("package", packageJsonContent, ".json", 2500);
-      }
-
-      // Enviar archivos para el template Python
-      else if (template === "python") {
-        // app.py file
-        const appPyContent = `from flask import Flask, jsonify, request
+        const mainPyContent = `from flask import Flask, jsonify, request
 ${selectedFeatures.includes('database') ? "from flask_sqlalchemy import SQLAlchemy\nfrom flask_migrate import Migrate" : ""}
 ${selectedFeatures.includes('authentication') ? "from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity" : ""}
 import os
@@ -1953,7 +1136,7 @@ def delete_item(item_id):
 if __name__ == '__main__':
     ${selectedFeatures.includes('database') ? "with app.app_context():\n        db.create_all()" : ""}
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))`;
-        sendFileToExplorer("app", appPyContent, ".py", 0);
+        sendFileToExplorer("app", mainPyContent, ".py", 0);
 
         // requirements.txt
         const requirementsTxtContent = `flask==2.3.2
@@ -1966,7 +1149,7 @@ gunicorn==20.1.0`;
       // Enviar evento general para actualizar explorador de archivos
       setTimeout(() => {
         const refreshEvent = new CustomEvent('refresh-files', {
-          detail: { 
+          detail: {
             projectId: newProject.id,
             forceRefresh: true
           }
@@ -2099,7 +1282,7 @@ gunicorn==20.1.0`;
 
             <div>
               <Label htmlFor="template" className="text-sm font-medium">Plantilla</Label>
-              <Select value={template} onValueChange={(value) => { setTemplate(value); setSelectedFeatures([]); }} disabled={isSubmitting}>
+              <Select value={template} onValueChange={(value) => { setTemplate(value); setSelectedFeatures([]); setSelectedAgents([]); }} disabled={isSubmitting}>
                 <SelectTrigger id="template" className="mt-1.5">
                   <SelectValue placeholder="Selecciona una plantilla" />
                 </SelectTrigger>
@@ -2157,14 +1340,41 @@ gunicorn==20.1.0`;
 
                 {usingGptAssistant && (
                   <div className="ml-6 border-l-2 pl-3 border-primary/30 dark:border-primary/20">
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
                       El asistente generará archivos adaptados a las características seleccionadas y la descripción del proyecto que has proporcionado.
                     </p>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Agentes especializados</Label>
+                      {availableAgents.map((agent) => (
+                        <div key={agent.name} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`agent-${agent.name}`}
+                            checked={selectedAgents.includes(agent.name)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedAgents(prev => [...prev, agent.name]);
+                              } else {
+                                setSelectedAgents(prev => prev.filter(name => name !== agent.name));
+                              }
+                            }}
+                            disabled={isGeneratingFiles}
+                          />
+                          <label
+                            htmlFor={`agent-${agent.name}`}
+                            className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                          >
+                            <div>{agent.description}</div>
+                            <div className="text-xs text-slate-500">{agent.name}</div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                     {!showGeneratedFiles ? (
-                      <Button 
-                        type="button" 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
                         className="mt-2 text-xs"
                         onClick={generateFilesWithGPT}
                         disabled={isSubmitting || isGeneratingFiles}
@@ -2223,8 +1433,8 @@ gunicorn==20.1.0`;
                                     checked={file.selected}
                                     onCheckedChange={() => toggleFileSelection(index)}
                                   />
-                                  <label 
-                                    htmlFor={`file-${index}`} 
+                                  <label
+                                    htmlFor={`file-${index}`}
                                     className="flex items-center flex-1 cursor-pointer text-sm"
                                   >
                                     <i className={`ri-file-code-line text-${getLanguageIcon(file.extension.replace('.', ''))}-500 mr-2`}></i>
