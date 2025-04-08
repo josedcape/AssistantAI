@@ -904,9 +904,8 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // Función para procesar imágenes cargadas
   const processImageFile = (file: File, fileName: string) => {
     // Comprobar que sea un archivo de imagen
-    if (!file.type.[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('startsWith('image/')) {
-      toast({
+    if (!file.type.startsWith('image/')) {[\s\S]*?```)/g).map((part, index) => {
+                            if (part.startsWith('```') && part.endsWith('toast({
         title: "Error de formato",
         description: "El archivo no es una imagen válida",
         variant: "destructive",
