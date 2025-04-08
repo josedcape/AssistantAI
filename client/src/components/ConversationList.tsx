@@ -32,6 +32,10 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
   const [searchTerm, setSearchTerm] = useState("");
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
+  const handleDelete = (id: string) => {
+    setConversationToDelete(id);
+  };
+
   useEffect(() => {
     const loadConversations = () => {
       const convs = getConversations();
@@ -124,6 +128,14 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
                       {new Date(conv.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleDelete(conv.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

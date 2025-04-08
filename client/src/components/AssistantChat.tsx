@@ -66,7 +66,7 @@ interface Package {
 const AssistantChat: React.FC = () => {
   // Inicializar toast
   const { toast } = useToast();
-  
+
   // Estado para chat visible/oculto
   const [isChatVisible, setIsChatVisible] = useState(true);
 
@@ -344,11 +344,11 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const confirmDeleteConversation = async () => {
     if (!confirmDelete) return;
-    
+
     try {
       deleteConversation(confirmDelete);
       localStorage.removeItem(`messages_${confirmDelete}`);
-      
+
       const updatedConversations = conversations.filter((conv) => conv.id !== confirmDelete);
       setConversations(updatedConversations);
       localStorage.setItem('conversations', JSON.stringify(updatedConversations));
@@ -363,7 +363,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
         description: "La conversación ha sido eliminada correctamente",
         duration: 2000
       });
-      
+
       // Cerrar el diálogo y limpiar el estado
       setConfirmDelete(null);
       if (conversations.length === 1) {
@@ -910,7 +910,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
           if (width > maxWidth) {
             const ratio = maxWidth / width;
             width = maxWidth;
-            height = height * ratio;
+            height = height* ratio;
           }
 
           // Crear canvas para la compresión
@@ -1290,10 +1290,18 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
             <Button
               variant="ghost"
               size="icon"
-              className="mr-2"
+              className="mr-2 md:hidden"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              {sidebarOpen ? <PanelLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mr-2 hidden md:flex"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <PanelLeft className={`h-5 w-5 transform transition-transform ${!sidebarOpen ? 'rotate-180' : ''}`} />
             </Button>
 
             <div className="flex items-center space-x-2">
@@ -1416,22 +1424,22 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
             <div className="space-y-4">
               {isChatVisible && messages.map((message, index) => (
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => {
-                          navigator.clipboard.writeText(message.content);
-                          toast({
-                            title: "Copiado",
-                            description: "Mensaje copiado al portapapeles",
-                            duration: 2000
-                          });
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                  <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        navigator.clipboard.writeText(message.content);
+                        toast({
+                          title: "Copiado",
+                          description: "Mensaje copiado al portapapeles",
+                          duration: 2000
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                     <div className="flex items-center space-x-2 mb-1">
                       <Badge variant={message.role === 'user' ? 'primary' : 'secondary'}>
                         {message.role === 'user' ? 'Usuario' : message.role === 'assistant' ? 'Asistente' : 'Sistema'}
