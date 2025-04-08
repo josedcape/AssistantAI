@@ -1900,4 +1900,4 @@ let height = img.height;
   );
 };
 
-export default AssistantChat;  
+export default AssistantChat;

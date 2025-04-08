@@ -97,6 +97,23 @@
 
 .animate-magic-reveal {
   animation: magicReveal 0.6s ease-out forwards;
+
+/* Estilos para el botón flotante arrastrable */
+.floating-button-drag {
+  transition: transform 0.2s ease;
+}
+
+.floating-button-drag:active {
+  transform: scale(1.1);
+}
+
+/* Mejorar el scroll en dispositivos móviles */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
 }
 
 .animate-magic-text {
