@@ -20,9 +20,27 @@ export function Terminal({ className, onCommandExecuted }: TerminalProps) {
       setIsProcessing(true);
       const response = await apiRequest('POST', '/api/execute/command', { command: cmd });
       const result = await response.json();
-      setHistory(prev => [...prev, `$ ${cmd}`, result.output || 'Command executed']);
+
+      // Agregar el comando y su salida al historial
+      setHistory(prev => [
+        ...prev, 
+        `$ ${cmd}`,
+        ...(result.output || 'Comando ejecutado').split('\n')
+      ]);
+
+      // Hacer scroll al final
+      if (terminalRef.current) {
+        terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+      }
+
+      return true;
     } catch (error) {
-      setHistory(prev => [...prev, `$ ${cmd}`, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+      setHistory(prev => [
+        ...prev, 
+        `$ ${cmd}`, 
+        `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`
+      ]);
+      return false;
     } finally {
       setIsProcessing(false);
     }

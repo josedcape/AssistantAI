@@ -907,7 +907,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
           let width = img.width;
 let height = img.height;
 
-          if (width > maxWidth) {
+          if (width >maxWidth) {
             const ratio = maxWidth / width;
             width = maxWidth;
             height = height* ratio;
@@ -1445,23 +1445,25 @@ let height = img.height;
               {isChatVisible && messages.map((message, index) => (
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
-                    {message.role === 'user' && message.content.startsWith('mkdir ') && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => executeInTerminal(message.content)}
-                            >
-                              <Terminal className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Ejecutar en terminal</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                    {message.role === 'user' && (
+  message.content.match(/^(cd|mkdir|npm|install|ls|git|node|rm|cp|mv)\s/) && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={() => executeInTerminal(message.content)}
+          >
+            <Terminal className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Ejecutar en terminal</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+)}
                     <Button
                       size="icon"
                       variant="ghost"
