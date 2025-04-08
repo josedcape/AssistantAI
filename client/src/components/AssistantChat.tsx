@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Mic, MicOff, Send, Save, Copy, Check,
-  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload
+  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload,
+  Menu, X, Package, Code, Share2, Download, History, Plus, Trash2, Info
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import * as sounds from "@/lib/sounds"; //Import sounds module
@@ -29,9 +30,15 @@ import {
   getActiveConversation,
   generateConversationId,
   generateConversationTitle,
+  getConversations,
+  deleteConversation,
   Conversation,
   Message as ConversationMessage
 } from "@/lib/conversationStorage";
+import { Input } from "@/components/ui/input";
+import Terminal from './Terminal'; // Added import for Terminal component
+import CodeBlock from './CodeBlock'; // Added import for CodeBlock component
+
 
 // Tipos para mensajes y paquetes
 interface Message {
@@ -63,7 +70,7 @@ const AssistantChat: React.FC = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [modelId, setModelId] = useState("gpt-3.5-turbo");
+  const [modelId, setModelId] = useState("gpt-4o");
   const [isListening, setIsListening] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -71,12 +78,24 @@ const AssistantChat: React.FC = () => {
   const [pendingPackages, setPendingPackages] = useState<Package[]>([]);
   const [showPackageDialog, setShowPackageDialog] = useState(false);
   const [isInstallingPackage, setIsInstallingPackage] = useState(false);
+  const [detectedPackages, setDetectedPackages] = useState<string[]>([]);
+  const [scrollToBottom, setScrollToBottom] = useState(true);
+  const [fileUploadModalOpen, setFileUploadModalOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // Estado para conversaciones
+
+  // Estados para gestión de conversaciones
+  const [conversations, setConversations] = useState<Array<{id: string; title: string; date: string}>>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [showConversations, setShowConversations] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedStatus, setSavedStatus] = useState<'unsaved' | 'saving' | 'saved'>('unsaved');
+  const [savedStatus, setSavedStatus] = useState<'saved' | 'saving' | 'unsaved'>('unsaved');
+  const [newConversationTitle, setNewConversationTitle] = useState("");
+  const [showConversationDialog, setShowConversationDialog] = useState(false);
+
+  // Estado para gestión de paquetes
+  const [packageInstalling, setPackageInstalling] = useState(false);
+  const [installPackageInput, setInstallPackageInput] = useState("");
+
 
   // Referencias para el reconocimiento de voz
   const recognitionRef = useRef<any>(null);
@@ -143,8 +162,20 @@ const AssistantChat: React.FC = () => {
     };
   }, []);
 
-  // Cargar conversación activa al iniciar
+  // Cargar conversaciones y conversación activa al iniciar
   useEffect(() => {
+    const loadConversations = () => {
+      try {
+        const savedConversations = localStorage.getItem('conversations');
+        if (savedConversations) {
+          setConversations(JSON.parse(savedConversations));
+        }
+      } catch (error) {
+        console.error('Error al cargar conversaciones:', error);
+      }
+    };
+    loadConversations();
+
     const activeConversationId = getActiveConversation();
     if (activeConversationId) {
       // Intentar primero cargar desde localStorage para mejor persistencia
@@ -167,7 +198,7 @@ const AssistantChat: React.FC = () => {
       const conversation = getConversation(activeConversationId);
       if (conversation) {
         setMessages(conversation.messages as Message[]);
-        setModelId(conversation.modelId);
+        setModelId(conversation.modelId || "gpt-4o");
         setCurrentConversationId(activeConversationId);
         setSavedStatus('saved');
       } else {
@@ -176,6 +207,20 @@ const AssistantChat: React.FC = () => {
     } else {
       startNewConversation();
     }
+  }, []);
+
+  // Actualizar la lista de conversaciones cuando cambia el almacenamiento
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const conversations = getConversations();
+      conversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      setAllConversations(conversations);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   // Scroll al último mensaje
@@ -218,69 +263,101 @@ const AssistantChat: React.FC = () => {
     setActiveConversation(null);
     setSavedStatus('unsaved');
     sounds.play("click");
+
+    // Si el panel lateral estaba abierto, cerrarlo
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+    }
   };
 
   // Guardar la conversación actual
-  const saveCurrentConversation = () => {
-    if (messages.length <= 2) {
-      // No guardar si solo tiene los mensajes iniciales
-      return;
-    }
-
-    setIsSaving(true);
-    setSavedStatus('saving');
-
+  const saveCurrentConversation = (title?: string) => {
     try {
-      // Si no hay ID de conversación, crear uno nuevo
-      const conversationId = currentConversationId || generateConversationId();
-      const title = generateConversationTitle(messages);
-      const now = new Date();
+      setSavedStatus('saving');
 
-      const conversation: Conversation = {
+      // Generar ID si es nueva conversación
+      const conversationId = currentConversationId || `conv_${Date.now()}`;
+
+      // Usar título proporcionado o generar uno basado en el primer mensaje
+      const conversationTitle = title ||
+        (messages.length > 0 ?
+          messages[0].content.slice(0, 30) + (messages[0].content.length > 30 ? '...' : '') :
+          `Conversación ${new Date().toLocaleString()}`);
+
+      // Guardar mensajes de la conversación actual
+      localStorage.setItem(`messages_${conversationId}`, JSON.stringify(messages));
+
+      // Actualizar lista de conversaciones
+      const updatedConversations = [...conversations.filter(c => c.id !== conversationId), {
         id: conversationId,
-        title,
-        messages: messages as ConversationMessage[],
-        modelId,
-        createdAt: currentConversationId
-          ? (getConversation(conversationId)?.createdAt || now)
-          : now,
-        updatedAt: now
-      };
+        title: conversationTitle,
+        date: new Date().toISOString()
+      }];
 
-      // Guardar en localStorage para persistencia adicional
-      try {
-        localStorage.setItem(`conversation-${conversationId}`, JSON.stringify({
-          messages,
-          modelId,
-          title,
-          updatedAt: now.toISOString()
-        }));
-      } catch (e) {
-        console.warn("No se pudo guardar en localStorage:", e);
-      }
+      setConversations(updatedConversations);
+      localStorage.setItem('conversations', JSON.stringify(updatedConversations));
 
-      saveConversation(conversation);
-      setActiveConversation(conversationId);
+      // Actualizar ID de conversación actual
       setCurrentConversationId(conversationId);
       setSavedStatus('saved');
-      sounds.play("save");
+
+      return conversationId;
     } catch (error) {
-      console.error("Error guardando conversación:", error);
-    } finally {
-      setIsSaving(false);
+      console.error('Error al guardar conversación:', error);
+      setSavedStatus('unsaved');
+      return null;
     }
   };
 
   // Cargar una conversación guardada
-  const loadConversation = (conversation: Conversation) => {
-    setMessages(conversation.messages as Message[]);
-    setModelId(conversation.modelId);
-    setCurrentConversationId(conversation.id);
-    setActiveConversation(conversation.id);
-    setShowConversations(false);
-    setSavedStatus('saved');
-    sounds.play("notification");
+  const loadConversation = (conversationId: string) => {
+    try {
+      const savedMessages = localStorage.getItem(`messages_${conversationId}`);
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+        setCurrentConversationId(conversationId);
+        setSavedStatus('saved');
+      }
+    } catch (error) {
+      console.error('Error al cargar conversación:', error);
+    }
   };
+
+  // Eliminar una conversación
+  const handleDeleteConversation = (id: string) => {
+    try {
+      deleteConversation(id);
+
+      // Eliminar también de localStorage
+      localStorage.removeItem(`messages_${id}`);
+
+      // Actualizar la lista
+      const updatedConversations = conversations.filter((conv) => conv.id !== id);
+      setConversations(updatedConversations);
+      localStorage.setItem('conversations', JSON.stringify(updatedConversations));
+
+      // Si la conversación activa es la eliminada, crear una nueva
+      if (currentConversationId === id) {
+        startNewConversation();
+      }
+
+      sounds.play("click");
+      toast({
+        title: "Conversación eliminada",
+        description: "La conversación ha sido eliminada correctamente",
+        duration: 2000
+      });
+    } catch (error) {
+      console.error("Error al eliminar conversación:", error);
+      toast({
+        title: "Error al eliminar",
+        description: "No se pudo eliminar la conversación",
+        variant: "destructive",
+        duration: 3000
+      });
+    }
+  };
+
 
   // Función para enviar mensajes
   const handleSendMessage = async () => {
@@ -338,6 +415,17 @@ const AssistantChat: React.FC = () => {
       if (packages.length > 0) {
         setPendingPackages(packages);
         setShowPackageDialog(true);
+
+        // Agregar un indicador visual en la interfaz
+        setTimeout(() => {
+          const packageIndicator = document.getElementById('package-indicator');
+          if (packageIndicator) {
+            packageIndicator.className = 'animate-pulse';
+            setTimeout(() => {
+              packageIndicator.className = '';
+            }, 3000);
+          }
+        }, 500);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -361,6 +449,31 @@ const AssistantChat: React.FC = () => {
       sounds.play("error");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Manejar cambio de modelo
+  const handleModelChange = (newModelId: string) => {
+    setModelId(newModelId);
+    // Guardar la preferencia del usuario
+    try {
+      localStorage.setItem('preferred-model', newModelId);
+      console.log(`Modelo cambiado a: ${newModelId}`);
+
+      // Añadir mensaje informativo
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## 🔄 Modelo de lenguaje actualizado\n\nAhora estás usando el modelo **${newModelId}**. Las nuevas respuestas utilizarán este modelo.`
+        }
+      ]);
+
+      // Actualizar el estado de guardado
+      setSavedStatus('unsaved');
+
+    } catch (error) {
+      console.error("Error al guardar preferencia de modelo:", error);
     }
   };
 
@@ -390,45 +503,108 @@ const AssistantChat: React.FC = () => {
 
   // Detectar paquetes mencionados en el mensaje
   const detectPackages = (content: string) => {
-    // Expresión regular para detectar comandos de instalación
-    const installCommandRegex = /```(?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
-    let match;
+    // Lista de paquetes detectados para no duplicar
+    const detectedPackageNames = new Set<string>();
     const suggestedPackages: { name: string; isDev: boolean; description: string }[] = [];
 
-    while ((match = installCommandRegex.exec(content)) !== null) {
-      const installCommand = match[1].trim();
+    // 1. Detectar comandos de instalación en bloques de código
+    try {
+      // Expresión regular para detectar comandos de instalación en bloques de código
+      const installCommandRegex = /```(?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
+      let match;
 
-      // Extraer paquetes del comando
-      if (installCommand.includes('npm install') || installCommand.includes('npm add')) {
-        const parts = installCommand.split(/\s+/);
-        const devFlag = parts.includes('--save-dev') || parts.includes('-D');
+      const contentStr = String(content); // Asegurar que es string
+      while ((match = installCommandRegex.exec(contentStr)) !== null) {
+        const installCommand = match[1].trim();
 
-        // Obtener nombres de paquetes
-        for (let i = 2; i < parts.length; i++) {
-          const part = parts[i];
-          if (!part.startsWith('-') && part !== 'install' && part !== 'add' && part !== '--save-dev' && part !== '-D') {
+        // Extraer paquetes del comando
+        if (installCommand.includes('npm install') || installCommand.includes('npm add') ||
+            installCommand.includes('yarn add') || installCommand.includes('pnpm add')) {
+          const parts = installCommand.split(/\s+/);
+          const devFlag = parts.includes('--save-dev') || parts.includes('-D');
+
+          // Obtener nombres de paquetes
+          for (let i = 2; i < parts.length; i++) {
+            const part = parts[i];
+            if (!part.startsWith('-') && part !== 'install' && part !== 'add' &&
+                part !== '--save-dev' && part !== '-D' && part !== '--dev') {
+              // Normalizar nombre del paquete (quitar versiones @x.x.x si existen)
+              const packageName = part.split('@')[0];
+
+              if (!detectedPackageNames.has(packageName)) {
+                detectedPackageNames.add(packageName);
+                suggestedPackages.push({
+                  name: packageName,
+                  isDev: devFlag,
+                  description: 'Detectado en comando de instalación'
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error al detectar comandos de instalación:", error);
+    }
+
+    // 2. Buscar recomendaciones textuales de paquetes
+    try {
+      // Expresiones para detectar recomendaciones textuales
+      const packagePatterns = [
+        /debes?\s+instalar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi,
+        /puedes?\s+usar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi,
+        /instala\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi,
+        /recomiendo\s+(?:usar|instalar)\s+[`"']([^`"']+)[`"']/gi,
+        /necesitas\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi
+      ];
+
+      for (const pattern of packagePatterns) {
+        let packageMatch;
+        const contentStr = String(content);
+        while ((packageMatch = pattern.exec(contentStr)) !== null) {
+          const packageName = packageMatch[1].trim().split('@')[0]; // Normalizar
+
+          if (!detectedPackageNames.has(packageName)) {
+            detectedPackageNames.add(packageName);
             suggestedPackages.push({
-              name: part,
-              isDev: devFlag,
-              description: 'Sugerido por asistente'
+              name: packageName,
+              isDev: false,
+              description: 'Recomendado en la respuesta'
             });
           }
         }
       }
+    } catch (error) {
+      console.error("Error al detectar menciones de paquetes:", error);
     }
 
-    // Buscar paquetes mencionados con formato específico
-    const packageSuggestionRegex = /debes?\s+instalar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi;
-    const codeBlockRegex = /```[^\n]*\n([\s\S]*?)```/g;
+    // 3. Buscar paquetes en etiquetas especiales (para procesamiento futuro)
+    try {
+      const packageTagRegex = /<package\s+name=['"](.*?)['"]\s+(?:is_dev=['"](.*?)['"]\s+)?(?:description=['"](.*?)['"])?.*?\/>/g;
+      let packageTagMatch;
 
-    let packageMatch;
-    while ((packageMatch = packageSuggestionRegex.exec(content)) !== null) {
-      suggestedPackages.push({
-        name: packageMatch[1].trim(),
-        isDev: false,
-        description: 'Mencionado en la respuesta'
-      });
+      const contentStr = String(content);
+      while ((packageTagMatch = packageTagRegex.exec(contentStr)) !== null) {
+        const packageName = packageTagMatch[1].trim().split('@')[0];
+        const isDev = packageTagMatch[2]?.toLowerCase() === 'true';
+        const description = packageTagMatch[3] || 'Paquete indicado específicamente';
+
+        if (!detectedPackageNames.has(packageName)) {
+          detectedPackageNames.add(packageName);
+          suggestedPackages.push({
+            name: packageName,
+            isDev: isDev,
+            description: description
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error al detectar etiquetas de paquetes:", error);
     }
+
+    // Actualizar la lista de paquetes detectados para mostrar en la interfaz
+    setDetectedPackages(Array.from(detectedPackageNames));
+
     return suggestedPackages;
   };
 
@@ -439,7 +615,6 @@ const AssistantChat: React.FC = () => {
     let savedCount = 0;
     let firstSavedFilePath = "";
     let savedFiles: {name: string, content: string, extension: string}[] = [];
-
     // Extraer todos los bloques de código
     const codeBlocks: { language: string, code: string }[] = [];
     while ((match = codeBlockRegex.exec(content)) !== null) {
@@ -567,7 +742,6 @@ const AssistantChat: React.FC = () => {
         detail: { forceRefresh: true }
       });
       window.dispatchEvent(fileEvent);
-
       // Buscar y actualizar el explorador de archivos si existe
       setTimeout(() => {
         const fileExplorer = document.querySelector('[data-component="file-explorer"]');
@@ -594,7 +768,6 @@ const AssistantChat: React.FC = () => {
           detail: { force: true }
         });
         window.dispatchEvent(refreshEvent);
-
         // Agregar listener para el botón de enviar al explorador
         setTimeout(() => {
           const sendToExplorerButton = document.getElementById('send-to-explorer');
@@ -677,6 +850,142 @@ const AssistantChat: React.FC = () => {
     return codes;
   };
 
+  // Función para procesar imágenes cargadas
+  const processImageFile = (file: File, fileName: string) => {
+    // Comprobar que sea un archivo de imagen
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error de formato",
+        description: "El archivo no es una imagen válida",
+        variant: "destructive",
+        duration: 3000
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Preparar mensaje para mostrar al usuario
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: `He cargado una imagen llamada "${fileName}" para análisis.`
+      }
+    ]);
+
+    // Función para comprimir imagen
+    const compressImage = (imgBase64: string, maxWidth = 1200): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = imgBase64;
+
+        img.onload = () => {
+          // Calcular nuevas dimensiones manteniendo proporción
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            const ratio = maxWidth / width;
+            width = maxWidth;
+            height = height * ratio;
+          }
+
+          // Crear canvas para la compresión
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          // Dibujar imagen redimensionada en el canvas
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("No se pudo crear el contexto del canvas"));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Obtener imagen comprimida (ajustar calidad según necesidad)
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+
+        img.onerror = () => {
+          reject(new Error("Error al cargar la imagen para compresión"));
+        };
+      });
+    };
+    // Enviar la imagen para análisis (base64)
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64Image = e.target?.result as string;
+        if (!base64Image) {
+          throw new Error("No se pudo leer la imagen");
+        }
+
+        // Comprimir imagen si es grande (>1MB)
+        let processedImage = base64Image;
+        if (file.size > 1024 * 1024) {
+          toast({
+            title: "Procesando imagen",
+            description: "Comprimiendo imagen para análisis...",
+            duration: 3000
+          });
+          processedImage = await compressImage(base64Image);
+        }
+
+        // Obtener solo la parte base64 sin el prefijo
+        const base64Data = processedImage.split(',')[1];
+
+        // Enviar la imagen al servidor para análisis
+        const response = await fetch("/api/assistant-chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: `Analiza esta imagen: ${fileName}`,
+            modelId: modelId,
+            history: messages,
+            image: base64Data,
+            projectId: null
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al analizar la imagen: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.message || "No pude analizar la imagen correctamente."
+          }
+        ]);
+        sounds.play("notification");
+
+      } catch (error) {
+        console.error("Error al procesar la imagen:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta con otra imagen de menor tamaño o con un formato diferente.*`
+          }
+        ]);
+        sounds.play("error");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Leer la imagen como base64
+    reader.readAsDataURL(file);
+  };
+
   // Función para resaltar emojis en el contenido y agregar automáticamente emojis a puntos importantes
   const enhanceContentWithEmojis = (content: string) => {
     // Reemplazar etiquetas de emoji existentes
@@ -739,7 +1048,7 @@ const AssistantChat: React.FC = () => {
     // Añadir emojis en los puntos importantes (títulos, listas, etc.)
     enhancedContent = enhancedContent
       // Títulos con emojis
-      .replace(/^(#{1,3})\s+(.+)\$/gm, (_, hashes, title) => {
+      .replace(/^(#{1,3})\s+(.+)\\$/gm, (_, hashes, title) => {
         if (title.includes("importante") || title.includes("atención"))
           return `${hashes} 🚨 ${title}`;
         if (title.includes("nota") || title.includes("recuerda"))
@@ -757,7 +1066,7 @@ const AssistantChat: React.FC = () => {
         return `${hashes} ✨ ${title}`;
       })
       // Elementos de lista con emojis
-      .replace(/^(\s*[-*+])\s+(.+)\$/gm, (_, bullet, item) => {
+      .replace(/^(\s*[-*+])\s+(.+)\\$/gm, (_, bullet, item) => {
         if (item.includes("importante") || item.includes("clave"))
           return `${bullet} 🔑 ${item}`;
         if (item.includes("ejemplo") || item.includes("muestra"))
@@ -769,7 +1078,7 @@ const AssistantChat: React.FC = () => {
         return `${bullet} • ${item}`;
       })
       // Líneas numeradas con emojis
-      .replace(/^(\s*\d+\.)\s+(.+)\$/gm, (_, number, item) => {
+      .replace(/^(\s*\d+\.)\s+(.+)\\$/gm, (_, number, item) => {
         if (item.includes("paso") || item.includes("etapa"))
           return `${number} 🔄 ${item}`;
         if (item.includes("primero") || item.includes("inicial"))
@@ -783,413 +1092,261 @@ const AssistantChat: React.FC = () => {
   };
 
   // Instalar paquete desde comando con actualización automática
-  const installPackageFromCommand = async (packageName: string, isDev: boolean, category?: string) => {
-    setIsInstallingPackage(true);
+  const handlePackageInstall = async () => {
+    if (!installPackageInput.trim()) return;
+
+    setPackageInstalling(true);
     try {
-      const response = await fetch("/api/packages/install", {
-        method: "POST",
+      const response = await fetch('/api/packages/install', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          packageName,
-          isDev,
+          packageName: installPackageInput.trim()
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Error al instalar el paquete");
-      }
-
       const result = await response.json();
-      const lastMessage = messages[messages.length - 1];
 
-      // Extract description from the response text or context
-      const getPackageDescription = (packageName: string, responseText: string) => {
-        // Try to find a description in the response text
-        const descriptionRegex = new RegExp(`${packageName}[^.]*(?:se usa para|permite|es una|(?:es|sirve) para|librería para|biblioteca para|framework para)[^.]*\\.`, 'i');
-        const match = responseText.match(descriptionRegex);
-
-        if (match) {
-          return match[0].trim();
-        }
-
-        // Default descriptions for some common packages
-        const packageDescriptions: Record<string, string> = {
-          "react": "Biblioteca para construir interfaces de usuario",
-          "express": "Framework web para Node.js",
-          "axios": "Cliente HTTP basado en promesas",
-          "lodash": "Biblioteca de utilidades para JavaScript",
-          "mongoose": "ODM para MongoDB y Node.js",
-          "tailwindcss": "Framework CSS utilitario",
-          "typescript": "Superset tipado de JavaScript",
-          "react-dom": "Renderizador de React para el DOM",
-          "jest": "Framework de testing para JavaScript",
-          "next": "Framework React para aplicaciones web",
-          "vite": "Herramienta de desarrollo frontend",
-          "eslint": "Herramienta de linting para JavaScript",
-          "prisma": "ORM para bases de datos",
-          "redux": "Contenedor de estado predecible",
-          "styled-components": "Biblioteca para CSS-in-JS en React",
-          "react-router-dom": "Enrutamiento para aplicaciones React",
-          "zod": "Validación de esquemas con TypeScript",
-          "date-fns": "Utilidades modernas para fechas en JavaScript",
-          "sass": "Preprocesador CSS con características avanzadas"
-        };
-
-        return packageDescriptions[packageName] || "Instalado a través del asistente";
-      };
-
-      // Determine the category of the package
-      const getPackageCategory = (packageName: string, description: string): string => {
-        // List of categories and associated keywords
-        const categories: Record<string, string[]> = {
-          "UI/Componentes": ["react", "ui", "component", "interface", "dom", "tailwind", "css", "styled", "material", "chakra", "bootstrap"],
-          "Backend/API": ["express", "server", "api", "http", "rest", "graphql", "router", "middleware", "backend"],
-          "Estado/Datos": ["redux", "state", "store", "context", "recoil", "zustand", "mobx", "query", "data"],
-          "Testing": ["jest", "test", "testing", "cypress", "mocha", "chai", "vitest", "playwright"],
-          "Utilidades": ["util", "lodash", "date", "validator", "helper", "parser", "uuid", "id", "string", "zod"],
-          "Desarrollo": ["dev", "typescript", "babel", "webpack", "eslint", "prettier", "bundler", "compiler", "linter"],
-          "Multimedia": ["image", "video", "audio", "media", "pdf", "canvas", "stream", "file"]
-        };
-
-        const nameLower = packageName.toLowerCase();
-        const descLower = description.toLowerCase();
-
-        // Look for matches in name and description
-        for (const [category, keywords] of Object.entries(categories)) {
-          for (const keyword of keywords) {
-            if (nameLower.includes(keyword) || descLower.includes(keyword)) {
-              return category;
-            }
+      if (result.success) {
+        // Agregar mensaje de éxito a la conversación
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            role: "assistant",
+            content: `El paquete "${result.packageName}" se instaló correctamente.`
           }
-        }
-
-        // If a category is provided, use it
-        if (category) {
-          return category;
-        }
-
-        return "Otros";
-      };
-
-      const packageDescription = getPackageDescription(packageName, lastMessage?.content || "");
-      const packageCategory = getPackageCategory(packageName, packageDescription);
-
-      // Dispatch event for package installation update
-      window.dispatchEvent(new CustomEvent('package-installed', {
-        detail: {
-          name: packageName,
-          version: result.packageDetails?.version || 'latest',
-          isDev: isDev,
-          description: packageDescription,
-          category: packageCategory,
-          timestamp: new Date()
-        }
-      }));
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `## ✅ Instalación Exitosa
-
-          📦 El paquete **\${packageName}** ha sido instalado correctamente.
-
-          *Puntos importantes:*
-          * 🔄 La lista de paquetes se actualiza automáticamente
-          * 📝 Ya puedes utilizar este paquete en tu proyecto
-          * 💻 Versión instalada: \`${result.packageDetails?.version || 'latest'}\`
-          * 🛠️ Tipo: ${isDev ? 'Dependencia de desarrollo' : 'Dependencia de producción'}
-          * 📋 Categoría: ${packageCategory}
-          * 📎 Descripción: \${packageDescription}
-
-          🔍 **Sugerencia:** Puedes ver el historial completo de paquetes instalados en la pestaña "Paquetes" del panel lateral.`,
-        },
-      ]);
-      sounds.play("success");
-
-      // Update the package list after 1 second to give time for package.json to update
-      setTimeout(() => {
-        // Find and update the package explorer if it exists
-        const packageExplorer = document.querySelector('[data-component="package-explorer"]');
-        if (packageExplorer) {
-          const refreshButton = packageExplorer.querySelector('button[title="Actualizar lista de paquetes"]');
-          if (refreshButton) {
-            (refreshButton as HTMLButtonElement).click();
+        ]);
+        // Actualizar la lista de paquetes instalados (si es necesario)
+        setDetectedPackages((prevPackages) => [...prevPackages, result.packageName]);
+        // Ocultar el diálogo
+        setShowPackageDialog(false);
+        // Restablecer el campo de entrada
+        setInstallPackageInput("");
+      } else {
+        // Agregar mensaje de error a la conversación
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            role: "assistant",
+            content: `Hubo un error al instalar el paquete "${result.packageName}": ${result.error}`
           }
-        }
-      }, 1000);
-
+        ]);
+      }
     } catch (error) {
-      console.error("Error al instalar:", error);
+      console.error("Error al instalar el paquete:", error);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `## ⚠️ Error de Instalación
-
-          ❌ Ha ocurrido un problema al instalar **\${packageName}**.
-
-          *Posibles soluciones:*
-          * 🔄 Intenta instalar manualmente con \`npm install ${isDev ? '--save-dev ' : ''}${packageName}\`
-          * 🔍 Verifica que el nombre del paquete sea correcto
-          * 📦 Comprueba si hay problemas de conectividad con el registro de npm`,
+          content: `## ⚠️ Error al instalar el paquete\n\n❌ No se pudo instalar el paquete "${installPackageInput}" debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o instala el paquete manualmente.*`
         },
       ]);
       sounds.play("error");
     } finally {
-      setIsInstallingPackage(false);
+      setPackageInstalling(false);
     }
   };
 
-  // Función para procesar archivos enviados desde el explorador
-  const processFileFromExplorer = useCallback((content: string, fileName: string, message?: string, fileBlob?: Blob) => {
-    // Detectar tipo de archivo basado en la extensión
-    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'txt';
-    
-    // Verificar si es una imagen
-    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
-    
-    if (isImage && fileBlob) {
-      // Procesar como imagen
-      processImageFile(fileBlob, fileName);
-      return;
-    }
-
-    // Crear mensaje con formato adecuado para archivos de texto
-    const messagePrefix = message || `He recibido el archivo "${fileName}" desde el explorador:\n\n\`\`\`\${fileExtension}\n`;
-
-    // Limitar el contenido si es muy grande
-    const maxLength = 15000;
-    const truncatedContent = content.length > maxLength
-      ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
-      : content;
-
-    const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este código.";
-
-    // Enviar automáticamente o preparar en el input según la configuración
-    const autoSend = true; // Podría hacerse configurable
-
-    if (autoSend) {
-      setMessages(prev => [...prev, { role: "user", content: finalMessage }]);
-
-      // Llamar a la API de asistente
-      setIsLoading(true);
-      fetch("/api/assistant-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: finalMessage,
-          modelId,
-          history: messages,
-          projectId: null
-        }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          const assistantMessage = data.message;
-          if (assistantMessage) {
-            setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
-            sounds.play("notification");
-          }
-        })
-        .catch(error => {
-          console.error("Error procesando archivo:", error);
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: `## ⚠️ Error al procesar el archivo\n\nHa ocurrido un error al analizar el archivo ${fileName}. Por favor, intenta nuevamente o proporciona un archivo más pequeño.`
-          }]);
-          sounds.play("error");
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      // Colocar en el input para que el usuario pueda editar antes de enviar
-      setInput(finalMessage);
-    }
-  }, [messages, modelId]);
-  
-  // Función para procesar imágenes
-  const processImageFile = async (imageBlob: Blob, fileName: string) => {
-    try {
-      setIsLoading(true);
-      
-      // Convertir la imagen a base64
-      const reader = new FileReader();
-      reader.readAsDataURL(imageBlob);
-      
-      reader.onload = async () => {
-        const base64Image = reader.result as string;
-        
-        // Crear un mensaje de usuario con la imagen
-        const userMessage = `Analiza esta imagen "${fileName}":\n![${fileName}](${base64Image})`;
-        
-        // Añadir el mensaje del usuario con la imagen
-        setMessages(prev => [...prev, { role: "user", content: userMessage }]);
-        
-        // Enviar la solicitud al backend para procesar la imagen
-        try {
-          const response = await fetch("/api/assistant-chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: `Analiza esta imagen: ${fileName}`,
-              modelId,
-              history: messages,
-              projectId: null,
-              image: base64Image
-            }),
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Error al procesar la imagen: ${response.statusText}`);
-          }
-          
-          const data = await response.json();
-          if (data.message) {
-            setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
-            sounds.play("notification");
-          }
-        } catch (error) {
-          console.error("Error procesando imagen:", error);
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: `## ⚠️ Error al analizar la imagen\n\nNo se pudo procesar la imagen ${fileName}. ${error instanceof Error ? error.message : "Error desconocido"}.`
-          }]);
-          sounds.play("error");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-      reader.onerror = () => {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: `## ⚠️ Error al leer la imagen\n\nNo se pudo leer el archivo ${fileName}.`
-        }]);
-        sounds.play("error");
-      };
-    } catch (error) {
-      setIsLoading(false);
-      console.error("Error al procesar la imagen:", error);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: `## ⚠️ Error al procesar la imagen\n\nHa ocurrido un error al procesar la imagen ${fileName}.`
-      }]);
-      sounds.play("error");
-    }
-  };
-
-  // Efecto para escuchar eventos del explorador de archivos
   useEffect(() => {
-    const handleFileToAssistant = (e: CustomEvent) => {
-      if (e.detail && e.detail.fileName) {
-        // Verificar si es una imagen enviada como Blob
-        if (e.detail.fileBlob && e.detail.isImage) {
-          processFileFromExplorer("", e.detail.fileName, e.detail.message, e.detail.fileBlob);
-        } 
-        // Archivo de texto normal con contenido como texto
-        else if (e.detail.content) {
-          processFileFromExplorer(e.detail.content, e.detail.fileName, e.detail.message);
-        }
-      }
-    };
+    if (scrollToBottom && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, scrollToBottom]);
 
-    window.addEventListener('sendToAssistant', handleFileToAssistant as EventListener);
-    return () => {
-      window.removeEventListener('sendToAssistant', handleFileToAssistant as EventListener);
-    };
-  }, [processFileFromExplorer]);
+  // Actualizar estado cuando se modifican los mensajes
+  useEffect(() => {
+    if (currentConversationId && messages.length > 0) {
+      setSavedStatus('unsaved');
+    }
+  }, [messages]);
 
   return (
-    <div className="flex h-full border rounded-lg overflow-hidden bg-background">
-      {/* Panel lateral de conversaciones (visible/oculto según estado) */}
-      {showConversations && (
-        <div className="w-64 border-r">
-          <ConversationList
-            onSelect={loadConversation}
-            onNew={startNewConversation}
-            activeConversationId={currentConversationId}
-          />
-        </div>
-      )}
+    <div className="flex h-full">
+      {/* Panel lateral de conversaciones */}
+      <div
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out md:relative ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          }`}
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Conversaciones
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(false)}
+                className="md:hidden"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              onClick={startNewConversation}
+              className="w-full mb-4 mt-2"
+              variant="outline"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva conversación
+            </Button>
+            <div className="relative">
+              {/* Search input removed for brevity */}
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-2">
+            {conversations.length > 0 ? (
+              <ConversationList
+                conversations={conversations}
+                loadConversation={loadConversation}
+                handleDeleteConversation={handleDeleteConversation}
+                currentConversationId={currentConversationId}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4">
+                <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
+                <p className="text-center text-sm">
+                  No hay conversaciones guardadas
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="p-4 border-t">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-500">
+                {currentConversationId ? (
+                  <span>
+                    {savedStatus === 'saved' && (
+                      <span className="flex items-center">
+                        <Check className="h-3 w-3 mr-1 text-green-500" />
+                        Guardado
+                      </span>
+                    )}
+                    {savedStatus === 'saving' && (
+                      <span className="flex items-center">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Guardando...
+                      </span>
+                    )}
+                    {savedStatus === 'unsaved' && (
+                      <span className="flex items-center">
+                        <Save className="h-3 w-3 mr-1 text-amber-500" />
+                        Sin guardar
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <Info className="h-3 w-3 mr-1" />
+                    Nueva conversación
+                  </span>
+                )}
+              </div>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Barra de herramientas de conversación */}
-        <div className="flex items-center justify-between px-4 py-2 border-b">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowConversationDialog(true)}
+                disabled={savedStatus === 'saved' || messages.length <= 2}
+              >
+                <SaveIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Barra superior */}
+        <div className="border-b p-2 flex items-center justify-between">
           <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden mr-2"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+
+            <div className="flex items-center space-x-2">
+              <ModelSelector
+                modelId={modelId}
+                onModelChange={handleModelChange}
+              />
+
+              <Badge
+                variant="outline"
+                className="hidden md:flex px-2 py-0 h-7 items-center"
+              >
+                {currentConversationId ? (
+                  <span className="flex items-center">
+                    {savedStatus === 'saved' && (
+                      <>
+                        <Check className="h-3 w-3 mr-1 text-green-500" />
+                        Guardado
+                      </>
+                    )}
+                    {savedStatus === 'saving' && (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Guardando...
+                      </>
+                    )}
+                    {savedStatus === 'unsaved' && (
+                      <>
+                        <SaveIcon className="h-3 w-3 mr-1 text-amber-500" />
+                        Sin guardar
+                      </>
+                    )}
+                  </span>
+                ) : (
+                  <>Nueva conversación</>
+                )}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            {detectedPackages.length > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      id="package-indicator"
+                      onClick={() => setShowPackageDialog(true)}
+                    >
+                      <Package className="h-5 w-5 text-blue-500" />
+                      <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-blue-500"></span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Paquetes detectados: {detectedPackages.join(', ')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setShowConversations(!showConversations)}
+                    onClick={() => setShowConversationDialog(true)}
+                    disabled={savedStatus === 'saved' || messages.length <= 2}
                   >
-                    {showConversations ? <PanelLeft className="h-5 w-5" /> : <List className="h-5 w-5" />}
+                    <SaveIcon className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {showConversations ? 'Ocultar conversaciones' : 'Mostrar conversaciones'}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <div className="ml-2 text-sm">
-              {currentConversationId ? (
-                <div className="flex items-center">
-                  <FileText className="h-4 w-4 mr-1" />
-                  <span className="truncate max-w-[200px] font-medium">
-                    {getConversation(currentConversationId)?.title || 'Conversación actual'}
-                  </span>
-                </div>
-              ) : (
-                <span>Nueva conversación</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            {/* Indicador de guardado */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={saveCurrentConversation}
-                      disabled={savedStatus === 'saved' || messages.length <= 2}
-                    >
-                      {savedStatus === 'saving' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : savedStatus === 'saved' ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <SaveIcon className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {savedStatus === 'saving'
-                    ? 'Guardando...'
-                    : savedStatus === 'saved'
-                      ? 'Guardado'
-                      : 'Guardar conversación'}
-                </TooltipContent>
+                <TooltipContent>Guardar conversación</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -1201,91 +1358,73 @@ const AssistantChat: React.FC = () => {
                     size="icon"
                     onClick={startNewConversation}
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Nueva conversación
-                </TooltipContent>
+                <TooltipContent>Nueva conversación</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
         </div>
 
-        <ScrollArea className="flex-grow p-4">
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex flex-col ${
-                  message.role === "user" ? "items-end" : "items-start"
-                }`}
-              >
-                <div
-                  className={`px-4 py-2 rounded-lg max-w-[80%] ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-blue-900 text-white"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <Badge variant={message.role === "user" ? "outline" : "secondary"}>
-                      {message.role === "user" ? "Tú" : "Asistente"}
-                    </Badge>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => copyToClipboard(message.content, index)}
-                            className="h-6 w-6"
-                          >
-                            {hasCopied && copiedIndex === index ? (
-                              <Check className="w-4 h-4" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {hasCopied && copiedIndex === index
-                            ? "¡Copiado!"
-                            : "Copiar mensaje"}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    {message.role === "assistant" && message.content.includes("```") && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSaveCode(message.content)}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Guardar código</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+        {/* Área de mensajes */}
+        <div className="flex-1 overflow-auto p-4">
+          <ScrollArea className="h-full">
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} rounded-lg p-4 max-w-3xl`}>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Badge variant={message.role === 'user' ? 'primary' : 'secondary'}>
+                        {message.role === 'user' ? 'Usuario' : message.role === 'assistant' ? 'Asistente' : 'Sistema'}
+                      </Badge>
+                      {message.role === 'assistant' && extractCodeFromMessage(message.content).length > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSaveCode(message.content)}
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Guardar código</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                    <div className="prose dark:prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
+                    </div>
                   </div>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-        <div className="flex items-center justify-between p-4 border-t">
-          <div className="flex items-center space-x-2">
-            <div className="flex space-x-2">
-              <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost" title="Usar micrófono">
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </Button>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Área de entrada */}
+        <div className="border-t p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <div className="flex space-x-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={toggleSpeechRecognition}
+                      size="icon"
+                      variant="ghost"
+                    >
+                      {isListening ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{isListening ? "Detener micrófono" : "Usar micrófono"}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1312,12 +1451,12 @@ const AssistantChat: React.FC = () => {
                               description: `Preparando ${file.name} para análisis...`,
                               duration: 3000
                             });
-                            
+
                             // Usar la función para procesar imágenes
                             processImageFile(file, file.name);
                             return;
                           }
-                          
+
                           // Procesamiento especial para DOC/DOCX
                           if (fileExtension === 'doc' || fileExtension === 'docx') {
                             // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
@@ -1352,7 +1491,7 @@ const AssistantChat: React.FC = () => {
                                   ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
                                   : content;
 
-                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                                const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
 
                                 toast({
@@ -1377,7 +1516,7 @@ const AssistantChat: React.FC = () => {
                               const content = event.target?.result as string;
                               if (content) {
                                 // Preparar mensaje con el contenido del archivo
-                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\${fileExtension}\n`;
 
                                 // Limitar el contenido si es muy grande
                                 const maxLength = 10000;
@@ -1385,10 +1524,9 @@ const AssistantChat: React.FC = () => {
                                   ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
                                   : content;
 
-                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
+                                const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
 
-                                // Notificar al usuario
                                 toast({
                                   title: "Archivo cargado",
                                   description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
@@ -1396,96 +1534,172 @@ const AssistantChat: React.FC = () => {
                                 });
                               }
                             };
-
-                            reader.onerror = () => {
-                              toast({
-                                title: "Error al leer archivo",
-                                description: "No se pudo leer el contenido del archivo. Intente con otro formato.",
-                                variant: "destructive",
-                                duration: 4000
-                              });
-                            };
-
                             reader.readAsText(file);
                           }
                         }}
                       />
                     </label>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Subir documento o imagen (.txt, .pdf, .doc, .md, .jpg, .png, etc.)
-                  </TooltipContent>
+                  <TooltipContent>Subir archivo</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
+          </div>
 
+          <div className="relative overflow-hidden">
             <Textarea
-              placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
+              placeholder="Escribe un mensaje..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-grow min-h-[100px] resize-y"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage();
                 }
               }}
-              style={{
-                transition: "height 0.2s ease",
-                minHeight: "100px",
-                height: `${Math.min(25 + input.split('\n').length * 20, 250)}px`,
-                fontSize: "16px",
-                lineHeight: "1.5"
-              }}
+              className="w-full p-4 pr-12 border rounded-lg resize-none min-h-[100px] overflow-auto"
+              rows={3}
             />
-          </div>
-          <div className="flex items-center space-x-2">
-            <ModelSelector modelId={modelId} onModelChange={setModelId} />
-            <Button onClick={handleSendMessage} disabled={isLoading} className="bg-sky-500 hover:bg-sky-600">
-              {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
+            <Button
+              onClick={handleSendMessage}
+              disabled={isLoading || !input.trim()}
+              className="absolute right-2 bottom-2"
+              size="icon"
+              variant="default"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>
-        <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+      </div>
+
+      {/* Diálogo para guardar conversación */}
+      <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Paquetes sugeridos</DialogTitle>
+            <DialogTitle>Guardar conversación</DialogTitle>
             <DialogDescription>
-              Se han encontrado los siguientes paquetes que se podrían usar. ¿Quieres instalarlos?
+              Introduce un título para guardar esta conversación
             </DialogDescription>
           </DialogHeader>
-          <DialogContent>
-            <ul className="space-y-2">
-              {pendingPackages.map((pkg, index) => (
-                <li key={index} className="flex items-center">
-                  <Badge>{pkg.name}</Badge>
-                  <span className="ml-2">{pkg.description}</span>
-                </li>
-              ))}
-            </ul>
-          </DialogContent>
-          <DialogFooter>
-            <Button onClick={() => {
-              setShowPackageDialog(false);
-              setPendingPackages([]);
-            }} variant="secondary">
+
+          <Input
+            value={newConversationTitle}
+            onChange={(e) => setNewConversationTitle(e.target.value)}
+            placeholder="Título de la conversación"
+            className="mt-4"
+          />
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowConversationDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={async () => {
-              setShowPackageDialog(false);
-              setPendingPackages([]);
-              await Promise.all(pendingPackages.map(async (pkg) => {
-                await installPackageFromCommand(pkg.name, pkg.isDev || false);
-              }));
-            }} disabled={isInstallingPackage}>
-              {isInstallingPackage ? (
-                <Loader2 className="animate-spin w-5 h-5" />
-              ) : (
-                "Instalar paquetes"
-              )}
+            <Button onClick={() => {
+              if (newConversationTitle.trim()) {
+                saveCurrentConversation(newConversationTitle.trim());
+                setNewConversationTitle("");
+                setShowConversationDialog(false);
+              }
+            }}>
+              Guardar
             </Button>
           </DialogFooter>
-        </Dialog>
-      </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para instalar paquetes */}
+      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Instalar paquete</DialogTitle>
+            <DialogDescription>
+              Introduce el nombre del paquete de npm que deseas instalar
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center space-x-2 mt-4">
+            <Input
+              value={installPackageInput}
+              onChange={(e) => setInstallPackageInput(e.target.value)}
+              placeholder="Nombre del paquete (ej: axios)"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !packageInstalling) {
+                  handlePackageInstall();
+                }
+              }}
+            />
+
+            <Button
+              onClick={handlePackageInstall}
+              disabled={packageInstalling || !installPackageInput.trim()}
+              className="flex-shrink-0"
+            >
+              {packageInstalling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
+              {packageInstalling ? 'Instalando...' : 'Instalar'}
+            </Button>
+          </div>
+
+          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
+            <h4 className="text-sm font-medium mb-2">Paquetes populares:</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-sm">
+                <p className="font-semibold mb-1 text-primary">UI/Componentes</p>
+                <ul className="list-disc list-inside text-xs space-y-1">
+                  <li><span className="font-mono">react</span></li>
+                  <li><span className="font-mono">tailwindcss</span></li>
+                  <li><span className="font-mono">react-router-dom</span></li>
+                </ul>
+              </div>
+              <div className="text-sm">
+                <p className="font-semibold mb-1 text-primary">Backend/API</p>
+                <ul className="list-disc list-inside text-xs space-y-1">
+                  <li><span className="font-mono">express</span></li>
+                  <li><span className="font-mono">mongoose</span></li>
+                  <li><span className="font-mono">axios</span></li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-muted-foreground">
+              Haz clic en el botón <Package className="inline h-3 w-3" /> del encabezado para acceder al explorador de paquetes.
+            </div>
+          </div>
+
+          {pendingPackages.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Paquetes detectados:</h4>
+              <div className="flex flex-wrap gap-2">
+                {pendingPackages.map((pkg, index) => (
+                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    <div>{pkg.name}</div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-4 w-4 p-0"
+                      onClick={() => {
+                        setInstallPackageInput(pkg.name);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Overlay para móviles cuando el sidebar está abierto */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };
