@@ -71,7 +71,6 @@
     z-index: 50;
     background-color: var(--background);
   }
-}
 
 @layer base {
   * {
