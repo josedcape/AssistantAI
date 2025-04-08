@@ -1545,7 +1545,7 @@ let height = img.height;
                         </TooltipProvider>
                       )}
                     </div>
-                    <div className="prose dark:prose-invert max-w-none">
+                    <div className="prose dark:prose-invert max-w-none message-content has-scroll-x">
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {

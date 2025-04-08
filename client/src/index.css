@@ -39,6 +39,61 @@
     height: calc(100vh - 8rem);
   }
 
+  /* Estilos modernos para scroll horizontal */
+  .message-content {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    padding: 0.5rem;
+    max-width: 100%;
+  }
+
+  .message-content::-webkit-scrollbar {
+    height: 6px;
+    background: transparent;
+  }
+
+  .message-content::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.5);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+  }
+
+  .message-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.8);
+  }
+
+  /* Indicador de scroll horizontal */
+  .has-scroll-x {
+    position: relative;
+  }
+
+  .has-scroll-x::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .has-scroll-x:hover::after {
+    opacity: 1;
+  }
+
+  @media (max-width: 768px) {
+    .message-content {
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x proximity;
+    }
+  }
+
   .floating-button {
     position: fixed;
     bottom: 1rem;
