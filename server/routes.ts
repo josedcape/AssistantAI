@@ -14,6 +14,7 @@ import { installPackage, uninstallPackage, listPackages, runScript, getPackageIn
 import { setupSoundsRoutes } from "./sounds"; // Added import for sound routes
 import path from 'path';
 import fs from 'fs';
+import terminalRouter from './terminal';
 
 const upload = multer();
 
@@ -1417,6 +1418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register API routes
   app.use("/api", apiRouter);
+  app.use("/api", terminalRouter);
 
   // Endpoint para obtener paquetes instalados ya está definido arriba
   // en "/projects/:projectId/packages", así que no necesitamos este duplicado
