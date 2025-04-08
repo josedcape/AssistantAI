@@ -90,6 +90,7 @@ const AssistantChat: React.FC = () => {
   // Estados para gestión de conversaciones
   const [conversations, setConversations] = useState<Array<{id: string; title: string; date: string}>>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<'saved' | 'saving' | 'unsaved'>('unsaved');
   const [newConversationTitle, setNewConversationTitle] = useState("");
@@ -328,19 +329,21 @@ const AssistantChat: React.FC = () => {
 
   // Eliminar una conversación
   const handleDeleteConversation = (id: string) => {
+    setConfirmDelete(id);
+  };
+
+  const confirmDeleteConversation = async () => {
+    if (!confirmDelete) return;
+    
     try {
-      deleteConversation(id);
-
-      // Eliminar también de localStorage
-      localStorage.removeItem(`messages_${id}`);
-
-      // Actualizar la lista
-      const updatedConversations = conversations.filter((conv) => conv.id !== id);
+      deleteConversation(confirmDelete);
+      localStorage.removeItem(`messages_${confirmDelete}`);
+      
+      const updatedConversations = conversations.filter((conv) => conv.id !== confirmDelete);
       setConversations(updatedConversations);
       localStorage.setItem('conversations', JSON.stringify(updatedConversations));
 
-      // Si la conversación activa es la eliminada, crear una nueva
-      if (currentConversationId === id) {
+      if (currentConversationId === confirmDelete) {
         startNewConversation();
       }
 
@@ -350,6 +353,12 @@ const AssistantChat: React.FC = () => {
         description: "La conversación ha sido eliminada correctamente",
         duration: 2000
       });
+      
+      // Cerrar el diálogo y limpiar el estado
+      setConfirmDelete(null);
+      if (conversations.length === 1) {
+        setSidebarOpen(false);
+      }
     } catch (error) {
       console.error("Error al eliminar conversación:", error);
       toast({
@@ -1271,10 +1280,10 @@ const AssistantChat: React.FC = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden mr-2"
+              className="mr-2"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              <Menu className="h-5 w-5" />
+              {sidebarOpen ? <PanelLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
             <div className="flex items-center space-x-2">
@@ -1615,6 +1624,24 @@ const AssistantChat: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Diálogo de confirmación para eliminar */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La conversación se eliminará permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteConversation} className="bg-red-500 hover:bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Diálogo para guardar conversación */}
       <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
