@@ -379,20 +379,21 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSe
 
       {/* Botón flotante para abrir el explorador de archivos en móvil */}
       {isMobile && (
-        <div className="fixed bottom-20 right-6 z-40">
+        <div className="fixed bottom-24 right-6 z-50">
           <Button
             size="icon"
-            className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
+            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 border-2 border-white"
             onClick={() => setShowExplorer(true)}
             title="Explorador de archivos"
+            aria-label="Abrir explorador de archivos"
           >
-            <FolderOpen className="h-6 w-6 text-white" />
+            <FolderOpen className="h-7 w-7 text-white" />
           </Button>
         </div>
       )}
 
       <Sheet open={showExplorer} onOpenChange={setShowExplorer}>
-        <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0">
+        <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
           <FileExplorer 
             projectId={getProjectId() || 0} 
             onFileSelect={(file) => {

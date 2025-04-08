@@ -1391,6 +1391,17 @@ const Workspace: React.FC = () => {
         >
           {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
+        
+        {/* Botón de acceso rápido al explorador de archivos */}
+        {!showMobileMenu && (
+          <button
+            className="fixed bottom-24 left-6 z-50 w-14 h-14 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center border-2 border-white"
+            onClick={() => showSidebar()}
+            aria-label="Explorador de archivos"
+          >
+            <FolderOpen className="h-7 w-7" />
+          </button>
+        )}
 
         {/* Floating menu */}
         {showMobileMenu && (
