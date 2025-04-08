@@ -1,58 +1,55 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { apiRequest } from '../lib/utils';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Send } from 'lucide-react';
 
 interface TerminalProps {
   className?: string;
-  onCommandExecuted?: (output: string) => void;
 }
 
-export function Terminal({ className, onCommandExecuted }: TerminalProps) {
+export function Terminal({ className }: TerminalProps) {
+  const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
-  const [command, setCommand] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const executeCommand = async (cmd: string) => {
-    try {
-      setIsProcessing(true);
-      const response = await apiRequest('POST', '/api/execute/command', { command: cmd });
-      const result = await response.json();
+  useEffect(() => {
+    // Inicializar conexión WebSocket
+    const ws = new WebSocket(`ws://${window.location.host}/terminal`);
+    wsRef.current = ws;
 
-      // Agregar el comando y su salida al historial
-      setHistory(prev => [
-        ...prev, 
-        `$ ${cmd}`,
-        ...(result.output || 'Comando ejecutado').split('\n')
-      ]);
+    ws.onopen = () => {
+      setHistory(prev => [...prev, '> Terminal conectada']);
+      ws.send(JSON.stringify({ type: 'terminal:init' }));
+    };
 
-      // Hacer scroll al final
-      if (terminalRef.current) {
-        terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'terminal:output') {
+          setHistory(prev => [...prev, data.content]);
+        }
+      } catch (error) {
+        console.error('Error al procesar mensaje:', error);
       }
+    };
 
-      return true;
-    } catch (error) {
-      setHistory(prev => [
-        ...prev, 
-        `$ ${cmd}`, 
-        `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`
-      ]);
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    ws.onclose = () => {
+      setHistory(prev => [...prev, '> Terminal desconectada']);
+    };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (command.trim() && !isProcessing) {
-      executeCommand(command);
-      setCommand('');
-    }
-  };
+    ws.onerror = (error) => {
+      console.error('Error en WebSocket:', error);
+      setHistory(prev => [...prev, '> Error en la conexión']);
+    };
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -60,20 +57,22 @@ export function Terminal({ className, onCommandExecuted }: TerminalProps) {
     }
   }, [history]);
 
-  // Método público para ejecutar comandos
-  const executeCommandFromExternal = async (cmd: string) => {
-    if (cmd.trim()) {
-      await executeCommand(cmd);
-      if (onCommandExecuted) {
-        onCommandExecuted(`$ ${cmd}\n${history[history.length - 1]}`);
-      }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'terminal:input',
+        content: input + '\n'
+      }));
+      setInput('');
     }
   };
 
-  // Exponer el método al componente padre
-  React.useImperativeHandle(React.createRef(), () => ({
-    executeCommand: executeCommandFromExternal
-  }));
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      handleSubmit(e);
+    }
+  };
 
   return (
     <div className={`flex flex-col h-full bg-black text-green-400 font-mono ${className}`}>
@@ -86,18 +85,17 @@ export function Terminal({ className, onCommandExecuted }: TerminalProps) {
         <span className="text-green-400">$</span>
         <Input
           type="text"
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="flex-1 bg-transparent border-gray-700 text-green-400 focus:ring-green-500"
-          placeholder="Enter command..."
-          disabled={isProcessing}
+          placeholder="Ingrese un comando..."
         />
         <Button 
           type="submit" 
           variant="outline" 
           size="icon" 
           className="border-gray-700 text-green-400 hover:bg-gray-800"
-          disabled={isProcessing}
         >
           <Send className="h-4 w-4" />
         </Button>
@@ -105,3 +103,5 @@ export function Terminal({ className, onCommandExecuted }: TerminalProps) {
     </div>
   );
 }
+
+export default Terminal;
