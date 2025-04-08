@@ -108,7 +108,7 @@ const Workspace: React.FC = () => {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Main state
-  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal">("development");
+  const [activeTab, setActiveTab] = useState<"development" | "explorer" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -1591,6 +1591,10 @@ const Workspace: React.FC = () => {
                       <Code className="h-4 w-4 mr-1.5 text-blue-500" />
                       Desarrollo
                     </TabsTrigger>
+                    <TabsTrigger value="explorer" className="text-xs flex items-center">
+                      <FolderOpen className="h-4 w-4 mr-1.5 text-amber-500" />
+                      Explorador
+                    </TabsTrigger>
                     <TabsTrigger value="preview" className="text-xs flex items-center">
                       <Play className="h-4 w-4 mr-1.5 text-green-500" />
                       Vista Previa
@@ -1667,6 +1671,37 @@ const Workspace: React.FC = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {activeTab === "explorer" && (
+                  <div className="h-full flex flex-col">
+                    <FileSystemProvider projectId={projectId}>
+                      <FileExplorer
+                        projectId={Number(projectId)}
+                        onFileSelect={handleFileSelect}
+                        selectedFileId={activeFile?.id}
+                        onSendToAssistant={(fileContent, fileName, message) => {
+                          // Cambiar a la pestaña del asistente y enviar el contenido del archivo
+                          const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
+
+                          // Cambiar a la pestaña del asistente
+                          setActiveTab("assistant-chat");
+
+                          // Enviar el contenido al componente AssistantChat mediante evento
+                          const event = new CustomEvent('sendToAssistant', { 
+                            detail: { content: formattedMessage, fileName } 
+                          });
+                          window.dispatchEvent(event);
+
+                          toast({
+                            title: "Archivo enviado al asistente",
+                            description: `${fileName} enviado al asistente`,
+                            duration: 3000
+                          });
+                        }}
+                      />
+                    </FileSystemProvider>
                   </div>
                 )}
 
