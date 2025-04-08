@@ -367,9 +367,26 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSe
             <i className="ri-external-link-line mr-1"></i>
             <span>Abrir</span>
           </button>
-          <SheetTrigger onClick={handleExplorerToggle}>
-            <Button variant={'ghost'} size={'sm'}><FolderOpen className="h-4 w-4"/></Button>
-          </SheetTrigger>
+          <Sheet open={showExplorer} onOpenChange={setShowExplorer}>
+            <SheetTrigger asChild>
+              <Button variant={'ghost'} size={'sm'} onClick={handleExplorerToggle}>
+                <FolderOpen className="h-4 w-4"/>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
+              <FileExplorer 
+                projectId={getProjectId() || 0} 
+                onFileSelect={(file) => {
+                  if (onFileSelect) {
+                    onFileSelect(file);
+                  }
+                  setShowExplorer(false);
+                }}
+                onClose={() => setShowExplorer(false)}
+                onSendToAssistant={onSendToAssistant}
+              />
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
@@ -380,49 +397,64 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSe
       {/* Botón flotante para abrir el explorador de archivos en móvil */}
       {isMobile && (
         <div className="fixed bottom-24 right-6 z-50">
-          <Button
-            size="icon"
-            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 border-2 border-white"
-            onClick={() => setShowExplorer(true)}
-            title="Explorador de archivos"
-            aria-label="Abrir explorador de archivos"
-            id="mobile-explorer-button"
-          >
-            <FolderOpen className="h-7 w-7 text-white" />
-          </Button>
+          <Sheet open={showExplorer} onOpenChange={setShowExplorer}>
+            <SheetTrigger asChild>
+              <Button
+                size="icon"
+                className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 border-2 border-white"
+                title="Explorador de archivos"
+                aria-label="Abrir explorador de archivos"
+                id="mobile-explorer-button"
+              >
+                <FolderOpen className="h-7 w-7 text-white" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
+              <FileExplorer 
+                projectId={getProjectId() || 0} 
+                onFileSelect={(file) => {
+                  if (onFileSelect) {
+                    onFileSelect(file);
+                  }
+                  setShowExplorer(false);
+                }}
+                onClose={() => setShowExplorer(false)}
+                onSendToAssistant={onSendToAssistant}
+              />
+            </SheetContent>
+          </Sheet>
         </div>
       )}
 
       {/* Botón secundario para acceso rápido a explorador (más visible) */}
       {isMobile && (
         <div className="fixed bottom-24 left-6 z-50">
-          <Button
-            size="icon"
-            className="h-14 w-14 rounded-full shadow-lg bg-amber-500 hover:bg-amber-600 border-2 border-white"
-            onClick={() => setShowExplorer(true)}
-            title="Ver explorador de archivos"
-            aria-label="Ver explorador de archivos"
-          >
-            <FolderOpen className="h-7 w-7 text-white" />
-          </Button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                size="icon"
+                className="h-14 w-14 rounded-full shadow-lg bg-amber-500 hover:bg-amber-600 border-2 border-white"
+                title="Ver explorador de archivos"
+                aria-label="Ver explorador de archivos"
+              >
+                <FolderOpen className="h-7 w-7 text-white" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
+              <FileExplorer 
+                projectId={getProjectId() || 0} 
+                onFileSelect={(file) => {
+                  if (onFileSelect) {
+                    onFileSelect(file);
+                  }
+                }}
+                onClose={() => setShowExplorer(false)}
+                onSendToAssistant={onSendToAssistant}
+              />
+            </SheetContent>
+          </Sheet>
         </div>
       )}
-
-      <Sheet open={showExplorer} onOpenChange={setShowExplorer}>
-        <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
-          <FileExplorer 
-            projectId={getProjectId() || 0} 
-            onFileSelect={(file) => {
-              if (onFileSelect) {
-                onFileSelect(file);
-              }
-              setShowExplorer(false);
-            }}
-            onClose={() => setShowExplorer(false)}
-            onSendToAssistant={onSendToAssistant}
-          />
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };
