@@ -1237,8 +1237,8 @@ let height = img.height;
     <div className="flex h-full">
       {/* Panel lateral de conversaciones */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out md:relative ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:relative ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
       >
         <div className="flex flex-col h-full">
@@ -1334,12 +1334,12 @@ let height = img.height;
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col h-full">
         {/* Barra superior */}
-        <div className="border-b p-2 flex items-center justify-between">
-          <div className="flex items-center">
+        <div className="border-b p-2 flex items-center justify-between sticky top-0 bg-background z-10">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="mr-2 md:hidden"
+              className="lg:hidden"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               <Menu className="h-5 w-5" />
@@ -1347,7 +1347,7 @@ let height = img.height;
             <Button
               variant="ghost"
               size="icon"
-              className="mr-2 hidden md:flex"
+              className="hidden lg:flex"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               <PanelLeft className={`h-5 w-5 transform transition-transform ${!sidebarOpen ? 'rotate-180' : ''}`} />
@@ -1585,8 +1585,8 @@ let height = img.height;
         </div>
 
         {/* Área de entrada */}
-        <div className="border-t p-4">
-          <div className="flex items-center space-x-2 mb-2">
+        <div className="border-t p-2 sm:p-4 sticky bottom-0 bg-background">
+          <div className="flex items-center gap-2 mb-2">
             <div className="flex space-x-1">
               <TooltipProvider>
                 <Tooltip>
