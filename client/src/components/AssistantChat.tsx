@@ -1549,7 +1549,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```)) {
+                            if (part.startsWith('```') && part.endsWith('```')) {  // Corregido el paréntesis
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4">
@@ -1568,6 +1568,7 @@ let height = img.height;
                               </ReactMarkdown>
                             );
                           })}
+
                         </>
                       ) : (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
