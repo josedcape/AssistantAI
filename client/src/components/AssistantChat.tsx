@@ -1395,9 +1395,8 @@ const AssistantChat: React.FC = () => {
         <div className="flex-1 overflow-auto p-4">
           <ScrollArea className="h-full">
             <div className="space-y-4">
-              {messages.map((message, index) => (
-                {isChatVisible && (
-                  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {isChatVisible && messages.map((message, index) => (
+                <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
                       <Button
                         size="icon"
