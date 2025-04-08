@@ -1243,6 +1243,22 @@ gunicorn==20.1.0`;
     alert(`Contenido de ${file.name}${file.extension}:\n\n${content.substring(0, 500)}${content.length > 500 ? '...' : ''}`);
   };
 
+  // Function to send file to explorer
+  const sendFileToExplorer = (name: string, content: string, extension: string, delay: number = 0) => {
+    setTimeout(() => {
+      const fileEvent = new CustomEvent('add-generated-file', {
+        detail: {
+          file: {
+            name,
+            content,
+            extension
+          }
+        }
+      });
+      window.dispatchEvent(fileEvent);
+    }, delay);
+  };
+
   // Helper function to process generated files
   const processGeneratedFiles = (files: any[]) => {
     files.forEach((file, index) => {
