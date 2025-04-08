@@ -108,6 +108,46 @@
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    position: relative;
+    padding: 0.5rem;
+  }
+
+  .message-content pre {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: calc(100vw - 3rem);
+    position: relative;
+  }
+
+  .message-content .code-block {
+    position: relative;
+    margin: 1rem 0;
+  }
+
+  .message-content .code-actions {
+    position: sticky;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 0.5rem;
+    z-index: 10;
+  }
+
+  @media (max-width: 768px) {
+    .message-content .code-actions {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      justify-content: flex-end;
+      backdrop-filter: blur(4px);
+    }
+
+    .message-content pre {
+      padding-bottom: 1rem;
+    }
   }
 }
 
