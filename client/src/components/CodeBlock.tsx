@@ -4,13 +4,6 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { cn } from '@/lib/utils';
 
-type CodeBlockProps = {
-  code: string;
-  language: string;
-  showLineNumbers?: boolean;
-  className?: string;
-};
-
 interface CodeBlockProps {
   code: string;
   language: string;
