@@ -1,13 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { apiRequest } from '../lib/utils';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Send } from 'lucide-react';
-
-interface TerminalProps {
-  className?: string;
-}
 
 interface TerminalProps {
   className?: string;

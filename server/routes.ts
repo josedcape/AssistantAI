@@ -887,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId) || projectId <= 0) {
         console.error(`Invalid project ID: ${req.params.projectId}`);
         // En lugar de devolver un JSON, devolvemos un HTML de error para mostrar en el iframe
-        return res.status(400).send(`
+        returnres.status(400).send(`
           <!DOCTYPE html>
           <html>
             <head>
@@ -1393,30 +1393,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupSoundsRoutes(apiRouter); // Added sound routes setup
 
   // Command execution endpoint
-apiRouter.post("/execute/command", async (req: Request, res: Response) => {
-  try {
-    const { command } = req.body;
-    if (!command) {
-      return res.status(400).json({ error: "No command provided" });
-    }
-
-    const { exec } = require('child_process');
-    
-    exec(command, (error: Error | null, stdout: string, stderr: string) => {
-      if (error) {
-        return res.status(500).json({ output: `Error: ${error.message}` });
+  apiRouter.post("/execute/command", async (req: Request, res: Response) => {
+    try {
+      const { command } = req.body;
+      if (!command) {
+        return res.status(400).json({ error: "No command provided" });
       }
-      res.json({ output: stdout || stderr });
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      output: `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`
-    });
-  }
-});
 
-// Register API routes
-app.use("/api", apiRouter);
+      const { exec } = require('child_process');
+
+      exec(command, (error: Error | null, stdout: string, stderr: string) => {
+        if (error) {
+          return res.status(500).json({ output: `Error: ${error.message}` });
+        }
+        res.json({ output: stdout || stderr });
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        output: `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  });
+
+  // Register API routes
+  app.use("/api", apiRouter);
 
   // Endpoint para obtener paquetes instalados ya está definido arriba
   // en "/projects/:projectId/packages", así que no necesitamos este duplicado
