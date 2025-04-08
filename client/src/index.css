@@ -13,6 +13,34 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .mobile-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .conversation-list {
+    position: absolute;
+    z-index: 50;
+    background: var(--background);
+    height: 100%;
+  }
+  
+  .mobile-menu-button {
+    display: block !important;
+  }
+  
+  .mobile-hidden {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -31,6 +31,8 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [isListVisible, setIsListVisible] = useState(true);
+  const isMobile = useIsMobile();
 
   const handleDelete = (id: string) => {
     setConversationToDelete(id);
@@ -90,18 +92,29 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col h-full transition-all duration-300 ${!isListVisible && 'w-[60px]'}`}>
       <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold mb-4">Conversaciones</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`text-lg font-semibold ${!isListVisible && 'hidden'}`}>Conversaciones</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsListVisible(!isListVisible)}
+            className={`${isMobile ? 'hidden' : ''}`}
+          >
+            {isListVisible ? <PanelLeft className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+          </Button>
+        </div>
         <Button 
           onClick={onNew} 
-          className="w-full mb-2"
+          className={`${isListVisible ? 'w-full' : 'w-10'} mb-2 transition-all`}
           variant="outline"
+          title="Nueva conversación"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva conversación
+          <Plus className="h-4 w-4" />
+          {isListVisible && <span className="ml-2">Nueva conversación</span>}
         </Button>
-        <div className="relative">
+        <div className={`relative ${!isListVisible && 'hidden'}`}>
           <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" />
           <Input
             placeholder="Buscar conversaciones..."
@@ -115,19 +128,22 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
         {filteredConversations.length > 0 ? (
           <ul className="space-y-1">
             {filteredConversations.map((conv) => (
-              <li key={conv.id} className="flex items-center group">
+              <li key={conv.id} className={`flex items-center group ${!isListVisible ? 'justify-center' : ''}`}>
                 <Button
                   variant={conv.id === activeConversationId ? "secondary" : "ghost"}
-                  className="w-full justify-start text-left h-auto py-2 px-3"
+                  className={`${isListVisible ? 'w-full justify-start' : 'w-10'} text-left h-auto py-2 px-3`}
                   onClick={() => onSelect(conv)}
+                  title={!isListVisible ? conv.title : undefined}
                 >
-                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <div className="truncate flex-grow">
-                    <p className="truncate font-medium">{conv.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {new Date(conv.updatedAt).toLocaleDateString()}
-                    </p>
-                  </div>
+                  <MessageSquare className={`h-4 w-4 ${isListVisible ? 'mr-2' : ''} flex-shrink-0`} />
+                  {isListVisible && (
+                    <div className="truncate flex-grow">
+                      <p className="truncate font-medium">{conv.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(conv.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
