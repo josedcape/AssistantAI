@@ -61,14 +61,14 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      
+
       // Ensure module scripts are served with the correct MIME type
       if (url.endsWith('.js') || url.endsWith('.mjs')) {
         res.set('Content-Type', 'application/javascript; charset=utf-8');
       } else if (url.endsWith('.ts') || url.endsWith('.tsx')) {
         res.set('Content-Type', 'application/javascript; charset=utf-8');
       }
-      
+
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
