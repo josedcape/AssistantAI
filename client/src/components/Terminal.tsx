@@ -12,21 +12,25 @@ interface TerminalProps {
 export function Terminal({ className }: TerminalProps) {
   const [history, setHistory] = useState<string[]>([]);
   const [command, setCommand] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const executeCommand = async (cmd: string) => {
     try {
+      setIsProcessing(true);
       const response = await apiRequest('POST', '/api/execute/command', { command: cmd });
       const result = await response.json();
-      setHistory(prev => [...prev, `$ ${cmd}`, result.output]);
+      setHistory(prev => [...prev, `$ ${cmd}`, result.output || 'Command executed']);
     } catch (error) {
       setHistory(prev => [...prev, `$ ${cmd}`, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (command.trim()) {
+    if (command.trim() && !isProcessing) {
       executeCommand(command);
       setCommand('');
     }
@@ -53,8 +57,15 @@ export function Terminal({ className }: TerminalProps) {
           onChange={(e) => setCommand(e.target.value)}
           className="flex-1 bg-transparent border-gray-700 text-green-400 focus:ring-green-500"
           placeholder="Enter command..."
+          disabled={isProcessing}
         />
-        <Button type="submit" variant="outline" size="icon" className="border-gray-700 text-green-400 hover:bg-gray-800">
+        <Button 
+          type="submit" 
+          variant="outline" 
+          size="icon" 
+          className="border-gray-700 text-green-400 hover:bg-gray-800"
+          disabled={isProcessing}
+        >
           <Send className="h-4 w-4" />
         </Button>
       </form>

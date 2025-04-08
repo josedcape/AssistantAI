@@ -56,6 +56,9 @@ interface Package {
 const AssistantChat: React.FC = () => {
   // Inicializar toast
   const { toast } = useToast();
+  
+  // Estado para chat visible/oculto
+  const [isChatVisible, setIsChatVisible] = useState(true);
 
   // Estado para mensajes y entrada
   const [messages, setMessages] = useState<Message[]>([
@@ -1313,6 +1316,27 @@ const AssistantChat: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsChatVisible(!isChatVisible)}
+                  >
+                    {isChatVisible ? (
+                      <MessageSquare className="h-5 w-5" />
+                    ) : (
+                      <MessageSquare className="h-5 w-5 text-gray-400" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isChatVisible ? 'Ocultar chat' : 'Mostrar chat'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             {detectedPackages.length > 0 && (
               <TooltipProvider>
                 <Tooltip>
@@ -1372,8 +1396,24 @@ const AssistantChat: React.FC = () => {
           <ScrollArea className="h-full">
             <div className="space-y-4">
               {messages.map((message, index) => (
-                <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl`}>
+                {isChatVisible && (
+                  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          navigator.clipboard.writeText(message.content);
+                          toast({
+                            title: "Copiado",
+                            description: "Mensaje copiado al portapapeles",
+                            duration: 2000
+                          });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     <div className="flex items-center space-x-2 mb-1">
                       <Badge variant={message.role === 'user' ? 'primary' : 'secondary'}>
                         {message.role === 'user' ? 'Usuario' : message.role === 'assistant' ? 'Asistente' : 'Sistema'}
