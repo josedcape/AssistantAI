@@ -11,11 +11,20 @@ type CodeBlockProps = {
   className?: string;
 };
 
+interface CodeBlockProps {
+  code: string;
+  language: string;
+  showLineNumbers?: boolean;
+  className?: string;
+  fileName?: string;
+}
+
 export const CodeBlock = ({ 
   code, 
   language, 
   showLineNumbers = true,
-  className 
+  className,
+  fileName 
 }: CodeBlockProps) => {
   const codeRef = useRef<HTMLElement>(null);
 
@@ -36,15 +45,36 @@ export const CodeBlock = ({
           )}
         </div>
         <div className="flex space-x-1">
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(code);
-            }}
-            className="text-xs h-6 px-2 flex items-center text-slate-300 hover:bg-slate-700 hover:text-slate-100 rounded"
-          >
-            <i className="ri-clipboard-line mr-1"></i>
-            Copiar
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(code);
+              }}
+              className="text-xs h-6 px-2 flex items-center text-slate-300 hover:bg-slate-700 hover:text-slate-100 rounded"
+              title="Copiar código"
+            >
+              <i className="ri-clipboard-line mr-1"></i>
+              Copiar
+            </button>
+            <button
+              onClick={() => {
+                const blob = new Blob([code], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName || `code.${language || 'txt'}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+              }}
+              className="text-xs h-6 px-2 flex items-center text-slate-300 hover:bg-slate-700 hover:text-slate-100 rounded"
+              title="Descargar código"
+            >
+              <i className="ri-download-line mr-1"></i>
+              Descargar
+            </button>
+          </div>
         </div>
       </div>
       <div className="relative">

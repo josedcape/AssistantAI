@@ -858,24 +858,54 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Función para extraer código de un mensaje
   const extractCodeFromMessage = (content: string) => {
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)\n```/g;
+    const codeBlockRegex = /```(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
     let match;
-    const codes: { language: string; code: string }[] = [];
+    const codes: { language: string; code: string; fileName?: string }[] = [];
 
     while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || "plaintext";
+      const fileName = match[2] || getDefaultFileName(language);
+      const code = match[3].trim();
+
       codes.push({
-        language: match[1] || "plaintext",
-        code: match[2],
+        language,
+        code,
+        fileName
       });
     }
 
     return codes;
   };
 
+  const getDefaultFileName = (language: string): string => {
+    const extensionMap: Record<string, string> = {
+      javascript: 'script.js',
+      typescript: 'script.ts',
+      python: 'script.py',
+      html: 'index.html',
+      css: 'styles.css',
+      jsx: 'component.jsx',
+      tsx: 'component.tsx',
+      json: 'data.json',
+      php: 'script.php',
+      java: 'Main.java',
+      cpp: 'main.cpp',
+      c: 'main.c',
+      go: 'main.go',
+      rust: 'main.rs',
+      ruby: 'script.rb',
+      sql: 'query.sql',
+      plaintext: 'file.txt'
+    };
+
+    return extensionMap[language.toLowerCase()] || 'code.txt';
+  };
+
   // Función para procesar imágenes cargadas
   const processImageFile = (file: File, fileName: string) => {
     // Comprobar que sea un archivo de imagen
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.[\s\S]*?```)/g).map((part, index) => {
+                            if (part.startsWith('```') && part.endsWith('startsWith('image/')) {
       toast({
         title: "Error de formato",
         description: "El archivo no es una imagen válida",
@@ -1517,7 +1547,34 @@ let height = img.height;
                       )}
                     </div>
                     <div className="prose dark:prose-invert max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanceContentWithEmojis(message.content)}</ReactMarkdown>
+                      {message.role === 'assistant' ? (
+                        <>
+                          {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
+                            if (part.startsWith('```') && part.endsWith('```)) {
+                              const codes = extractCodeFromMessage(part);
+                              return codes.map((codeBlock, codeIndex) => (
+                                <div key={`code-${index}-${codeIndex}`} className="my-4">
+                                  <CodeBlock
+                                    code={codeBlock.code}
+                                    language={codeBlock.language}
+                                    fileName={codeBlock.fileName}
+                                    showLineNumbers={true}
+                                  />
+                                </div>
+                              ));
+                            }
+                            return (
+                              <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
+                                {enhanceContentWithEmojis(part)}
+                              </ReactMarkdown>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {enhanceContentWithEmojis(message.content)}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </div>
                 </div>
