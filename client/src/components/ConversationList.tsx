@@ -92,15 +92,16 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
   };
 
   return (
-    <div className={`flex flex-col h-full transition-all duration-300 ${!isListVisible && 'w-[60px]'}`}>
+    <div className={`flex flex-col h-full transition-all duration-300 border-r ${!isListVisible ? 'w-[60px]' : 'w-[280px]'}`}>
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h2 className={`text-lg font-semibold ${!isListVisible && 'hidden'}`}>Conversaciones</h2>
+          <h2 className={`text-lg font-semibold ${!isListVisible ? 'hidden' : ''}`}>Conversaciones</h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsListVisible(!isListVisible)}
-            className={`${isMobile ? 'hidden' : ''}`}
+            className="flex-shrink-0"
+            title={isListVisible ? "Ocultar panel" : "Mostrar panel"}
           >
             {isListVisible ? <PanelLeft className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
           </Button>
@@ -128,10 +129,10 @@ export function ConversationList({ onSelect, onNew, activeConversationId }: Conv
         {filteredConversations.length > 0 ? (
           <ul className="space-y-1">
             {filteredConversations.map((conv) => (
-              <li key={conv.id} className={`flex items-center group ${!isListVisible ? 'justify-center' : ''}`}>
+              <li key={conv.id} className={`flex items-center group ${!isListVisible ? 'justify-center' : 'justify-between'}`}>
                 <Button
                   variant={conv.id === activeConversationId ? "secondary" : "ghost"}
-                  className={`${isListVisible ? 'w-full justify-start' : 'w-10'} text-left h-auto py-2 px-3`}
+                  className={`${isListVisible ? 'flex-grow justify-start' : 'w-10'} text-left h-auto py-2 px-3`}
                   onClick={() => onSelect(conv)}
                   title={!isListVisible ? conv.title : undefined}
                 >
