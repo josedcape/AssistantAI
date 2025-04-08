@@ -1657,6 +1657,24 @@ const Workspace: React.FC = () => {
                   <CodePreview 
                     projectId={projectId} 
                     files={files}
+                    onFileSelect={handleFileSelect}
+                    onSendToAssistant={(fileContent, fileName, message, file, isImage) => {
+                      // Cambiar a la pestaña del asistente y enviar el archivo
+                      const formattedMessage = `${message || "Analiza este archivo:"}\n\`\`\`\n${fileContent}\n\`\`\``;
+                      setActiveTab("assistant-chat");
+                      
+                      // Enviar el contenido al componente AssistantChat mediante evento
+                      const event = new CustomEvent('sendToAssistant', { 
+                        detail: { content: formattedMessage, fileName } 
+                      });
+                      window.dispatchEvent(event);
+                      
+                      toast({
+                        title: "Archivo enviado al asistente",
+                        description: `${fileName} enviado al asistente`,
+                        duration: 3000
+                      });
+                    }}
                   />
                 )}
 

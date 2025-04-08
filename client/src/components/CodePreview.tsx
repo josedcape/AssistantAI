@@ -12,9 +12,17 @@ interface CodePreviewProps {
   file: File;
   allFiles?: File[];
   onSendToAssistant?: (fileContent: string, fileName: string, message?: string, file?: File, isImage?: boolean) => void;
+  onFileSelect?: (file: File) => void;
+  projectId?: number;
 }
 
-const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant }: CodePreviewProps) => {
+interface CodePreviewProps {
+  file: File;
+  allFiles?: File[];
+  onSendToAssistant?: (fileContent: string, fileName: string, message?: string, file?: File, isImage?: boolean) => void;
+}
+
+const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSelect, projectId: propProjectId }: CodePreviewProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [previewContent, setPreviewContent] = useState<string>("");
@@ -26,11 +34,26 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant }: CodePr
   const isMobile = useIsMobile();
 
   const getProjectId = (): number | null => {
-    if (!file) return null;
-    const projectId = typeof file.projectId === 'number'
-      ? file.projectId
-      : parseInt(String(file.projectId));
-    return !isNaN(projectId) ? projectId : null;
+    // Primero intentar usar el projectId proporcionado como prop
+    if (propProjectId && !isNaN(propProjectId)) {
+      return propProjectId;
+    }
+    
+    // Si no está disponible, intentar obtenerlo del archivo actual
+    if (file) {
+      const fileProjectId = typeof file.projectId === 'number'
+        ? file.projectId
+        : parseInt(String(file.projectId));
+      return !isNaN(fileProjectId) ? fileProjectId : null;
+    }
+    
+    // Si no hay archivo o proyecto, intentar obtenerlo de la URL
+    const pathMatch = window.location.pathname.match(/\/workspace\/(\d+)/);
+    if (pathMatch && pathMatch[1]) {
+      return parseInt(pathMatch[1]);
+    }
+    
+    return null;
   };
 
   const detectContentType = (fileName: string, content: string): string => {
@@ -354,9 +377,33 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant }: CodePr
         {renderPreview()}
       </div>
 
+      {/* Botón flotante para abrir el explorador de archivos en móvil */}
+      {isMobile && (
+        <div className="fixed bottom-20 right-6 z-40">
+          <Button
+            size="icon"
+            className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
+            onClick={() => setShowExplorer(true)}
+            title="Explorador de archivos"
+          >
+            <FolderOpen className="h-6 w-6 text-white" />
+          </Button>
+        </div>
+      )}
+
       <Sheet open={showExplorer} onOpenChange={setShowExplorer}>
-        <SheetContent>
-          <FileExplorer allFiles={allFiles} />
+        <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0">
+          <FileExplorer 
+            projectId={getProjectId() || 0} 
+            onFileSelect={(file) => {
+              if (onFileSelect) {
+                onFileSelect(file);
+              }
+              setShowExplorer(false);
+            }}
+            onClose={() => setShowExplorer(false)}
+            onSendToAssistant={onSendToAssistant}
+          />
         </SheetContent>
       </Sheet>
     </div>
