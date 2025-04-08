@@ -108,7 +108,7 @@ const Workspace: React.FC = () => {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Main state
-  const [activeTab, setActiveTab] = useState<"development" | "explorer" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal">("development");
+  const [activeTab, setActiveTab] = useState<"development" | "explorer" | "projects" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -1595,6 +1595,10 @@ const Workspace: React.FC = () => {
                       <FolderOpen className="h-4 w-4 mr-1.5 text-amber-500" />
                       Explorador
                     </TabsTrigger>
+                    <TabsTrigger value="projects" className="text-xs flex items-center">
+                      <FolderIcon className="h-4 w-4 mr-1.5 text-indigo-500" />
+                      Proyectos
+                    </TabsTrigger>
                     <TabsTrigger value="preview" className="text-xs flex items-center">
                       <Play className="h-4 w-4 mr-1.5 text-green-500" />
                       Vista Previa
@@ -1669,6 +1673,115 @@ const Workspace: React.FC = () => {
                             Crear archivo
                           </Button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "projects" && (
+                  <div className="h-full flex flex-col p-4 overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold">Mis Proyectos</h3>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8" 
+                        onClick={() => setNewProjectName("Nuevo Proyecto")}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nuevo Proyecto
+                      </Button>
+                    </div>
+
+                    {newProjectName && (
+                      <div className="mb-4 p-3 border rounded-md bg-slate-50 dark:bg-slate-800">
+                        <Input
+                          placeholder="Nombre del proyecto"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          className="mb-2"
+                        />
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setNewProjectName("")}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={handleCreateProject}
+                          >
+                            Crear
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {isLoadingProjects ? (
+                      <div className="flex justify-center items-center h-20">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                      </div>
+                    ) : userProjects.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 border rounded-lg p-6 bg-slate-50 dark:bg-slate-800">
+                        <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                        <p className="text-lg mb-1">Sin proyectos</p>
+                        <p className="text-sm">Aún no hay proyectos creados. Crea uno nuevo para comenzar.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {userProjects.map(proj => (
+                          <Card key={proj.id} className={`hover:shadow-md transition-shadow ${proj.id === projectId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <CardTitle className="text-base">{proj.name}</CardTitle>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleSwitchProject(proj.id!)}>
+                                      Abrir proyecto
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                      // Duplicar proyecto
+                                      setNewProjectName(`Copia de ${proj.name}`);
+                                    }}>
+                                      Duplicar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      className="text-red-500"
+                                      onClick={() => handleDeleteProject(proj.id!)}
+                                    >
+                                      Eliminar
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 line-clamp-2">
+                                {proj.description || "Sin descripción"}
+                              </p>
+                              <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                                <span>
+                                  Creado: {new Date(proj.createdAt!).toLocaleDateString()}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-blue-500 hover:text-blue-700"
+                                  onClick={() => handleSwitchProject(proj.id!)}
+                                >
+                                  {proj.id === projectId ? 'Proyecto actual' : 'Abrir'}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
                     )}
                   </div>
