@@ -1396,8 +1396,14 @@ const Workspace: React.FC = () => {
         {!showMobileMenu && (
           <button
             className="fixed bottom-24 left-6 z-50 w-14 h-14 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center border-2 border-white"
-            onClick={() => showSidebar()}
+            onClick={() => {
+              showSidebar();
+              // Forzar visibilidad del panel del explorador
+              const event = new CustomEvent('show-file-explorer');
+              window.dispatchEvent(event);
+            }}
             aria-label="Explorador de archivos"
+            id="workspace-explorer-button"
           >
             <FolderOpen className="h-7 w-7" />
           </button>

@@ -386,6 +386,22 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSe
             onClick={() => setShowExplorer(true)}
             title="Explorador de archivos"
             aria-label="Abrir explorador de archivos"
+            id="mobile-explorer-button"
+          >
+            <FolderOpen className="h-7 w-7 text-white" />
+          </Button>
+        </div>
+      )}
+
+      {/* Botón secundario para acceso rápido a explorador (más visible) */}
+      {isMobile && (
+        <div className="fixed bottom-24 left-6 z-50">
+          <Button
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg bg-amber-500 hover:bg-amber-600 border-2 border-white"
+            onClick={() => setShowExplorer(true)}
+            title="Ver explorador de archivos"
+            aria-label="Ver explorador de archivos"
           >
             <FolderOpen className="h-7 w-7 text-white" />
           </Button>

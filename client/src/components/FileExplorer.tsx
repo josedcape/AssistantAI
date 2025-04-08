@@ -190,6 +190,23 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
       }, 500);
     };
 
+    // Handler para mostrar el explorador desde eventos externos
+    const handleShowExplorer = () => {
+      console.log("Evento show-file-explorer recibido");
+      if (onClose) {
+        // Si hay una función de cierre, estamos en el modal
+        // y debemos asegurarnos de que esté abierto
+        const sheet = document.querySelector('[data-state="open"]');
+        if (!sheet) {
+          // Si no está abierto, simulamos clic en el botón que lo abre
+          const explorerButton = document.getElementById('mobile-explorer-button');
+          if (explorerButton) {
+            explorerButton.click();
+          }
+        }
+      }
+    };
+
     // Handler para recibir archivos del asistente o de las plantillas
     const handleFilesFromAssistant = (e: CustomEvent) => {
       console.log("Evento send-files-to-explorer recibido", e.detail);
@@ -326,12 +343,14 @@ function FileExplorer({ projectId, onFileSelect, selectedFileId, onClose, onSend
     window.addEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
     window.addEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
     window.addEventListener('refresh-files', handleRefreshFiles as EventListener);
+    window.addEventListener('show-file-explorer', handleShowExplorer as EventListener);
 
     return () => {
       window.removeEventListener('files-updated', handleFileUpdated as EventListener);
       window.removeEventListener('send-files-to-explorer', handleFilesFromAssistant as EventListener);
       window.removeEventListener('activate-files-tab', handleActivateFilesTab as EventListener);
       window.removeEventListener('refresh-files', handleRefreshFiles as EventListener);
+      window.removeEventListener('show-file-explorer', handleShowExplorer as EventListener);
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
