@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { File } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import CodeBlock from "./CodeBlock";
+import { Button } from "@/components/ui/button";
 
 interface CodePreviewProps {
   file: File;
@@ -14,6 +16,7 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
   const [previewContent, setPreviewContent] = useState<string>("");
   const [isPdf, setIsPdf] = useState(false);
   const [isImage, setIsImage] = useState(false);
+  const webViewRef = useRef<HTMLIFrameElement>(null);
 
   // Función para obtener el ID del proyecto de forma segura
   const getProjectId = (): number | null => {
@@ -120,7 +123,29 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     loadFileContent();
   };
 
-  // Función para abrir la vista previa en una nueva ventana
+  // Función para comunicarse con el WebView
+  const postMessageToWebView = (message: any) => {
+    if (webViewRef.current && webViewRef.current.contentWindow) {
+      webViewRef.current.contentWindow.postMessage(message, '*');
+    }
+  };
+
+  // Función para establecer un listener de mensajes desde el WebView
+  useEffect(() => {
+    const handleWebViewMessage = (event: MessageEvent) => {
+      // Validar origen del mensaje si es necesario
+      if (event.data && event.data.type === 'webviewReady') {
+        console.log('WebView está listo para recibir contenido');
+      }
+      
+      // Aquí puedes manejar otros tipos de mensajes desde el WebView
+    };
+    
+    window.addEventListener('message', handleWebViewMessage);
+    return () => window.removeEventListener('message', handleWebViewMessage);
+  }, []);
+
+  // Función para abrir la vista previa en una nueva ventana (WebView externo)
   const openInNewWindow = () => {
     if (!file) return;
     
@@ -234,7 +259,7 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       const url = URL.createObjectURL(blob);
       
       // Intentar abrir en una nueva ventana
-      const newWindow = window.open(url, '_blank');
+      const newWindow = window.open(url, '_blank', 'width=800,height=600,resizable=yes');
       
       // Verificar si la ventana se abrió correctamente
       if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
@@ -292,7 +317,7 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     const isCss = file.type === 'css' || file.name.toLowerCase().endsWith('.css');
     const isJs = file.type === 'javascript' || file.name.toLowerCase().endsWith('.js');
 
-    // Si es un archivo HTML, mostramos iframe para previsualización
+    // Si es un archivo HTML, mostramos webview para previsualización
     if (isHtml) {
       const cssFiles = allFiles.filter(f => f.type === 'css');
       const jsFiles = allFiles.filter(f => f.type === 'javascript');
@@ -300,10 +325,10 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       const css = cssFiles.map(f => f.content || '').join('\n');
       const js = jsFiles.map(f => f.content || '').join('\n');
       
-      // Contenido HTML completo para el iframe
+      // Contenido HTML completo para el WebView
       const htmlContent = `
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="es">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -317,6 +342,18 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
             /* Estilos del usuario */
             ${css}
           </style>
+          <script>
+            // Configurar comunicación con el componente padre
+            window.addEventListener('message', function(event) {
+              // Aquí puedes manejar mensajes desde el componente padre
+              console.log('Mensaje recibido en WebView:', event.data);
+            });
+            
+            // Notificar que el WebView está listo
+            window.addEventListener('load', function() {
+              window.parent.postMessage({ type: 'webviewReady' }, '*');
+            });
+          </script>
         </head>
         <body>
           ${file.content || '<div>No hay contenido HTML para mostrar</div>'}
@@ -325,16 +362,17 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
         </html>
       `;
       
-      console.log("Renderizando HTML en iframe");
+      console.log("Renderizando HTML en WebView");
       
       return (
         <div className="w-full h-full">
           <iframe
+            ref={webViewRef}
             srcDoc={htmlContent}
             className="w-full h-full border-none"
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-modals"
             title="Vista previa HTML"
-            onLoad={() => console.log("iframe cargado")}
+            onLoad={() => console.log("WebView cargado")}
           />
         </div>
       );
@@ -344,13 +382,19 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
     if (isCss) {
       return (
         <iframe
+          ref={webViewRef}
           srcDoc={`
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="es">
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <style>${file.content || ''}</style>
+              <script>
+                window.addEventListener('load', function() {
+                  window.parent.postMessage({ type: 'webviewReady', contentType: 'css' }, '*');
+                });
+              </script>
             </head>
             <body>
               <div class="preview-container" style="padding: 20px; font-family: system-ui, sans-serif;">
@@ -370,21 +414,145 @@ const CodePreviewComponent = ({ file, allFiles = [] }: CodePreviewProps) => {
       );
     }
 
-    // Si es JavaScript, podemos intentar mostrar la consola o simplemente el código
+    // Si es JavaScript, implementamos un WebView con consola interactiva
     if (isJs) {
       return (
-        <div className="p-4 h-full overflow-auto">
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-lg font-medium">
+        <div className="h-full flex flex-col">
+          <div className="mb-2 flex justify-between items-center p-2 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium">
               JavaScript: <span className="text-primary-500">{file.name}</span>
             </h3>
           </div>
 
-          <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
-            <CodeBlock
-              code={file.content || '// Sin contenido'}
-              language="javascript"
-              showLineNumbers={true}
+          <div className="flex-1">
+            <iframe
+              ref={webViewRef}
+              srcDoc={`
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>JavaScript WebView</title>
+                  <style>
+                    body {
+                      font-family: system-ui, sans-serif;
+                      margin: 0;
+                      padding: 10px;
+                      display: flex;
+                      flex-direction: column;
+                      height: 100vh;
+                      overflow: hidden;
+                    }
+                    
+                    #output {
+                      flex: 1;
+                      background: #f5f5f5;
+                      border-radius: 4px;
+                      padding: 10px;
+                      overflow-y: auto;
+                      font-family: monospace;
+                      margin-bottom: 10px;
+                    }
+                    
+                    pre {
+                      margin: 0 0 5px 0;
+                      white-space: pre-wrap;
+                    }
+                    
+                    .log { color: #333; }
+                    .info { color: #0066cc; }
+                    .warn { color: #cc7700; }
+                    .error { color: #cc0000; }
+                  </style>
+                  <script>
+                    // Configurar comunicación con el componente padre
+                    window.addEventListener('message', function(event) {
+                      if (event.data.type === 'executeCode') {
+                        try {
+                          eval(event.data.code);
+                        } catch (err) {
+                          console.error('Error al ejecutar código:', err.message);
+                        }
+                      }
+                    });
+                    
+                    // Sobrescribir console.log para mostrar resultados en la página
+                    window.addEventListener('DOMContentLoaded', function() {
+                      const output = document.getElementById('output');
+                      
+                      const originalConsole = {
+                        log: console.log,
+                        info: console.info,
+                        warn: console.warn,
+                        error: console.error
+                      };
+                      
+                      function logToOutput(type, args) {
+                        const pre = document.createElement('pre');
+                        pre.className = type;
+                        pre.textContent = args.map(arg => {
+                          if (typeof arg === 'object') {
+                            return JSON.stringify(arg, null, 2);
+                          }
+                          return String(arg);
+                        }).join(' ');
+                        output.appendChild(pre);
+                        output.scrollTop = output.scrollHeight;
+                      }
+                      
+                      console.log = function() {
+                        originalConsole.log.apply(console, arguments);
+                        logToOutput('log', Array.from(arguments));
+                      };
+                      
+                      console.info = function() {
+                        originalConsole.info.apply(console, arguments);
+                        logToOutput('info', Array.from(arguments));
+                      };
+                      
+                      console.warn = function() {
+                        originalConsole.warn.apply(console, arguments);
+                        logToOutput('warn', Array.from(arguments));
+                      };
+                      
+                      console.error = function() {
+                        originalConsole.error.apply(console, arguments);
+                        logToOutput('error', Array.from(arguments));
+                      };
+                      
+                      // Notificar que el WebView está listo
+                      window.parent.postMessage({ type: 'webviewReady', contentType: 'javascript' }, '*');
+                      
+                      // Ejecutar el código JS automáticamente
+                      try {
+                        // El código vendrá de un mensaje del padre
+                        console.info('WebView JavaScript listo para ejecutar código');
+                      } catch (err) {
+                        console.error('Error al inicializar:', err.message);
+                      }
+                    });
+                  </script>
+                </head>
+                <body>
+                  <div id="output"></div>
+                </body>
+                </html>
+              `}
+              className="w-full h-full border-none"
+              sandbox="allow-scripts"
+              title="Vista previa JavaScript"
+              onLoad={() => {
+                if (webViewRef.current && file.content) {
+                  // Enviar el código al WebView para ejecutar
+                  setTimeout(() => {
+                    postMessageToWebView({
+                      type: 'executeCode',
+                      code: file.content
+                    });
+                  }, 500);
+                }
+              }}
             />
           </div>
         </div>
