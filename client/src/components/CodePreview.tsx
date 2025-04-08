@@ -425,36 +425,6 @@ const CodePreviewComponent = ({ file, allFiles = [], onSendToAssistant, onFileSe
           </Sheet>
         </div>
       )}
-
-      {/* Botón secundario para acceso rápido a explorador (más visible) */}
-      {isMobile && (
-        <div className="fixed bottom-24 left-6 z-50">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                size="icon"
-                className="h-14 w-14 rounded-full shadow-lg bg-amber-500 hover:bg-amber-600 border-2 border-white"
-                title="Ver explorador de archivos"
-                aria-label="Ver explorador de archivos"
-              >
-                <FolderOpen className="h-7 w-7 text-white" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 z-50 overflow-hidden">
-              <FileExplorer 
-                projectId={getProjectId() || 0} 
-                onFileSelect={(file) => {
-                  if (onFileSelect) {
-                    onFileSelect(file);
-                  }
-                }}
-                onClose={() => setShowExplorer(false)}
-                onSendToAssistant={onSendToAssistant}
-              />
-            </SheetContent>
-          </Sheet>
-        </div>
-      )}
     </div>
   );
 };
