@@ -1392,8 +1392,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configurar rutas para los efectos de sonido
   setupSoundsRoutes(apiRouter); // Added sound routes setup
 
-  // Register API routes
-  app.use("/api", apiRouter);
+  // Command execution endpoint
+apiRouter.post("/execute/command", async (req: Request, res: Response) => {
+  try {
+    const { command } = req.body;
+    if (!command) {
+      return res.status(400).json({ error: "No command provided" });
+    }
+
+    const { exec } = require('child_process');
+    
+    exec(command, (error: Error | null, stdout: string, stderr: string) => {
+      if (error) {
+        return res.status(500).json({ output: `Error: ${error.message}` });
+      }
+      res.json({ output: stdout || stderr });
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      output: `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
+  }
+});
+
+// Register API routes
+app.use("/api", apiRouter);
 
   // Endpoint para obtener paquetes instalados ya está definido arriba
   // en "/projects/:projectId/packages", así que no necesitamos este duplicado
