@@ -1,3 +1,14 @@
+
+.terminal-container {
+  padding: 8px;
+  background-color: #1a1b26;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+  padding: 8px;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
