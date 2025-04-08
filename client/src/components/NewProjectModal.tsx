@@ -288,6 +288,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       // Procesar y enviar los archivos generados al panel de archivos generados
       if (data.files && data.files.length > 0) {
         // Procesar los archivos generados
+        processGeneratedFiles(data.files);
+
         const newGeneratedFiles = data.files.map(file => {
           // Detectar si es un archivo de configuración especial
           const isConfigFile =
@@ -950,8 +952,7 @@ Thumbs.db
 
         // Contenido para .env.example
         const envExampleContent = `PORT=5001
-NODE_ENV=development
-${selectedFeatures.includes('database') ? 'MONGODB_URI=mongodb://localhost:27017/' + projectName.toLowerCase().replace(/\s+/g, '_') : ''}
+MONGODB_URI=mongodb://localhost:27017/${projectName.toLowerCase().replace(/\s+/g, '_')}
 ${selectedFeatures.includes('authentication') ? 'JWT_SECRET=your_jwt_secret_key\nTOKEN_EXPIRY=1h' : ''}
 `;
 
@@ -1241,6 +1242,26 @@ gunicorn==20.1.0`;
     const content = file.content;
     alert(`Contenido de ${file.name}${file.extension}:\n\n${content.substring(0, 500)}${content.length > 500 ? '...' : ''}`);
   };
+
+  // Helper function to process generated files
+  const processGeneratedFiles = (files: any[]) => {
+    files.forEach((file, index) => {
+      const delay = index * 500; // Stagger the file creation
+      sendFileToExplorer(
+        file.name.replace(/\.[^/.]+$/, ""),
+        file.content,
+        `.${file.language || getExtensionFromType(file.type)}`,
+        delay
+      );
+    });
+
+    // Refresh files after all have been processed
+    setTimeout(() => {
+      const refreshEvent = new CustomEvent('refresh-files');
+      window.dispatchEvent(refreshEvent);
+    }, files.length * 500 + 1000);
+  };
+
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={handleBackdropClick}>
