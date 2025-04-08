@@ -31,6 +31,20 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
 
+  // Función para obtener la descripción de un agente por su nombre
+  const getAgentDescription = (agentName: string): string => {
+    const descriptions: Record<string, string> = {
+      "project_architect": "Diseña la estructura general del proyecto",
+      "frontend_designer": "Especialista en interfaces de usuario",
+      "backend_developer": "Desarrolla lógica de servidor y APIs",
+      "database_specialist": "Experto en modelos de datos y consultas",
+      "security_expert": "Implementa medidas de seguridad",
+      "devops_engineer": "Optimiza despliegue y configuración"
+    };
+
+    return descriptions[agentName] || `Agente de desarrollo`;
+  };
+
   // Obtener agentes disponibles al montar el componente
   useEffect(() => {
     const fetchAvailableAgents = async () => {
