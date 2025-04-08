@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Loader2, Mic, MicOff, Send, Save, Copy, Check,
   MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload,
-  Menu, X, Package, Code, Share2, Download, History, Plus, Trash2, Info
+  Menu, X, Package, Code, Share2, Download, History, Plus, Trash2, Info, Terminal
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import * as sounds from "@/lib/sounds"; //Import sounds module
@@ -46,7 +46,7 @@ import {
   Message as ConversationMessage
 } from "@/lib/conversationStorage";
 import { Input } from "@/components/ui/input";
-import Terminal from './Terminal'; // Added import for Terminal component
+import TerminalComponent from './Terminal'; // Added import for Terminal component
 import CodeBlock from './CodeBlock'; // Added import for CodeBlock component
 
 
@@ -913,7 +913,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
             height = height* ratio;
           }
 
-          // Crear canvas para la compresión
+          // Crear canvaspara la compresión
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
@@ -1184,6 +1184,26 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     }
   }, [messages]);
 
+  const executeInTerminal = (command: string) => {
+    // Aquí se implementaría la lógica para ejecutar el comando en la terminal
+    // Por ejemplo, se podría usar una librería como 'child_process' en Node.js
+    // o una API de sistema operativo si se está ejecutando en el navegador.
+
+    // Por ahora, se simula la ejecución mostrando un mensaje:
+    console.log(`Ejecutando comando en terminal: ${command}`);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        role: "assistant",
+        content: `Ejecutando comando en terminal: \`${command}\``
+      },
+      {
+        role: "assistant",
+        content: `Salida de terminal: (Simulación) Comando ejecutado exitosamente.` // Reemplazar con la salida real
+      }
+    ]);
+  };
+
   return (
     <div className="flex h-full">
       {/* Panel lateral de conversaciones */}
@@ -1444,6 +1464,22 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
                       <Badge variant={message.role === 'user' ? 'primary' : 'secondary'}>
                         {message.role === 'user' ? 'Usuario' : message.role === 'assistant' ? 'Asistente' : 'Sistema'}
                       </Badge>
+                      {message.role === 'user' && message.content.startsWith('npm ') && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => executeInTerminal(message.content)}
+                              >
+                                <Terminal className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ejecutar en terminal</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                       {message.role === 'assistant' && extractCodeFromMessage(message.content).length > 0 && (
                         <TooltipProvider>
                           <Tooltip>

@@ -9,7 +9,12 @@ interface TerminalProps {
   className?: string;
 }
 
-export function Terminal({ className }: TerminalProps) {
+interface TerminalProps {
+  className?: string;
+  onCommandExecuted?: (output: string) => void;
+}
+
+export function Terminal({ className, onCommandExecuted }: TerminalProps) {
   const [history, setHistory] = useState<string[]>([]);
   const [command, setCommand] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -41,6 +46,21 @@ export function Terminal({ className }: TerminalProps) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [history]);
+
+  // Método público para ejecutar comandos
+  const executeCommandFromExternal = async (cmd: string) => {
+    if (cmd.trim()) {
+      await executeCommand(cmd);
+      if (onCommandExecuted) {
+        onCommandExecuted(`$ ${cmd}\n${history[history.length - 1]}`);
+      }
+    }
+  };
+
+  // Exponer el método al componente padre
+  React.useImperativeHandle(React.createRef(), () => ({
+    executeCommand: executeCommandFromExternal
+  }));
 
   return (
     <div className={`flex flex-col h-full bg-black text-green-400 font-mono ${className}`}>
