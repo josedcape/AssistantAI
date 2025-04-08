@@ -141,6 +141,24 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
     return () => document.removeEventListener('keydown', handleEscapeKey);
   }, [isSubmitting, isGeneratingFiles, onClose]);
 
+  // Obtener agente apropiado según la plantilla
+  const getProjectAgent = (template: string) => {
+    switch (template) {
+      case "html-css-js":
+        return "html_css_js_agent";
+      case "react":
+        return "react_agent";
+      case "vue":
+        return "vue_agent";
+      case "node":
+        return "node_agent";
+      case "python":
+        return "python_agent";
+      default:
+        return "html_css_js_agent";
+    }
+  };
+
   // Función para generar archivos utilizando el asistente GPT
   const generateFilesWithGPT = async () => {
     if (!projectName.trim() || !template) {
@@ -151,6 +169,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       });
       return;
     }
+
+    const projectAgent = getProjectAgent(template);
 
     try {
       setIsGeneratingFiles(true);
@@ -239,7 +259,8 @@ const NewProjectModal = ({ onClose }: NewProjectModalProps) => {
       const response = await apiRequest("POST", "/api/generate-code", {
         prompt: prompt,
         language: template,
-        ...agentsParam
+        projectAgent: projectAgent,
+        features: selectedFeatures
       });
 
       if (!response.ok) {
