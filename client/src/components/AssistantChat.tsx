@@ -1468,9 +1468,9 @@ let height = img.height;
         </div>
 
         {/* Área de mensajes */}
-        <div className="flex-1 overflow-auto p-4">
-          <ScrollArea className="h-full">
-            <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-y-contain p-4 mobile-scroll">
+          <ScrollArea className="h-full min-h-[calc(100vh-16rem)]">
+            <div className="space-y-4 pb-20">
               {isChatVisible && messages.map((message, index) => (
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
@@ -1585,7 +1585,7 @@ let height = img.height;
         </div>
 
         {/* Área de entrada */}
-        <div className="border-t p-2 sm:p-4 sticky bottom-0 bg-background">
+        <div className="border-t p-2 sm:p-4 sticky bottom-0 bg-background mobile-safe-bottom">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex space-x-1">
               <TooltipProvider>
