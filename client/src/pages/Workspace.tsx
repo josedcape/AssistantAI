@@ -108,7 +108,7 @@ const Workspace: React.FC = () => {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Main state
-  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated">("development");
+  const [activeTab, setActiveTab] = useState<"development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal">("development");
   const [activeFile, setActiveFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -844,7 +844,7 @@ const Workspace: React.FC = () => {
   }, []);
 
   const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value as "development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated");
+    setActiveTab(value as "development" | "preview" | "console" | "deployment" | "assistant-chat" | "resources" | "packages" | "history" | "generated" | "terminal");
   }, []);
 
   const updatePreview = useCallback(() => {
@@ -993,7 +993,7 @@ const Workspace: React.FC = () => {
                   >
                     <div className="w-5 h-5 mr-1"></div>
                     <FileText className="w-4 h-4 mr-2 text-slate-400" />
-                    <span className="truncate">{file.name</span>
+                    <span className="truncate">{file.name}</span>
                   </li>
                 ))}
               </ul>
@@ -1463,6 +1463,9 @@ const Workspace: React.FC = () => {
                   <DropdownMenuItem onClick={() => setActiveTab("console")}>
                     Consola
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("terminal")}>
+                    Terminal
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setActiveTab("deployment")}>
                     Despliegue
                   </DropdownMenuItem>
@@ -1579,6 +1582,10 @@ const Workspace: React.FC = () => {
                       <Terminal className="h-4 w-4 mr-1.5 text-amber-500" />
                       Consola
                     </TabsTrigger>
+                    <TabsTrigger value="terminal" className="text-xs flex items-center">
+                      <Terminal className="h-4 w-4 mr-1.5 text-amber-500" />
+                      Terminal
+                    </TabsTrigger>
                     <TabsTrigger value="deployment" className="text-xs flex items-center">
                       <Globe className="h-4 w-4 mr-1.5 text-cyan-500" />
                       Despliegue
@@ -1654,6 +1661,10 @@ const Workspace: React.FC = () => {
                 )}
 
                 {activeTab === "console" && (
+                  <ConsoleOutput projectId={projectId} />
+                )}
+
+                {activeTab === "terminal" && (
                   <Terminal className="h-full" />
                 )}
 
