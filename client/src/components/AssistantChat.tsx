@@ -1665,7 +1665,8 @@ const AssistantChat: React.FC = () => {
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```)) {
+                           if (part.startsWith('```') && part.endsWith('```')) {
+
   const codes = extractCodeFromMessage(part);
   return codes.map((codeBlock, codeIndex) => (
     <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
@@ -2044,4 +2045,4 @@ return (
   );
 };
 
-export default AssistantChat;
+export default AssistantChat
