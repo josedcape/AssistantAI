@@ -872,7 +872,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Extraer código del mensaje
   const extractCodeFromMessage = (content: string): Array<{language: string, code: string, fileName?: string}> => {
-    const codeBlockRegex = /```(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+    const codeBlockRegex = /```([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
     let match;
     const codes: { language: string; code: string; fileName?: string }[] = [];
 
