@@ -49,7 +49,6 @@ import { Input } from "@/components/ui/input";
 import TerminalComponent from './Terminal'; // Added import for Terminal component
 import CodeBlock from './CodeBlock'; // Added import for CodeBlock component
 
-
 // Tipos para mensajes y paquetes
 interface Message {
   role: "user" | "assistant" | "system";
@@ -96,11 +95,10 @@ const AssistantChat: React.FC = () => {
   const [fileUploadModalOpen, setFileUploadModalOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-
   // Estados para gestión de conversaciones
   const [conversations, setConversations] = useState<Array<{id: string; title: string; date: string}>>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<'saved' | 'saving' | 'unsaved'>('unsaved');
   const [newConversationTitle, setNewConversationTitle] = useState("");
@@ -109,7 +107,6 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // Estado para gestión de paquetes
   const [packageInstalling, setPackageInstalling] = useState(false);
   const [installPackageInput, setInstallPackageInput] = useState("");
-
 
   // Referencias para el reconocimiento de voz
   const recognitionRef = useRef<any>(null);
@@ -382,7 +379,6 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     }
   };
 
-
   // Función para enviar mensajes
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -392,7 +388,6 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     sounds.play("send");
-
     try {
       const response = await fetch("/api/assistant-chat", {
         method: "POST",
@@ -459,22 +454,21 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
           role: "assistant",
           content: `## ⚠️ Error en la solicitud
 
-  🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
-  \`\`\`
-  ${error instanceof Error ? error.message : "Error desconocido"}
-  \`\`\`
+      🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
+      \`\`\`
+      ${error instanceof Error ? error.message : "Error desconocido"}
+      \`\`\`
 
-  ### 🔍 Posibles soluciones:
-  * 🔄 Verifica que el servidor de la API esté funcionando correctamente
-  * 📡 Comprueba tu conexión a internet
-  * 🔧 Reinicia la aplicación si el problema persiste`
+      ### 🔍 Posibles soluciones:
+      * 🔄 Verifica que el servidor de la API esté funcionando correctamente
+      * 📡 Comprueba tu conexión a internet
+      * 🔧 Reinicia la aplicación si el problema persiste`
         },
       ]);
       sounds.play("error");
     } finally {
       setIsLoading(false);
     }
-  };
 
   // Manejar cambio de modelo
   const handleModelChange = (newModelId: string) => {
@@ -534,7 +528,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     // 1. Detectar comandos de instalación en bloques de código
     try {
       // Expresión regular para detectar comandos de instalación en bloques de código
-      const installCommandRegex = /```(?:bash|shell|sh)?\s*((?:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
+      const installCommandRegex = /```(?\:bash|shell|sh)?\s*((?\:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
       let match;
 
       const contentStr = String(content); // Asegurar que es string
@@ -746,7 +740,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
       // Agregar botón para enviar al explorador/recursos
       successMessage += `\n\n<div class="flex gap-2 mt-3">
-        <button id="send-to-explorer" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+        <button id="send-to-explorer" data-files='\\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -754,7 +748,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
           Enviar al explorador
         </button>
 
-        <button id="send-to-generator" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+        <button id="send-to-generator" data-files='\\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
@@ -870,16 +864,15 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
       // Extraer código del mensaje
       const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const codeBlockRegex = /([a/g;
-
+        const codeBlockRegex = /```(\w+)?\s*(?:\/\/|#)?\s*(?\:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corregida la expresión regular
 
         let match;
         const codes: { language: string; code: string; fileName?: string }[] = [];
 
         while ((match = codeBlockRegex.exec(content)) !== null) {
-          const language = match[1] || "plaintext";
-          const fileName = match[2] || getDefaultFileName(language);
-          const code = match[3].trim();
+          const language = match[1] || "plaintext";  // Default language if none provided
+          const fileName = match[2] || getDefaultFileName(language);  // Get the file name or default one
+          const code = match[3].trim();  // Extract the actual code
 
           codes.push({
             language,
@@ -1038,7 +1031,7 @@ let height = img.height;
           ...prev,
           {
             role: "assistant",
-            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta con otra imagen de menor tamaño o con un formato diferente.*`
+            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta con otra imagen de menor tamaño o con un formato diferente.*`
           }
         ]);
         sounds.play("error");
@@ -1113,7 +1106,7 @@ let height = img.height;
     // Añadir emojis en los puntos importantes (títulos, listas, etc.)
     enhancedContent = enhancedContent
       // Títulos con emojis
-      .replace(/^(#{1,3})\s+(.+)\\$/gm, (_, hashes, title) => {
+      .replace(/^(#{1,3})\s+(.+)\\\$/gm, (_, hashes, title) => {
         if (title.includes("importante") || title.includes("atención"))
           return `${hashes} 🚨 ${title}`;
         if (title.includes("nota") || title.includes("recuerda"))
@@ -1131,7 +1124,7 @@ let height = img.height;
         return `${hashes} ✨ ${title}`;
       })
       // Elementos de lista con emojis
-      .replace(/^(\s*[-*+])\s+(.+)\\$/gm, (_, bullet, item) => {
+      .replace(/^(\s*[-*+])\s+(.+)\\\$/gm, (_, bullet, item) => {
         if (item.includes("importante") || item.includes("clave"))
           return `${bullet} 🔑 ${item}`;
         if (item.includes("ejemplo") || item.includes("muestra"))
@@ -1143,7 +1136,7 @@ let height = img.height;
         return `${bullet} • ${item}`;
       })
       // Líneas numeradas con emojis
-      .replace(/^(\s*\d+\.)\s+(.+)\\$/gm, (_, number, item) => {
+      .replace(/^(\s*\d+\.)\s+(.+)\\\$/gm, (_, number, item) => {
         if (item.includes("paso") || item.includes("etapa"))
           return `${number} 🔄 ${item}`;
         if (item.includes("primero") || item.includes("inicial"))
@@ -1205,7 +1198,7 @@ let height = img.height;
         ...prev,
         {
           role: "assistant",
-          content: `## ⚠️ Error al instalar el paquete\n\n❌ No se pudo instalar el paquete "${installPackageInput}" debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o instala el paquete manualmente.*`
+          content: `## ⚠️ Error al instalar el paquete\n\n❌ No se pudo instalar el paquete "${installPackageInput}" debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o instala el paquete manualmente.*`
         },
       ]);
       sounds.play("error");
@@ -1235,7 +1228,7 @@ let height = img.height;
       ...prevMessages,
       {
         role: "assistant",
-        content: `Ejecutando comando en terminal: \`${command}\``
+        content: `Ejecutando comando en terminal: \`\${command}\``
       },
       {
         role: "assistant",
@@ -1250,7 +1243,7 @@ let height = img.height;
 
     try {
       const sendToGeneratorEvent = new CustomEvent('send-files-to-generator', {
-        detail: { 
+        detail: {
           files: files.map(file => ({
             name: file.name,
             content: file.content,
@@ -1367,7 +1360,7 @@ let height = img.height;
 
   🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
   \`\`\`
-  ${error instanceof Error ? error.message : "Error desconocido"}
+  \${error instanceof Error ? error.message : "Error desconocido"}
   \`\`\`
 
   ### 🔍 Posibles soluciones:
@@ -1382,12 +1375,11 @@ let height = img.height;
     }
   };
 
-
   return (
     <div className="flex h-full">
       {/* Panel lateral de conversaciones */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:relative ${
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:relative \${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
       >
@@ -1674,7 +1666,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```)) {
+                            if (part.startsWith('```') && part.endsWith('```')) {  // Corregido la expresión condicional
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
@@ -1806,7 +1798,7 @@ let height = img.height;
                                 const content = data.text || "No se pudo extraer contenido del documento.";
 
                                 // Preparar mensaje con el contenido del archivo
-                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\${fileExtension}\n`;
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\\${fileExtension}\n`;
 
                                 // Limitar el contenido si es muy grande
                                 const maxLength = 10000;
@@ -1840,7 +1832,7 @@ let height = img.height;
                               const content = event.target?.result as string;
                               if (content) {
                                 // Preparar mensaje con el contenido del archivo
-                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\${fileExtension}\n`;
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\\${fileExtension}\n`;
 
                                 // Limitar el contenido si es muy grande
                                 const maxLength = 10000;
@@ -2046,8 +2038,8 @@ let height = img.height;
         )}
 
         {/* Final del componente */}
-      </div>
-    </div>
+        </div>
+        </div>
   );
 };
 
