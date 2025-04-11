@@ -863,7 +863,7 @@ const AssistantChat: React.FC = () => {
       }, 500);
 
       const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const codeBlockRegex = /```(\w+)?\s*(?:\/\/|#)?\s*(?\:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corrected the regular expression
+        const codeBlockRegex = /(?:(\w+))?\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corrected the regular expression
 
         let match;
         const codes: { language: string; code: string; fileName?: string }[] = [];
@@ -1665,7 +1665,7 @@ const AssistantChat: React.FC = () => {
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```')) {
+                            if (part.startsWith('```') && part.endsWith('```)) {
   const codes = extractCodeFromMessage(part);
   return codes.map((codeBlock, codeIndex) => (
     <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
