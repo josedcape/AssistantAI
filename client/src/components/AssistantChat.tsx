@@ -777,6 +777,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
         detail: { forceRefresh: true }
       });
       window.dispatchEvent(fileEvent);
+
       // Buscar y actualizar el explorador de archivos si existe
       setTimeout(() => {
         const fileExplorer = document.querySelector('[data-component="file-explorer"]');
@@ -803,6 +804,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
           detail: { force: true }
         });
         window.dispatchEvent(refreshEvent);
+
         // Agregar listener para el botón de enviar al explorador
         setTimeout(() => {
           const sendToExplorerButton = document.getElementById('send-to-explorer');
@@ -863,57 +865,53 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
               }
             });
           }
+        }, 500);
+      }, 500);
+
+      // Extraer código del mensaje
+      const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
+        const codeBlockRegex = /```([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+        let match;
+        const codes: { language: string; code: string; fileName?: string }[] = [];
+
+        while ((match = codeBlockRegex.exec(content)) !== null) {
+          const language = match[1] || "plaintext";
+          const fileName = match[2] || getDefaultFileName(language);
+          const code = match[3].trim();
+
+          codes.push({
+            language,
+            code,
+            fileName
+          });
         }
-      } catch (error) {
-        console.error("Error al procesar código:", error);
-      }
-    }, 500);
-  });
 
-  // Extraer código del mensaje
-  const extractCodeFromMessage = (content: string): Array<{language: string, code: string, fileName?: string}> => {
-    const codeBlockRegex = /```([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
-    let match;
-    const codes: { language: string; code: string; fileName?: string }[] = [];
+        return codes;
+      };
 
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const language = match[1] || "plaintext";
-      const fileName = match[2] || getDefaultFileName(language);
-      const code = match[3].trim();
+      const getDefaultFileName = (language: string): string => {
+        const extensionMap: Record<string, string> = {
+          javascript: 'script.js',
+          typescript: 'script.ts',
+          python: 'script.py',
+          html: 'index.html',
+          css: 'styles.css',
+          jsx: 'component.jsx',
+          tsx: 'component.tsx',
+          json: 'data.json',
+          php: 'script.php',
+          java: 'Main.java',
+          cpp: 'main.cpp',
+          c: 'main.c',
+          go: 'main.go',
+          rust: 'main.rs',
+          ruby: 'script.rb',
+          sql: 'query.sql',
+          plaintext: 'file.txt'
+        };
 
-      codes.push({
-        language,
-        code,
-        fileName
-      });
-    }
-
-    return codes;
-  };
-
-  const getDefaultFileName = (language: string): string => {
-    const extensionMap: Record<string, string> = {
-      javascript: 'script.js',
-      typescript: 'script.ts',
-      python: 'script.py',
-      html: 'index.html',
-      css: 'styles.css',
-      jsx: 'component.jsx',
-      tsx: 'component.tsx',
-      json: 'data.json',
-      php: 'script.php',
-      java: 'Main.java',
-      cpp: 'main.cpp',
-      c: 'main.c',
-      go: 'main.go',
-      rust: 'main.rs',
-      ruby: 'script.rb',
-      sql: 'query.sql',
-      plaintext: 'file.txt'
-    };
-
-    return extensionMap[language.toLowerCase()] || 'code.txt';
-  };
+        return extensionMap[language.toLowerCase()] || 'code.txt';
+      };
 
   // Función para procesar imágenes cargadas
   const processImageFile = (file: File, fileName: string) => {
@@ -1741,11 +1739,7 @@ let height = img.height;
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      onClick={toggleSpeechRecognition}
-                      size="icon"
-                      variant="ghost"
-                    >
+                    <Button onClick={toggleSpeechRecognition} size="icon" variant="ghost">
                       {isListening ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
                     </Button>
                   </TooltipTrigger>
@@ -1777,7 +1771,7 @@ let height = img.height;
                             toast({
                               title: "Procesando imagen",
                               description: `Preparando ${file.name} para análisis...`,
-                              duration: 3000
+                              duration: 3000,
                             });
 
                             // Usar la función para procesar imágenes
@@ -1791,7 +1785,7 @@ let height = img.height;
                             toast({
                               title: "Procesando documento",
                               description: `Preparando ${file.name} para análisis...`,
-                              duration: 3000
+                              duration: 3000,
                             });
 
                             const formData = new FormData();
@@ -1799,15 +1793,15 @@ let height = img.height;
 
                             fetch("/api/documents/extract-text", {
                               method: "POST",
-                              body: formData
+                              body: formData,
                             })
-                              .then(response => {
+                              .then((response) => {
                                 if (!response.ok) {
                                   throw new Error(`Error al procesar el documento: ${response.statusText}`);
                                 }
                                 return response.json();
                               })
-                              .then(data => {
+                              .then((data) => {
                                 const content = data.text || "No se pudo extraer contenido del documento.";
 
                                 // Preparar mensaje con el contenido del archivo
@@ -1815,9 +1809,10 @@ let height = img.height;
 
                                 // Limitar el contenido si es muy grande
                                 const maxLength = 10000;
-                                const truncatedContent = content.length > maxLength
-                                  ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
-                                  : content;
+                                const truncatedContent =
+                                  content.length > maxLength
+                                    ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
+                                    : content;
 
                                 const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
@@ -1825,16 +1820,16 @@ let height = img.height;
                                 toast({
                                   title: "Documento procesado",
                                   description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
-                                  duration: 3000
+                                  duration: 3000,
                                 });
                               })
-                              .catch(error => {
+                              .catch((error) => {
                                 console.error("Error procesando documento:", error);
                                 toast({
                                   title: "Error al procesar documento",
                                   description: "No se pudo extraer el contenido del archivo. Intente con un formato diferente (.txt, .md).",
                                   variant: "destructive",
-                                  duration: 5000
+                                  duration: 5000,
                                 });
                               });
                           } else {
@@ -1848,9 +1843,10 @@ let height = img.height;
 
                                 // Limitar el contenido si es muy grande
                                 const maxLength = 10000;
-                                const truncatedContent = content.length > maxLength
-                                  ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
-                                  : content;
+                                const truncatedContent =
+                                  content.length > maxLength
+                                    ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
+                                    : content;
 
                                 const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
@@ -1858,7 +1854,7 @@ let height = img.height;
                                 toast({
                                   title: "Archivo cargado",
                                   description: `${file.name} ha sido cargado (${(file.size / 1024).toFixed(2)} KB)`,
-                                  duration: 3000
+                                  duration: 3000,
                                 });
                               }
                             };
@@ -1903,151 +1899,152 @@ let height = img.height;
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La conversación se eliminará permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteConversation} className="bg-red-500 hover:bg-red-600">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Diálogo de confirmación para eliminar */}
+        <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. La conversación se eliminará permanentemente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteConversation} className="bg-red-500 hover:bg-red-600">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Diálogo para guardar conversación */}
-      <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Guardar conversación</DialogTitle>
-            <DialogDescription>
-              Introduce un título para guardar esta conversación
-            </DialogDescription>
-          </DialogHeader>
+        {/* Diálogo para guardar conversación */}
+        <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Guardar conversación</DialogTitle>
+              <DialogDescription>
+                Introduce un título para guardar esta conversación
+              </DialogDescription>
+            </DialogHeader>
 
-          <Input
-            value={newConversationTitle}
-            onChange={(e) => setNewConversationTitle(e.target.value)}
-            placeholder="Título de la conversación"
-            className="mt-4"
-          />
-
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setShowConversationDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => {
-              if (newConversationTitle.trim()) {
-                saveCurrentConversation(newConversationTitle.trim());
-                setNewConversationTitle("");
-                setShowConversationDialog(false);
-              }
-            }}>
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo para instalar paquetes */}
-      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Instalar paquete</DialogTitle>
-            <DialogDescription>
-              Introduce el nombre del paquete de npm que deseas instalar
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex items-center space-x-2 mt-4">
             <Input
-              value={installPackageInput}
-              onChange={(e) => setInstallPackageInput(e.target.value)}
-              placeholder="Nombre del paquete (ej: axios)"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !packageInstalling) {
-                  handlePackageInstall();
-                }
-              }}
+              value={newConversationTitle}
+              onChange={(e) => setNewConversationTitle(e.target.value)}
+              placeholder="Título de la conversación"
+              className="mt-4"
             />
 
-            <Button
-              onClick={handlePackageInstall}
-              disabled={packageInstalling || !installPackageInput.trim()}
-              className="flex-shrink-0"
-            >
-              {packageInstalling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
-              {packageInstalling ? 'Instalando...' : 'Instalar'}
-            </Button>
-          </div>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setShowConversationDialog(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  if (newConversationTitle.trim()) {
+                    saveCurrentConversation(newConversationTitle.trim());
+                    setNewConversationTitle("");
+                    setShowConversationDialog(false);
+                  }
+                }}
+              >
+                Guardar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
-            <h4 className="text-sm font-medium mb-2">Paquetes populares:</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm">
-                <p className="font-semibold mb-1 text-primary">UI/Componentes</p>
-                <ul className="list-disc list-inside text-xs space-y-1">
-                  <li><span className="font-mono">react</span></li>
-                  <li><span className="font-mono">tailwindcss</span></li>
-                  <li><span className="font-mono">react-router-dom</span></li>
-                </ul>
+        {/* Diálogo para instalar paquetes */}
+        <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Instalar paquete</DialogTitle>
+              <DialogDescription>
+                Introduce el nombre del paquete de npm que deseas instalar
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center space-x-2 mt-4">
+              <Input
+                value={installPackageInput}
+                onChange={(e) => setInstallPackageInput(e.target.value)}
+                placeholder="Nombre del paquete (ej: axios)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !packageInstalling) {
+                    handlePackageInstall();
+                  }
+                }}
+              />
+
+              <Button
+                onClick={handlePackageInstall}
+                disabled={packageInstalling || !installPackageInput.trim()}
+                className="flex-shrink-0"
+              >
+                {packageInstalling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
+                {packageInstalling ? 'Instalando...' : 'Instalar'}
+              </Button>
+            </div>
+
+            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
+              <h4 className="text-sm font-medium mb-2">Paquetes populares:</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm">
+                  <p className="font-semibold mb-1 text-primary">UI/Componentes</p>
+                  <ul className="list-disc list-inside text-xs space-y-1">
+                    <li><span className="font-mono">react</span></li>
+                    <li><span className="font-mono">tailwindcss</span></li>
+                    <li><span className="font-mono">react-router-dom</span></li>
+                  </ul>
+                </div>
+                <div className="text-sm">
+                  <p className="font-semibold mb-1 text-primary">Backend/API</p>
+                  <ul className="list-disc list-inside text-xs space-y-1">
+                    <li><span className="font-mono">express</span></li>
+                    <li><span className="font-mono">mongoose</span></li>
+                    <li><span className="font-mono">axios</span></li>
+                  </ul>
+                </div>
               </div>
-              <div className="text-sm">
-                <p className="font-semibold mb-1 text-primary">Backend/API</p>
-                <ul className="list-disc list-inside text-xs space-y-1">
-                  <li><span className="font-mono">express</span></li>
-                  <li><span className="font-mono">mongoose</span></li>
-                  <li><span className="font-mono">axios</span></li>
-                </ul>
+              <div className="mt-3 text-xs text-muted-foreground">
+                Haz clic en el botón <Package className="inline h-3 w-3" /> del encabezado para acceder al explorador de paquetes.
               </div>
             </div>
-            <div className="mt-3 text-xs text-muted-foreground">
-              Haz clic en el botón <Package className="inline h-3 w-3" /> del encabezado para acceder al explorador de paquetes.
-            </div>
-          </div>
 
-          {pendingPackages.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-sm font-medium mb-2">Paquetes detectados:</h4>
-              <div className="flex flex-wrap gap-2">
-                {pendingPackages.map((pkg, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    <div>{pkg.name}</div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-4 w-4 p-0"
-                      onClick={() => {
-                        setInstallPackageInput(pkg.name);
-                      }}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
+            {pendingPackages.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Paquetes detectados:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {pendingPackages.map((pkg, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      <div>{pkg.name}</div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-4 w-4 p-0"
+                        onClick={() => {
+                          setInstallPackageInput(pkg.name);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
 
-      {/* Overlay para móviles cuando el sidebar está abierto */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-    </div>
-  );
-};
+        {/* Overlay para móviles cuando el sidebar está abierto */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        </div>
+        );
 
-export default AssistantChat;
+        export default AssistantChat;
+      
