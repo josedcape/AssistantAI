@@ -870,7 +870,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
       // Extraer código del mensaje
       const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const codeBlockRegex = /([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+        const codeBlockRegex = /([a/g;
 
 
         let match;
@@ -1674,7 +1674,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```')) {
+                            if (part.startsWith('```') && part.endsWith('```)) {
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
@@ -2046,7 +2046,9 @@ let height = img.height;
         )}
 
         {/* Final del componente */}
-        </div>
-        );
+      </div>
+    </div>
+  );
+};
 
-        export default AssistantChat;
+export default AssistantChat;
