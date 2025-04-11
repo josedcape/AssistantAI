@@ -1,0 +1,144 @@
+Implementación de Comandos de Automatización de Archivos en CODESTORM AI
+Resumen Ejecutivo
+Este documento detalla la integración de un sistema de comandos en el chat de CODESTORM AI para automatizar la creación de archivos y directorios. La solución combina Socket.io para comunicación en tiempo real, Commander.js para análisis de comandos, y el módulo fs de Node.js para manipulación del sistema de archivos, priorizando seguridad y retroalimentación en tiempo real.
+
+Arquitectura del Sistema
+1. Comunicación en Tiempo Real con Socket.io
+Integrar Socket.io permite la transmisión bidireccional de comandos y respuestas entre el cliente y el servidor:
+
+javascript
+// server.js
+import { Server } from 'socket.io';
+const io = new Server(server);
+
+io.on('connection', (socket) => {
+  socket.on('chat-command', (command) => {
+    handleCommand(command, socket);
+  });
+});
+Cliente:
+
+javascript
+// client.js
+const socket = io();
+document.getElementById('chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const message = e.target.message.value;
+  if (message.startsWith('/')) {
+    socket.emit('chat-command', message.slice(1));
+  }
+});
+2. Implementación del Sistema de Comandos
+Uso de Commander.js para Parsear Comandos
+Configurar Commander.js para mapear comandos a funciones específicas:
+
+javascript
+// commands.js
+import { program } from 'commander';
+
+program
+  .command('crear-archivo <ruta>')
+  .description('Crea un archivo en la ruta especificada')
+  .action((ruta) => {
+    crearArchivo(ruta);
+  });
+
+export const handleCommand = (input, socket) => {
+  try {
+    program.parse(['node', 'codestorm', ...input.split(' ')]);
+    socket.emit('command-success', `Comando ejecutado: ${input}`);
+  } catch (err) {
+    socket.emit('command-error', `Error: ${err.message}`);
+  }
+};
+3. Manipulación del Sistema de Archivos
+Funciones Básicas con fs y path
+Crear archivos y directorios con validación de rutas:
+
+javascript
+// fileManager.js
+import fs from 'fs/promises';
+import path from 'path';
+
+const PROJECT_ROOT = process.cwd();
+
+export const crearArchivo = async (rutaRelativa) => {
+  const rutaAbsoluta = path.join(PROJECT_ROOT, rutaRelativa);
+  
+  // Validar que la ruta esté dentro del proyecto
+  if (!rutaAbsoluta.startsWith(PROJECT_ROOT)) {
+    throw new Error('Ruta fuera del ámbito del proyecto');
+  }
+
+  await fs.writeFile(rutaAbsoluta, '');
+};
+
+export const crearDirectorio = async (rutaRelativa) => {
+  const rutaAbsoluta = path.join(PROJECT_ROOT, rutaRelativa);
+  await fs.mkdir(rutaAbsoluta, { recursive: true });
+};
+4. Seguridad y Validación
+Protección Contra Inyección de Rutas
+Implementar mecanismos para prevenir accesos no autorizados:
+
+javascript
+// security.js
+export const sanitizePath = (inputPath) => {
+  return inputPath
+    .replace(/\.\.\//g, '') // Eliminar ../ para prevenir traversal
+    .replace(/\\/g, '/') // Normalizar separadores
+    .replace(/[^a-zA-Z0-9_\-./]/g, ''); // Eliminar caracteres especiales
+};
+5. Flujo de Trabajo del Comando
+Usuario envía comando:
+/crear-archivo src/components/Header.jsx
+
+Cliente detecta comando:
+
+Extrae el texto después de / y lo envía al servidor via Socket.io.
+
+Servidor procesa el comando:
+
+Sanitiza la ruta.
+
+Ejecuta la función correspondiente.
+
+Retroalimentación en tiempo real:
+
+Éxito: Archivo creado en src/components/Header.jsx.
+
+Error: Error: Permiso denegado para crear archivo.
+
+6. Implementación de Comandos Adicionales
+Comando	Función	Ejemplo
+/crear-directorio <ruta>	Crea un directorio recursivamente	/crear-directorio src/utils
+/eliminar <ruta>	Elimina archivos o directorios	/eliminar src/temp.txt
+/listar <ruta>	Muestra el contenido de un directorio	/listar src/components
+7. Optimizaciones y Consideraciones
+Permisos del Sistema
+Ejecutar el servidor con permisos limitados:
+
+bash
+useradd codestorm_user --no-create-home --shell /usr/sbin/nologin
+chown -R codestorm_user:codestorm_user /ruta/del/proyecto
+Integración con el Frontend
+Actualizar la interfaz al detectar cambios en el sistema de archivos:
+
+javascript
+// client.js
+socket.on('command-success', (message) => {
+  mostrarMensajeChat(`✅ ${message}`);
+  if (message.includes('crear-archivo')) {
+    actualizarExploradorArchivos();
+  }
+});
+Conclusión y Recomendaciones
+Este sistema permite extender CODESTORM AI con capacidades de automatización de archivos mediante comandos naturales. Para producción:
+
+Limitar comandos disponibles: Implementar una lista blanca de operaciones permitidas.
+
+Añadir autenticación: Restringir comandos críticos a usuarios autorizados.
+
+Implementar cuotas: Limitar el número de operaciones por usuario/hora.
+
+La integración de fs, path, y Socket.io proporciona una base escalable para añadir funcionalidades avanzadas como edición de archivos o despliegues automáticos.
