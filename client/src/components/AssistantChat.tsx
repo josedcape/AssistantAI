@@ -863,7 +863,16 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
               }
             });
           }
-        },(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+        }
+      } catch (error) {
+        console.error("Error al procesar código:", error);
+      }
+    }, 500);
+  });
+
+  // Extraer código del mensaje
+  const extractCodeFromMessage = (content: string): Array<{language: string, code: string, fileName?: string}> => {
+    const codeBlockRegex = /```(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
     let match;
     const codes: { language: string; code: string; fileName?: string }[] = [];
 
