@@ -1,8 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { Server as SocketServer } from 'socket.io';
+import { createServer } from 'http';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializeCommands } from './commandSystem';
 
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer);
+
+initializeCommands(io);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -60,7 +67,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5001;
-  server.listen({
+  httpServer.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,

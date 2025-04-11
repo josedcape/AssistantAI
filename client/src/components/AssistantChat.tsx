@@ -863,37 +863,7 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
               }
             });
           }
-        }, 300);
-      }, 1000);
-
-    } catch (error) {
-      console.error("Error al guardar archivos:", error);
-      sounds.play("error");
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `## ⚠️ Error al guardar el código\n\n❌ No se pudieron guardar los archivos debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o crea los archivos manualmente.*`
-        },
-      ]);
-    }
-  };
-
-  // Función para copiar código al portapapeles
-  const copyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setHasCopied(true);
-    setTimeout(() => {
-      setHasCopied(false);
-      setCopiedIndex(null);
-    }, 2000);
-  };
-
-  // Función para extraer código de un mensaje
-  const extractCodeFromMessage = (content: string) => {
-    const codeBlockRegex = /```(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+        },(\w+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
     let match;
     const codes: { language: string; code: string; fileName?: string }[] = [];
 
@@ -1250,9 +1220,6 @@ let height = img.height;
 
   const executeInTerminal = (command: string) => {
     // Aquí se implementaría la lógica para ejecutar el comando en la terminal
-    // Por ejemplo, se podría usar una librería como 'child_process' en Node.js
-    // o una API de sistema operativo si se está ejecutando en el navegador.
-
     // Por ahora, se simula la ejecución mostrando un mensaje:
     console.log(`Ejecutando comando en terminal: ${command}`);
     setMessages((prevMessages) => [
@@ -1305,6 +1272,107 @@ let height = img.height;
       sounds.play("error", 0.3);
     }
   };
+
+  const socket = io();
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!input.trim()) return;
+
+    if (input.startsWith('/')) {
+      socket.emit('chat-command', input.slice(1));
+      return;
+    }
+
+    const userMessage = input.trim();
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setIsLoading(true);
+    sounds.play("send");
+
+    try {
+      const response = await fetch("/api/assistant-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          modelId: modelId,
+          history: messages,
+          projectId: null
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al comunicarse con el asistente: ${response.status} ${response.statusText}`);
+      }
+
+      // Verificar el tipo de contenido antes de intentar parsear como JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Respuesta no JSON:", text);
+        throw new Error("La respuesta del servidor no es JSON válido");
+      }
+
+      const data = await response.json();
+      const assistantMessage = data.message;
+
+      if (!assistantMessage) {
+        throw new Error("El formato de respuesta es incorrecto");
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
+      if (sounds && sounds.play) {
+        sounds.play("notification");
+      }
+
+      // Marcar como no guardado para activar el guardado automático
+      setSavedStatus('unsaved');
+
+      // Detectar y sugerir paquetes
+      const packages = detectPackages(assistantMessage);
+      if (packages.length > 0) {
+        setPendingPackages(packages);
+        setShowPackageDialog(true);
+
+        // Agregar un indicador visual en la interfaz
+        setTimeout(() => {
+          const packageIndicator = document.getElementById('package-indicator');
+          if (packageIndicator) {
+            packageIndicator.className = 'animate-pulse';
+            setTimeout(() => {
+              packageIndicator.className = '';
+            }, 3000);
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## ⚠️ Error en la solicitud
+
+  🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
+  \`\`\`
+  ${error instanceof Error ? error.message : "Error desconocido"}
+  \`\`\`
+
+  ### 🔍 Posibles soluciones:
+  * 🔄 Verifica que el servidor de la API esté funcionando correctamente
+  * 📡 Comprueba tu conexión a internet
+  * 🔧 Reinicia la aplicación si el problema persiste`
+        },
+      ]);
+      sounds.play("error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <div className="flex h-full">
@@ -1597,7 +1665,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```')) {
+                            if (part.startsWith('```') && part.endsWith('```') {
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
