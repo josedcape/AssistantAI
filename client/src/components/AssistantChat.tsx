@@ -870,7 +870,8 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
       // Extraer código del mensaje
       const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const code([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+        const codeBlockRegex = /([a-zA-Z0-9_]+)?(?:\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?)?\n([\s\S]*?)\n```/g;
+
 
         let match;
         const codes: { language: string; code: string; fileName?: string }[] = [];
@@ -1599,24 +1600,24 @@ let height = img.height;
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
                     {message.role === 'user' && (
-  message.content.match(/^(cd|mkdir|npm|install|ls|git|node|rm|cp|mv)\s/) && (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => executeInTerminal(message.content)}
-          >
-            <Terminal className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Ejecutar en terminal</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-)}
+                      message.content.match(/^(cd|mkdir|npm|install|ls|git|node|rm|cp|mv)\s/) && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => executeInTerminal(message.content)}
+                              >
+                                <Terminal className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ejecutar en terminal</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -1673,7 +1674,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                          if (part.startsWith('```') && part.endsWith('```)) {
+                            if (part.startsWith('```') && part.endsWith('```')) {
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
@@ -1717,7 +1718,6 @@ let height = img.height;
                               </ReactMarkdown>
                             );
                           })}
-
                         </>
                       ) : (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -2044,9 +2044,9 @@ let height = img.height;
             onClick={() => setSidebarOpen(false)}
           />
         )}
-      </div>
-    </div>
-  );
-}
 
-export default AssistantChat;
+        {/* Final del componente */}
+        </div>
+        );
+
+        export default AssistantChat;

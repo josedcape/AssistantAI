@@ -1,0 +1,140 @@
+{/* Área de mensajes */}
+<div className="flex-1 overflow-y-auto overscroll-y-contain p-4 mobile-scroll">
+  <ScrollArea className="h-full min-h-[calc(100vh-16rem)]">
+    <div className="space-y-4 pb-20">
+      {isChatVisible && messages.map((message, index) => (
+        <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
+            {message.role === 'user' && (
+              message.content.match(/^(cd|mkdir|npm|install|ls|git|node|rm|cp|mv)\s/) && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => executeInTerminal(message.content)}
+                      >
+                        <Terminal className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Ejecutar en terminal</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => {
+                navigator.clipboard.writeText(message.content);
+                toast({
+                  title: "Copiado",
+                  description: "Mensaje copiado al portapapeles",
+                  duration: 2000
+                });
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center space-x-2 mb-1">
+              <Badge variant={message.role === 'user' ? 'primary' : 'secondary'}>
+                {message.role === 'user' ? 'Usuario' : message.role === 'assistant' ? 'Asistente' : 'Sistema'}
+              </Badge>
+              {message.role === 'user' && message.content.startsWith('npm ') && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => executeInTerminal(message.content)}
+                      >
+                        <Terminal className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Ejecutar en terminal</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {message.role === 'assistant' && extractCodeFromMessage(message.content).length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleSaveCode(message.content)}
+                      >
+                        <Save className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Guardar código</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <div className="prose dark:prose-invert max-w-none message-content">
+              {message.role === 'assistant' ? (
+                <>
+                  {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
+                    if (part.startsWith('```') && part.endsWith('```')) {
+                      const codes = extractCodeFromMessage(part);
+                      return codes.map((codeBlock, codeIndex) => (
+                        <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
+                          <div className="code-actions">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleSaveCode(codeBlock.code)}
+                            >
+                              <Save className="h-4 w-4 mr-1" />
+                              Guardar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                navigator.clipboard.writeText(codeBlock.code);
+                                toast({
+                                  title: "Copiado",
+                                  description: "Código copiado al portapapeles",
+                                  duration: 2000
+                                });
+                              }}
+                            >
+                              <Copy className="h-4 w-4 mr-1" />
+                              Copiar
+                            </Button>
+                          </div>
+                          <CodeBlock
+                            code={codeBlock.code}
+                            language={codeBlock.language}
+                            fileName={codeBlock.fileName}
+                            showLineNumbers={true}
+                          />
+                        </div>
+                      ));
+                    }
+                    return (
+                      <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
+                        {enhanceContentWithEmojis(part)}
+                      </ReactMarkdown>
+                    );
+                  })}
+                </>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {enhanceContentWithEmojis(message.content)}
+                </ReactMarkdown>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      <div ref={messagesEndRef} />
+    </div>
+  </ScrollArea>
+</div>
