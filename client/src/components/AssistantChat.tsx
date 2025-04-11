@@ -864,7 +864,7 @@ const AssistantChat: React.FC = () => {
 
       // Extraer código del mensaje
       const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const codeBlockRegex = /```(\w+)?\s*(?:\/\/|#)?\s*(?\:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corregida la expresión regular
+        const codeBlockRegex = /(?:(\w+))?\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corregida la expresión regular
 
         let match;
         const codes: { language: string; code: string; fileName?: string }[] = [];
@@ -941,15 +941,15 @@ const AssistantChat: React.FC = () => {
         img.onload = () => {
           // Calcular nuevas dimensiones manteniendo proporción
           let width = img.width;
-let height = img.height;
+          let height = img.height;
 
-          if (width >maxWidth) {
+          if (width > maxWidth) {
             const ratio = maxWidth / width;
             width = maxWidth;
-            height = height* ratio;
+            height = height * ratio;
           }
 
-          // Crear canvaspara la compresión
+          // Crear canvas para la compresión
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
@@ -1360,7 +1360,7 @@ let height = img.height;
 
   🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
   \`\`\`
-  \${error instanceof Error ? error.message : "Error desconocido"}
+  ${error instanceof Error ? error.message : "Error desconocido"}
   \`\`\`
 
   ### 🔍 Posibles soluciones:
@@ -1666,7 +1666,7 @@ let height = img.height;
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```')) {  // Corregido la expresión condicional
+                            if (part.startsWith('```') && part.endsWith('```)) {  // Corregido la expresión condicional
                               const codes = extractCodeFromMessage(part);
                               return codes.map((codeBlock, codeIndex) => (
                                 <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
