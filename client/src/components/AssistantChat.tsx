@@ -1667,54 +1667,50 @@ const AssistantChat: React.FC = () => {
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
                             if (part.startsWith('```') && part.endsWith('```)) {  // Corregido la expresión condicional
-                              const codes = extractCodeFromMessage(part);
-                              return codes.map((codeBlock, codeIndex) => (
-                                <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
-                                  <div className="code-actions">
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => handleSaveCode(codeBlock.code)}
-                                    >
-                                      <Save className="h-4 w-4 mr-1" />
-                                      Guardar
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(codeBlock.code);
-                                        toast({
-                                          title: "Copiado",
-                                          description: "Código copiado al portapapeles",
-                                          duration: 2000
-                                        });
-                                      }}
-                                    >
-                                      <Copy className="h-4 w-4 mr-1" />
-                                      Copiar
-                                    </Button>
-                                  </div>
-                                  <CodeBlock
-                                    code={codeBlock.code}
-                                    language={codeBlock.language}
-                                    fileName={codeBlock.fileName}
-                                    showLineNumbers={true}
-                                  />
-                                </div>
-                              ));
-                            }
-                            return (
-                              <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
-                                {enhanceContentWithEmojis(part)}
-                              </ReactMarkdown>
-                            );
-                          })}
-                        </>
-                      ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {enhanceContentWithEmojis(message.content)}
-                        </ReactMarkdown>
+                                                                        const codes = extractCodeFromMessage(part);
+                                                                        return codes.map((codeBlock, codeIndex) => (
+                                                                          <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
+                                                                            <div className="code-actions">
+                                                                              <Button
+                                                                                size="sm"
+                                                                                variant="secondary"
+                                                                                onClick={() => handleSaveCode(codeBlock.code)}
+                                                                              >
+                                                                                <Save className="h-4 w-4 mr-1" />
+                                                                                Guardar
+                                                                              </Button>
+                                                                              <Button
+                                                                                size="sm"
+                                                                                variant="secondary"
+                                                                                onClick={() => {
+                                                                                  navigator.clipboard.writeText(codeBlock.code);
+                                                                                  toast({
+                                                                                    title: "Copiado",
+                                                                                    description: "Código copiado al portapapeles",
+                                                                                    duration: 2000
+                                                                                  });
+                                                                                }}
+                                                                              >
+                                                                                <Copy className="h-4 w-4 mr-1" />
+                                                                                Copiar
+                                                                              </Button>
+                                                                            </div>
+                                                                            <CodeBlock
+                                                                              code={codeBlock.code}
+                                                                              language={codeBlock.language}
+                                                                              fileName={codeBlock.fileName}
+                                                                              showLineNumbers={true} {/* Corrected the prop name */}
+                                                                            />
+                                                                          </div>
+                                                                        ));
+
+                                                                        // For non-code parts, render as Markdown
+                                                                        return (
+                                                                          <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
+                                                                            {enhanceContentWithEmojis(part)}
+                                                                          </ReactMarkdown>
+                                                                        );
+
                       )}
                     </div>
                   </div>
