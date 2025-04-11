@@ -22,6 +22,9 @@ export default defineConfig({
         ]
       : []),
   ],
+  optimizeDeps: {
+    exclude: ['@replit/vite-plugin-shadcn-theme-json', '@replit/vite-plugin-runtime-error-modal']
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
@@ -35,3 +38,4 @@ export default defineConfig({
     emptyOutDir: true,
   },
 });
+

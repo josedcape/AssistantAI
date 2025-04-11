@@ -331,6 +331,8 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
         setMessages(JSON.parse(savedMessages));
         setCurrentConversationId(conversationId);
         setSavedStatus('saved');
+        setActiveConversation(conversationId); // Asegura que se guarde la conversación activa
+        setSidebarOpen(false); // Cierra el sidebar en móviles después de seleccionar
       }
     } catch (error) {
       console.error('Error al cargar conversación:', error);
@@ -743,13 +745,24 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
       }
 
       // Agregar botón para enviar al explorador/recursos
-      successMessage += `\n\n<button id="send-to-explorer" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 12px; display: flex; align-items: center; font-size: 14px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-          <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        Enviar al explorador de archivos
-      </button>`;
+      successMessage += `\n\n<div class="flex gap-2 mt-3">
+        <button id="send-to-explorer" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          Enviar al explorador
+        </button>
+
+        <button id="send-to-generator" data-files='\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          Enviar al generador
+        </button>
+      </div>`;
 
       setMessages((prev) => [
         ...prev,
@@ -821,6 +834,28 @@ const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
                 toast({
                   title: "Error",
                   description: "No se pudieron enviar los archivos al explorador",
+                  variant: "destructive",
+                  duration: 3000
+                });
+                sounds.play("error", 0.3);
+              }
+            });
+          }
+
+          // Nuevo event listener para el botón del generador
+          const sendToGeneratorButton = document.getElementById('send-to-generator');
+          if (sendToGeneratorButton) {
+            sendToGeneratorButton.addEventListener('click', () => {
+              try {
+                const filesData = JSON.parse(sendToGeneratorButton.getAttribute('data-files') || '[]');
+                if (filesData && filesData.length > 0) {
+                  handleSendToGenerator(filesData);
+                }
+              } catch (e) {
+                console.error("Error al procesar los archivos:", e);
+                toast({
+                  title: "Error",
+                  description: "No se pudieron enviar los archivos al generador",
                   variant: "destructive",
                   duration: 3000
                 });
@@ -1233,6 +1268,44 @@ let height = img.height;
     ]);
   };
 
+  // Agregar esta función para manejar el envío al generador
+  const handleSendToGenerator = (files: Array<{name: string, content: string, extension: string}>) => {
+    console.log("Enviando archivos al generador:", files); // Agregar log para debug
+
+    try {
+      const sendToGeneratorEvent = new CustomEvent('send-files-to-generator', {
+        detail: { 
+          files: files.map(file => ({
+            name: file.name,
+            content: file.content,
+            extension: file.extension || file.type || 'txt'
+          }))
+        }
+      });
+
+      window.dispatchEvent(sendToGeneratorEvent);
+
+      // Forzar la actualización del panel de archivos generados
+      const refreshEvent = new CustomEvent('refresh-generated-files');
+      window.dispatchEvent(refreshEvent);
+
+      toast({
+        title: "Archivos enviados",
+        description: `Se han enviado ${files.length} archivo(s) al generador`,
+        duration: 3000
+      });
+      sounds.play("success", 0.3);
+    } catch (e) {
+      console.error("Error al enviar archivos al generador:", e);
+      toast({
+        title: "Error",
+        description: "No se pudieron enviar los archivos al generador",
+        variant: "destructive"
+      });
+      sounds.play("error", 0.3);
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Panel lateral de conversaciones */}
@@ -1269,22 +1342,13 @@ let height = img.height;
               {/* Search input removed for brevity */}
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-2">
-            {conversations.length > 0 ? (
-              <ConversationList
-                conversations={conversations}
-                loadConversation={loadConversation}
-                handleDeleteConversation={handleDeleteConversation}
-                currentConversationId={currentConversationId}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4">
-                <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
-                <p className="text-center text-sm">
-                  No hay conversaciones guardadas
-                </p>
-              </div>
-            )}
+          <div className="flex-1 overflow-auto">
+            <ConversationList
+              conversations={conversations}
+              loadConversation={loadConversation}
+              handleDeleteConversation={handleDeleteConversation}
+              currentConversationId={currentConversationId}
+            />
           </div>
           <div className="p-4 border-t">
             <div className="flex items-center justify-between">
@@ -1433,22 +1497,6 @@ let height = img.height;
                 </Tooltip>
               </TooltipProvider>
             )}
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowConversationDialog(true)}
-                    disabled={savedStatus === 'saved' || messages.length <= 2}
-                  >
-                    <SaveIcon className="h-5 w-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Guardar conversación</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
 
             <TooltipProvider>
               <Tooltip>
