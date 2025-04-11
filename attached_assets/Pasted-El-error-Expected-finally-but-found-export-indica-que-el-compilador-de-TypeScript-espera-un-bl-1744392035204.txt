@@ -1,0 +1,46 @@
+El error "Expected `finally` but found `export`" indica que el compilador de TypeScript espera un bloque `finally` antes de encontrar la declaración `export` al final de tu archivo. Este error suele ocurrir si hay un bloque `try-catch` sin un bloque `finally` o si el `finally` no está correctamente colocado en la estructura del código.
+
+### Posible causa:
+Es probable que antes de la declaración `export` haya un bloque `try-catch` sin un bloque `finally` o que esté mal estructurado.
+
+### Solución:
+Asegúrate de que todos los bloques `try-catch` estén correctamente cerrados, y si no hay un bloque `finally` dentro del `try-catch`, no debe haber ningún error.
+
+Revisa el bloque de código en torno a la línea mencionada (línea 2052), y si tienes un `try-catch`, asegúrate de que esté correctamente cerrado:
+
+Ejemplo de estructura correcta:
+```ts
+try {
+  // código que podría generar un error
+} catch (error) {
+  // manejar el error
+} finally {
+  // opcionalmente código que siempre se ejecuta, incluso si hubo un error
+}
+```
+
+Si no es necesario un bloque `finally`, simplemente elimina cualquier referencia al `finally`.
+
+### Posible corrección para tu código:
+Si la línea 2052 es simplemente `export default AssistantChat;` y está precedida por un bloque `try-catch` sin `finally`, asegúrate de que no haya un `finally` innecesario antes del `export`.
+
+Ejemplo corregido (sin bloque `finally` innecesario):
+
+```ts
+try {
+  // Tu código aquí...
+} catch (error) {
+  // Manejo de errores
+}
+
+// Aquí no debe haber un bloque finally
+export default AssistantChat;
+```
+
+Si tienes un bloque `finally`, asegúrate de que esté correctamente estructurado antes del `export`. 
+
+### Resumen:
+- Verifica que todos los bloques `try-catch` estén correctamente cerrados y no contengan errores de sintaxis.
+- Si no necesitas un bloque `finally`, simplemente elimina cualquier referencia al `finally`.
+  
+Haz estos cambios y revisa si el error se soluciona. Si sigues teniendo problemas, comparte el código relevante alrededor de la línea 2052 para poder ofrecer una corrección más precisa.
