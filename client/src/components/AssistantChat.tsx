@@ -469,7 +469,7 @@ const AssistantChat: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-
+  };
   // Manejar cambio de modelo
   const handleModelChange = (newModelId: string) => {
     setModelId(newModelId);
@@ -862,8 +862,8 @@ const AssistantChat: React.FC = () => {
         }, 500);
       }, 500);
 
-      // Extraer código del mensaje
-      const extractCodeFromMessage = (content: string):/g;  // Corregida la expresión regular
+      const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
+        const codeBlockRegex = /```(\w+)?\s*(?:\/\/|#)?\s*(?\:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corrected the regular expression
 
         let match;
         const codes: { language: string; code: string; fileName?: string }[] = [];
