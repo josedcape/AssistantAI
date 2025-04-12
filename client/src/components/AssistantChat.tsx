@@ -1255,6 +1255,20 @@ const AssistantChat: React.FC = () => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+      {/* Área de mensajes */}
+      <div className="flex-1 overflow-y-auto overscroll-y-contain p-4 mobile-scroll">
+        <ScrollArea className="h-full min-h-[calc(100vh-16rem)]">
+          <div className="space-y-4 pb-20">
+            {isChatVisible && messages.map((message, index) => (
+              <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'} rounded-lg p-4 max-w-3xl relative group`}>
+                  {message.content}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 }
