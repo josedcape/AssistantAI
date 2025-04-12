@@ -892,73 +892,70 @@ const AssistantChat: React.FC = () => {
         ]);
         sounds.play("notification");
 
-      } catch (error) {
-        console.error("Error al procesar la imagen:", error);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n${error[\s\S]*?```)/g).map((part, index) => {
-                            if (part.startsWith('```') && part.endsWith('```')) {
-                              const codes = extractCodeFromMessage(part);
-                              return codes.map((codeBlock, codeIndex) => (
-                                <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
-                                  <div className="code-actions">
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => handleSaveCode(codeBlock.code)}
-                                    >
-                                      <Save className="h-4 w-4 mr-1" />
-                                      Guardar
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(codeBlock.code);
-                                        toast({
-                                          title: "Copiado",
-                                          description: "Código copiado al portapapeles",
-                                          duration: 2000
-                                        });
-                                      }}
-                                    >
-                                      <Copy className="h-4 w-4 mr-1" />
-                                      Copiar
-                                    </Button>
-                                  </div>
-                                  <CodeBlock
-                                    code={codeBlock.code}
-                                    language={codeBlock.language}
-                                    fileName={codeBlock.fileName}
-                                    showLineNumbers={true}
-                                  />
-                                </div>
-                              ));
-                            }
-
-                            return (
-                              <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
-                                {enhanceContentWithEmojis(part)}
-                              </ReactMarkdown>
-                            );
-                          })}
-                        </>
-                      ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {enhanceContentWithEmojis(message.content)}
-                        </ReactMarkdown>
-                      )}
+        } catch (error) {
+          console.error("Error al procesar la imagen:", error);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n${error}\n\`\`\``
+            }
+          ]);
+        }
+          {message.content.includes("```") ? (
+            <>
+              {message.content.split(/```[\s\S]*?```/g).map((part, index) => {
+                if (part.startsWith('```') && part.endsWith('```')) {
+                  const codes = extractCodeFromMessage(part);
+                  return codes.map((codeBlock, codeIndex) => (
+                    <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
+                      <div className="code-actions">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleSaveCode(codeBlock.code)}
+                        >
+                          <Save className="h-4 w-4 mr-1" />
+                          Guardar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            navigator.clipboard.writeText(codeBlock.code);
+                            toast({
+                              title: "Copiado",
+                              description: "Código copiado al portapapeles",
+                              duration: 2000
+                            });
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copiar
+                        </Button>
+                      </div>
+                      <CodeBlock
+                        code={codeBlock.code}
+                        language={codeBlock.language}
+                        fileName={codeBlock.fileName}
+                        showLineNumbers={true}
+                      />
                     </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
-        </div>
+                  ));
+                }
 
+                return (
+                  <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
+                    {enhanceContentWithEmojis(part)}
+                  </ReactMarkdown>
+                );
+              })}
+            </>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {enhanceContentWithEmojis(message.content)}
+            </ReactMarkdown>
+          )}
         {/* Input area */}
         <div className="border-t p-2 sm:p-4 sticky bottom-0 bg-background mobile-safe-bottom">
           <div className="flex items-center gap-2 mb-2">
@@ -1169,98 +1166,97 @@ const AssistantChat: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog to install packages */}
-        <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Instalar paquete</DialogTitle>
-              <DialogDescription>
-                Introduce el nombre del paquete de npm que deseas instalar
-              </DialogDescription>
-            </DialogHeader>
+      {/* Dialog to install packages */}
+      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Instalar paquete</DialogTitle>
+            <DialogDescription>
+              Introduce el nombre del paquete de npm que deseas instalar
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="flex items-center space-x-2 mt-4">
-              <Input
-                value={installPackageInput}
-                onChange={(e) => setInstallPackageInput(e.target.value)}
-                placeholder="Nombre del paquete (ej: axios)"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !packageInstalling) {
-                    handlePackageInstall();
-                  }
-                }}
-              />
+          <div className="flex items-center space-x-2 mt-4">
+            <Input
+              value={installPackageInput}
+              onChange={(e) => setInstallPackageInput(e.target.value)}
+              placeholder="Nombre del paquete (ej: axios)"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !packageInstalling) {
+                  handlePackageInstall();
+                }
+              }}
+            />
 
-              <Button
-                onClick={handlePackageInstall}
-                disabled={packageInstalling || !installPackageInput.trim()}
-                className="flex-shrink-0"
-              >
-                {packageInstalling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
-                {packageInstalling ? 'Instalando...' : 'Instalar'}
-              </Button>
-            </div>
+            <Button
+              onClick={handlePackageInstall}
+              disabled={packageInstalling || !installPackageInput.trim()}
+              className="flex-shrink-0"
+            >
+              {packageInstalling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
+              {packageInstalling ? 'Instalando...' : 'Instalar'}
+            </Button>
+          </div>
 
-            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
-              <h4 className="text-sm font-medium mb-2">Paquetes populares:</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm">
-                  <p className="font-semibold mb-1 text-primary">UI/Componentes</p>
-                  <ul className="list-disc list-inside text-xs space-y-1">
-                    <li><span className="font-mono">react</span></li>
-                    <li><span className="font-mono">tailwindcss</span></li>
-                    <li><span className="font-mono">react-router-dom</span></li>
-                  </ul>
-                </div>
-                <div className="text-sm">
-                  <p className="font-semibold mb-1 text-primary">Backend/API</p>
-                  <ul className="list-disc list-inside text-xs space-y-1">
-                    <li><span className="font-mono">express</span></li>
-                    <li><span className="font-mono">mongoose</span></li>
-                    <li><span className="font-mono">axios</span></li>
-                  </ul>
-                </div>
+          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
+            <h4 className="text-sm font-medium mb-2">Paquetes populares:</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-sm">
+                <p className="font-semibold mb-1 text-primary">UI/Componentes</p>
+                <ul className="list-disc list-inside text-xs space-y-1">
+                  <li><span className="font-mono">react</span></li>
+                  <li><span className="font-mono">tailwindcss</span></li>
+                  <li><span className="font-mono">react-router-dom</span></li>
+                </ul>
               </div>
-              <div className="mt-3 text-xs text-muted-foreground">
-                Haz clic en el botón <Package className="inline h-3 w-3" /> del encabezado para acceder al explorador de paquetes.
+              <div className="text-sm">
+                <p className="font-semibold mb-1 text-primary">Backend/API</p>
+                <ul className="list-disc list-inside text-xs space-y-1">
+                  <li><span className="font-mono">express</span></li>
+                  <li><span className="font-mono">mongoose</span></li>
+                  <li><span className="font-mono">axios</span></li>
+                </ul>
               </div>
             </div>
+            <div className="mt-3 text-xs text-muted-foreground">
+              Haz clic en el botón <Package className="inline h-3 w-3" /> del encabezado para acceder al explorador de paquetes.
+            </div>
+          </div>
 
-            {pendingPackages.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Paquetes detectados:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {pendingPackages.map((pkg, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                      <div>{pkg.name}</div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-4 w-4 p-0"
-                        onClick={() => {
-                          setInstallPackageInput(pkg.name);
-                        }}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
+          {pendingPackages.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Paquetes detectados:</h4>
+              <div className="flex flex-wrap gap-2">
+                {pendingPackages.map((pkg, index) => (
+                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    <div>{pkg.name}</div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-4 w-4 p-0"
+                      onClick={() => {
+                        setInstallPackageInput(pkg.name);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Mobile overlay when sidebar is open */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-20 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </div>
-    </div>
-  );
-};
+      {/* Mobile overlay when sidebar is open */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+          </div>
+        );
+      };
 
-export default AssistantChat;
+      export default AssistantChat;
