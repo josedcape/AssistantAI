@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { io } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,11 +27,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Mic, MicOff, Send, Save, Copy, Check,
-  MessageSquare, PanelLeft, Save as SaveIcon, FileText, List, Upload,
-  Menu, X, Package, Code, Share2, Download, History, Plus, Trash2, Info, Terminal
+  MessageSquare, PanelLeft, Save as SaveIcon, Upload,
+  Menu, X, Package, Share2, Plus, Trash2, Info, Terminal
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
-import * as sounds from "@/lib/sounds"; //Import sounds module
+import * as sounds from "@/lib/sounds";
 import { ConversationList } from "./ConversationList";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -38,18 +39,13 @@ import {
   getConversation,
   setActiveConversation,
   getActiveConversation,
-  generateConversationId,
-  generateConversationTitle,
   getConversations,
   deleteConversation,
-  Conversation,
-  Message as ConversationMessage
 } from "@/lib/conversationStorage";
 import { Input } from "@/components/ui/input";
-import TerminalComponent from './Terminal'; // Added import for Terminal component
-import CodeBlock from './CodeBlock'; // Added import for CodeBlock component
+import CodeBlock from './CodeBlock';
 
-// Tipos para mensajes y paquetes
+// Message and Package interfaces
 interface Message {
   role: "user" | "assistant" | "system";
   content: string;
@@ -61,15 +57,18 @@ interface Package {
   description: string;
 }
 
-// Componente principal AssistantChat
 const AssistantChat: React.FC = () => {
-  // Inicializar toast
+  // Initialize hooks
   const { toast } = useToast();
+  const socket = io();
 
-  // Estado para chat visible/oculto
+  // UI state
   const [isChatVisible, setIsChatVisible] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [scrollToBottom, setScrollToBottom] = useState(true);
 
-  // Estado para mensajes y entrada
+  // Chat state
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "system",
@@ -81,38 +80,36 @@ const AssistantChat: React.FC = () => {
     }
   ]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [modelId, setModelId] = useState("gpt-4o");
+
+  // Voice recognition state
   const [isListening, setIsListening] = useState(false);
-  const [hasCopied, setHasCopied] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // References
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Package management state
   const [pendingPackages, setPendingPackages] = useState<Package[]>([]);
   const [showPackageDialog, setShowPackageDialog] = useState(false);
-  const [isInstallingPackage, setIsInstallingPackage] = useState(false);
   const [detectedPackages, setDetectedPackages] = useState<string[]>([]);
-  const [scrollToBottom, setScrollToBottom] = useState(true);
+  const [packageInstalling, setPackageInstalling] = useState(false);
+  const [installPackageInput, setInstallPackageInput] = useState("");
+
+  // File upload state
   const [fileUploadModalOpen, setFileUploadModalOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // Estados para gestión de conversaciones
+  // Conversation management state
   const [conversations, setConversations] = useState<Array<{id: string; title: string; date: string}>>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<'saved' | 'saving' | 'unsaved'>('unsaved');
   const [newConversationTitle, setNewConversationTitle] = useState("");
   const [showConversationDialog, setShowConversationDialog] = useState(false);
 
-  // Estado para gestión de paquetes
-  const [packageInstalling, setPackageInstalling] = useState(false);
-  const [installPackageInput, setInstallPackageInput] = useState("");
-
-  // Referencias para el reconocimiento de voz
-  const recognitionRef = useRef<any>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Inicializar reconocimiento de voz
+  // Initialize speech recognition
   useEffect(() => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
       console.warn("El reconocimiento de voz no está soportado en este navegador");
@@ -138,7 +135,6 @@ const AssistantChat: React.FC = () => {
 
       recognitionRef.current.onend = () => {
         if (isListening) {
-          // Si queremos seguir escuchando pero se detuvo, reiniciar
           try {
             recognitionRef.current?.start();
           } catch (e) {
@@ -155,13 +151,11 @@ const AssistantChat: React.FC = () => {
         setIsListening(false);
 
         if (event.error !== "no-speech") {
-          // Mostrar error con toast cuando sea implementado
           console.error(`No se pudo activar el micrófono: ${event.error}`);
         }
       };
     }
 
-    // Cleanup
     return () => {
       try {
         if (recognitionRef.current) {
@@ -173,7 +167,7 @@ const AssistantChat: React.FC = () => {
     };
   }, []);
 
-  // Cargar conversaciones y conversación activa al iniciar
+  // Load conversations and active conversation on init
   useEffect(() => {
     const loadConversations = () => {
       try {
@@ -189,7 +183,6 @@ const AssistantChat: React.FC = () => {
 
     const activeConversationId = getActiveConversation();
     if (activeConversationId) {
-      // Intentar primero cargar desde localStorage para mejor persistencia
       const localStorageConversation = localStorage.getItem(`conversation-${activeConversationId}`);
       if (localStorageConversation) {
         try {
@@ -205,7 +198,6 @@ const AssistantChat: React.FC = () => {
         }
       }
 
-      // Si no está en localStorage, intentar desde el almacenamiento normal
       const conversation = getConversation(activeConversationId);
       if (conversation) {
         setMessages(conversation.messages as Message[]);
@@ -220,12 +212,12 @@ const AssistantChat: React.FC = () => {
     }
   }, []);
 
-  // Actualizar la lista de conversaciones cuando cambia el almacenamiento
+  // Update conversation list when storage changes
   useEffect(() => {
     const handleStorageChange = () => {
       const conversations = getConversations();
       conversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      setAllConversations(conversations);
+      setConversations(conversations);
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -234,29 +226,58 @@ const AssistantChat: React.FC = () => {
     };
   }, []);
 
-  // Scroll al último mensaje
+  // Scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
-    // Marca la conversación como no guardada cuando cambian los mensajes
-    // excepto durante la carga inicial
     if (currentConversationId && messages.length > 2) {
       setSavedStatus('unsaved');
     }
   }, [messages]);
 
-  // Guardar cambios automáticamente cuando hay cambios
+  // Auto-save changes
   useEffect(() => {
     if (savedStatus === 'unsaved' && currentConversationId) {
       const saveTimer = setTimeout(() => {
         saveCurrentConversation();
-      }, 2000); // Guardar después de 2 segundos de inactividad
+      }, 2000);
 
       return () => clearTimeout(saveTimer);
     }
   }, [messages, savedStatus, currentConversationId]);
 
-  // Iniciar una nueva conversación
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (scrollToBottom && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, scrollToBottom]);
+
+  // Toggle speech recognition
+  const toggleSpeechRecognition = useCallback(() => {
+    if (!recognitionRef.current) {
+      console.error("No soportado: El reconocimiento de voz no está soportado en este navegador");
+      return;
+    }
+
+    try {
+      if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+        sounds.play('click', 0.2);
+      } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+        console.log("Micrófono activado. Hable ahora. El texto aparecerá en el chat.");
+        sounds.play('pop', 0.3);
+      }
+    } catch (error) {
+      console.error("Error al alternar reconocimiento de voz:", error);
+      setIsListening(false);
+    }
+  }, [isListening]);
+
+  // Start new conversation
   const startNewConversation = () => {
     const initialMessages = [
       {
@@ -275,30 +296,24 @@ const AssistantChat: React.FC = () => {
     setSavedStatus('unsaved');
     sounds.play("click");
 
-    // Si el panel lateral estaba abierto, cerrarlo
     if (sidebarOpen) {
       setSidebarOpen(false);
     }
   };
 
-  // Guardar la conversación actual
+  // Save current conversation
   const saveCurrentConversation = (title?: string) => {
     try {
       setSavedStatus('saving');
 
-      // Generar ID si es nueva conversación
       const conversationId = currentConversationId || `conv_${Date.now()}`;
-
-      // Usar título proporcionado o generar uno basado en el primer mensaje
       const conversationTitle = title ||
         (messages.length > 0 ?
           messages[0].content.slice(0, 30) + (messages[0].content.length > 30 ? '...' : '') :
           `Conversación ${new Date().toLocaleString()}`);
 
-      // Guardar mensajes de la conversación actual
       localStorage.setItem(`messages_${conversationId}`, JSON.stringify(messages));
 
-      // Actualizar lista de conversaciones
       const updatedConversations = [...conversations.filter(c => c.id !== conversationId), {
         id: conversationId,
         title: conversationTitle,
@@ -307,8 +322,6 @@ const AssistantChat: React.FC = () => {
 
       setConversations(updatedConversations);
       localStorage.setItem('conversations', JSON.stringify(updatedConversations));
-
-      // Actualizar ID de conversación actual
       setCurrentConversationId(conversationId);
       setSavedStatus('saved');
 
@@ -320,7 +333,7 @@ const AssistantChat: React.FC = () => {
     }
   };
 
-  // Cargar una conversación guardada
+  // Load a saved conversation
   const loadConversation = (conversationId: string) => {
     try {
       const savedMessages = localStorage.getItem(`messages_${conversationId}`);
@@ -328,15 +341,15 @@ const AssistantChat: React.FC = () => {
         setMessages(JSON.parse(savedMessages));
         setCurrentConversationId(conversationId);
         setSavedStatus('saved');
-        setActiveConversation(conversationId); // Asegura que se guarde la conversación activa
-        setSidebarOpen(false); // Cierra el sidebar en móviles después de seleccionar
+        setActiveConversation(conversationId);
+        setSidebarOpen(false);
       }
     } catch (error) {
       console.error('Error al cargar conversación:', error);
     }
   };
 
-  // Eliminar una conversación
+  // Delete conversation
   const handleDeleteConversation = (id: string) => {
     setConfirmDelete(id);
   };
@@ -363,7 +376,6 @@ const AssistantChat: React.FC = () => {
         duration: 2000
       });
 
-      // Cerrar el diálogo y limpiar el estado
       setConfirmDelete(null);
       if (conversations.length === 1) {
         setSidebarOpen(false);
@@ -379,174 +391,29 @@ const AssistantChat: React.FC = () => {
     }
   };
 
-  // Función para enviar mensajes
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setIsLoading(true);
-    sounds.play("send");
-    try {
-      const response = await fetch("/api/assistant-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          modelId: modelId,
-          history: messages,
-          projectId: null
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error al comunicarse con el asistente: ${response.status} ${response.statusText}`);
-      }
-
-      // Verificar el tipo de contenido antes de intentar parsear como JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("Respuesta no JSON:", text);
-        throw new Error("La respuesta del servidor no es JSON válido");
-      }
-
-      const data = await response.json();
-      const assistantMessage = data.message;
-
-      if (!assistantMessage) {
-        throw new Error("El formato de respuesta es incorrecto");
-      }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
-      if (sounds && sounds.play) {
-        sounds.play("notification");
-      }
-
-      // Marcar como no guardado para activar el guardado automático
-      setSavedStatus('unsaved');
-
-      // Detectar y sugerir paquetes
-      const packages = detectPackages(assistantMessage);
-      if (packages.length > 0) {
-        setPendingPackages(packages);
-        setShowPackageDialog(true);
-
-        // Agregar un indicador visual en la interfaz
-        setTimeout(() => {
-          const packageIndicator = document.getElementById('package-indicator');
-          if (packageIndicator) {
-            packageIndicator.className = 'animate-pulse';
-            setTimeout(() => {
-              packageIndicator.className = '';
-            }, 3000);
-          }
-        }, 500);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `## ⚠️ Error en la solicitud
-
-      🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
-      \`\`\`
-      ${error instanceof Error ? error.message : "Error desconocido"}
-      \`\`\`
-
-      ### 🔍 Posibles soluciones:
-      * 🔄 Verifica que el servidor de la API esté funcionando correctamente
-      * 📡 Comprueba tu conexión a internet
-      * 🔧 Reinicia la aplicación si el problema persiste`
-        },
-      ]);
-      sounds.play("error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  // Manejar cambio de modelo
-  const handleModelChange = (newModelId: string) => {
-    setModelId(newModelId);
-    // Guardar la preferencia del usuario
-    try {
-      localStorage.setItem('preferred-model', newModelId);
-      console.log(`Modelo cambiado a: ${newModelId}`);
-
-      // Añadir mensaje informativo
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `## 🔄 Modelo de lenguaje actualizado\n\nAhora estás usando el modelo **${newModelId}**. Las nuevas respuestas utilizarán este modelo.`
-        }
-      ]);
-
-      // Actualizar el estado de guardado
-      setSavedStatus('unsaved');
-
-    } catch (error) {
-      console.error("Error al guardar preferencia de modelo:", error);
-    }
-  };
-
-  // Función para alternar el reconocimiento de voz
-  const toggleSpeechRecognition = useCallback(() => {
-    if (!recognitionRef.current) {
-      console.error("No soportado: El reconocimiento de voz no está soportado en este navegador");
-      return;
-    }
-
-    try {
-      if (isListening) {
-        recognitionRef.current.stop();
-        setIsListening(false);
-        sounds.play('click', 0.2);
-      } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-        console.log("Micrófono activado. Hable ahora. El texto aparecerá en el chat.");
-        sounds.play('pop', 0.3);
-      }
-    } catch (error) {
-      console.error("Error al alternar reconocimiento de voz:", error);
-      setIsListening(false);
-    }
-  }, [isListening]);
-
-  // Detectar paquetes mencionados en el mensaje
+  // Detect packages mentioned in message
   const detectPackages = (content: string) => {
-    // Lista de paquetes detectados para no duplicar
     const detectedPackageNames = new Set<string>();
     const suggestedPackages: { name: string; isDev: boolean; description: string }[] = [];
 
-    // 1. Detectar comandos de instalación en bloques de código
     try {
-      // Expresión regular para detectar comandos de instalación en bloques de código
+      // Detect installation commands in code blocks
       const installCommandRegex = /```(?\:bash|shell|sh)?\s*((?\:npm|yarn|pnpm)(?:\s+add|\s+install)\s+[^`]+)```/g;
       let match;
 
-      const contentStr = String(content); // Asegurar que es string
+      const contentStr = String(content);
       while ((match = installCommandRegex.exec(contentStr)) !== null) {
         const installCommand = match[1].trim();
 
-        // Extraer paquetes del comando
         if (installCommand.includes('npm install') || installCommand.includes('npm add') ||
             installCommand.includes('yarn add') || installCommand.includes('pnpm add')) {
           const parts = installCommand.split(/\s+/);
           const devFlag = parts.includes('--save-dev') || parts.includes('-D');
 
-          // Obtener nombres de paquetes
           for (let i = 2; i < parts.length; i++) {
             const part = parts[i];
             if (!part.startsWith('-') && part !== 'install' && part !== 'add' &&
                 part !== '--save-dev' && part !== '-D' && part !== '--dev') {
-              // Normalizar nombre del paquete (quitar versiones @x.x.x si existen)
               const packageName = part.split('@')[0];
 
               if (!detectedPackageNames.has(packageName)) {
@@ -561,13 +428,8 @@ const AssistantChat: React.FC = () => {
           }
         }
       }
-    } catch (error) {
-      console.error("Error al detectar comandos de instalación:", error);
-    }
 
-    // 2. Buscar recomendaciones textuales de paquetes
-    try {
-      // Expresiones para detectar recomendaciones textuales
+      // Look for textual package recommendations
       const packagePatterns = [
         /debes?\s+instalar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi,
         /puedes?\s+usar\s+(?:el\s+paquete\s+|la\s+biblioteca\s+)?[`"']([^`"']+)[`"']/gi,
@@ -580,7 +442,7 @@ const AssistantChat: React.FC = () => {
         let packageMatch;
         const contentStr = String(content);
         while ((packageMatch = pattern.exec(contentStr)) !== null) {
-          const packageName = packageMatch[1].trim().split('@')[0]; // Normalizar
+          const packageName = packageMatch[1].trim().split('@')[0];
 
           if (!detectedPackageNames.has(packageName)) {
             detectedPackageNames.add(packageName);
@@ -592,16 +454,11 @@ const AssistantChat: React.FC = () => {
           }
         }
       }
-    } catch (error) {
-      console.error("Error al detectar menciones de paquetes:", error);
-    }
 
-    // 3. Buscar paquetes en etiquetas especiales (para procesamiento futuro)
-    try {
+      // Look for packages in special tags
       const packageTagRegex = /<package\s+name=['"](.*?)['"]\s+(?:is_dev=['"](.*?)['"]\s+)?(?:description=['"](.*?)['"])?.*?\/>/g;
       let packageTagMatch;
 
-      const contentStr = String(content);
       while ((packageTagMatch = packageTagRegex.exec(contentStr)) !== null) {
         const packageName = packageTagMatch[1].trim().split('@')[0];
         const isDev = packageTagMatch[2]?.toLowerCase() === 'true';
@@ -617,23 +474,69 @@ const AssistantChat: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error("Error al detectar etiquetas de paquetes:", error);
+      console.error("Error al detectar paquetes:", error);
     }
 
-    // Actualizar la lista de paquetes detectados para mostrar en la interfaz
     setDetectedPackages(Array.from(detectedPackageNames));
-
     return suggestedPackages;
   };
 
-  // Guardar código de un mensaje y crear archivo automáticamente
+  // Extract code from message
+  const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
+    const codeBlockRegex = /```(\w+)?\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;
+
+    let match;
+    const codes: { language: string; code: string; fileName?: string }[] = [];
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || "plaintext";
+      const fileName = match[2] || getDefaultFileName(language);
+      const code = match[3].trim();
+
+      codes.push({
+        language,
+        code,
+        fileName
+      });
+    }
+
+    return codes;
+  };
+
+  // Get default filename based on language
+  const getDefaultFileName = (language: string): string => {
+    const extensionMap: Record<string, string> = {
+      javascript: 'script.js',
+      typescript: 'script.ts',
+      python: 'script.py',
+      html: 'index.html',
+      css: 'styles.css',
+      jsx: 'component.jsx',
+      tsx: 'component.tsx',
+      json: 'data.json',
+      php: 'script.php',
+      java: 'Main.java',
+      cpp: 'main.cpp',
+      c: 'main.c',
+      go: 'main.go',
+      rust: 'main.rs',
+      ruby: 'script.rb',
+      sql: 'query.sql',
+      plaintext: 'file.txt'
+    };
+
+    return extensionMap[language.toLowerCase()] || 'code.txt';
+  };
+
+  // Save code from a message
   const handleSaveCode = async (content: string): Promise<void> => {
     const codeBlockRegex = /```(?:(\w+))?\s*\n([\s\S]*?)\n```/g;
     let match;
     let savedCount = 0;
     let firstSavedFilePath = "";
     let savedFiles: {name: string, content: string, extension: string}[] = [];
-    // Extraer todos los bloques de código
+
+    // Extract all code blocks
     const codeBlocks: { language: string, code: string }[] = [];
     while ((match = codeBlockRegex.exec(content)) !== null) {
       const language = match[1] || "js";
@@ -646,11 +549,11 @@ const AssistantChat: React.FC = () => {
       return;
     }
 
-    // Preparar para guardar archivos
+    // Prepare to save files
     try {
       for (const [index, codeBlock] of codeBlocks.entries()) {
-        // Determinar la extensión del archivo basada en el lenguaje
-        let fileExtension = ".js"; // Predeterminado a JavaScript
+        // Determine file extension based on language
+        let fileExtension = ".js"; // Default to JavaScript
 
         switch (codeBlock.language.toLowerCase()) {
           case "javascript":
@@ -682,10 +585,10 @@ const AssistantChat: React.FC = () => {
             break;
         }
 
-        // Generar nombre de archivo único basado en el contenido o tipo de código
+        // Generate unique filename based on content or code type
         let fileName = `generated_code_${index + 1}${fileExtension}`;
 
-        // Intentar detectar un mejor nombre basado en patrones en el código
+        // Try to detect a better name based on patterns in the code
         if (codeBlock.code.includes("export default") && codeBlock.code.includes("function")) {
           const componentMatch = codeBlock.code.match(/export\s+default\s+function\s+(\w+)/);
           if (componentMatch && componentMatch[1]) {
@@ -698,7 +601,7 @@ const AssistantChat: React.FC = () => {
           }
         }
 
-        // Enviar solicitud para crear el archivo
+        // Send request to create the file
         const response = await fetch("/api/files/create", {
           method: "POST",
           headers: {
@@ -707,7 +610,7 @@ const AssistantChat: React.FC = () => {
           body: JSON.stringify({
             fileName,
             content: codeBlock.code,
-            path: "", // Guardar en la ruta actual
+            path: "", // Save to current path
           }),
         });
 
@@ -720,17 +623,17 @@ const AssistantChat: React.FC = () => {
           firstSavedFilePath = fileName;
         }
 
-        // Guardar información del archivo para el botón de enviar a explorador
+        // Save file information for the send to explorer button
         savedFiles.push({
           name: fileName,
           content: codeBlock.code,
-          extension: fileExtension.substring(1) // Sin el punto
+          extension: fileExtension.substring(1) // Without the dot
         });
       }
 
       sounds.play("save");
 
-      // Mensaje de éxito con información sobre los archivos guardados
+      // Success message with information about saved files
       let successMessage = "";
       if (savedCount === 1) {
         successMessage = `## ✅ Código guardado exitosamente\n\n📝 Se ha creado el archivo **${firstSavedFilePath}** con el código proporcionado.\n\n🔄 El explorador de archivos se actualizará automáticamente para mostrar el nuevo archivo.`;
@@ -738,9 +641,9 @@ const AssistantChat: React.FC = () => {
         successMessage = `## ✅ Código guardado exitosamente\n\n📝 Se han creado **${savedCount} archivos** con el código proporcionado.\n\n🔄 El explorador de archivos se actualizará automáticamente para mostrar los nuevos archivos.`;
       }
 
-      // Agregar botón para enviar al explorador/recursos
+      // Add button to send to explorer/resources
       successMessage += `\n\n<div class="flex gap-2 mt-3">
-        <button id="send-to-explorer" data-files='\\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+        <button id="send-to-explorer" data-files='${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -748,7 +651,7 @@ const AssistantChat: React.FC = () => {
           Enviar al explorador
         </button>
 
-        <button id="send-to-generator" data-files='\\${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
+        <button id="send-to-generator" data-files='${JSON.stringify(savedFiles)}' style="padding: 8px 16px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
@@ -766,13 +669,13 @@ const AssistantChat: React.FC = () => {
         },
       ]);
 
-      // Disparar evento para actualizar el explorador de archivos
+      // Trigger event to update file explorer
       const fileEvent = new CustomEvent('files-updated', {
         detail: { forceRefresh: true }
       });
       window.dispatchEvent(fileEvent);
 
-      // Buscar y actualizar el explorador de archivos si existe
+      // Look for and update file explorer if it exists
       setTimeout(() => {
         const fileExplorer = document.querySelector('[data-component="file-explorer"]');
         if (fileExplorer) {
@@ -780,7 +683,7 @@ const AssistantChat: React.FC = () => {
           if (refreshButton) {
             (refreshButton as HTMLButtonElement).click();
           } else {
-            // Alternativa para encontrar el botón de refrescar
+            // Alternative to find refresh button
             const allButtons = fileExplorer.querySelectorAll('button');
             for (const button of allButtons) {
               if (button.innerHTML.includes('RefreshCw') ||
@@ -793,13 +696,13 @@ const AssistantChat: React.FC = () => {
           }
         }
 
-        // Forzar recarga de la lista de archivos directamente
+        // Force reload of file list directly
         const refreshEvent = new CustomEvent('refresh-files', {
           detail: { force: true }
         });
         window.dispatchEvent(refreshEvent);
 
-        // Agregar listener para el botón de enviar al explorador
+        // Add listener for send to explorer button
         setTimeout(() => {
           const sendToExplorerButton = document.getElementById('send-to-explorer');
           if (sendToExplorerButton) {
@@ -807,13 +710,13 @@ const AssistantChat: React.FC = () => {
               try {
                 const filesData = JSON.parse(sendToExplorerButton.getAttribute('data-files') || '[]');
                 if (filesData && filesData.length > 0) {
-                  // Emitir evento para que lo capture el explorador de archivos
+                  // Emit event to be captured by file explorer
                   const sendToExplorerEvent = new CustomEvent('send-files-to-explorer', {
                     detail: { files: filesData }
                   });
                   window.dispatchEvent(sendToExplorerEvent);
 
-                  // Mostrar mensaje de éxito
+                  // Show success message
                   toast({
                     title: "Archivos enviados",
                     description: `Se han enviado ${filesData.length} archivo(s) al explorador`,
@@ -821,7 +724,7 @@ const AssistantChat: React.FC = () => {
                   });
                   sounds.play("success", 0.3);
 
-                  // Cambiar automáticamente a la pestaña de archivos
+                  // Automatically switch to files tab
                   const filesTabEvent = new CustomEvent('activate-files-tab');
                   window.dispatchEvent(filesTabEvent);
                 }
@@ -838,7 +741,7 @@ const AssistantChat: React.FC = () => {
             });
           }
 
-          // Nuevo event listener para el botón del generador
+          // New event listener for generator button
           const sendToGeneratorButton = document.getElementById('send-to-generator');
           if (sendToGeneratorButton) {
             sendToGeneratorButton.addEventListener('click', () => {
@@ -861,55 +764,20 @@ const AssistantChat: React.FC = () => {
           }
         }, 500);
       }, 500);
+    } catch (error) {
+      console.error("Error al guardar código:", error);
+      toast({
+        title: "Error al guardar",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+        duration: 3000
+      });
+      sounds.play("error");
+    }
+  };
 
-      const extractCodeFromMessage = (content: string): Array<{ language: string, code: string, fileName?: string }> => {
-        const codeBlockRegex = /(?:(\w+))?\s*(?:\/\/|#)?\s*(?:file:\s*([^\n]+))?\n([\s\S]*?)\n```/g;  // Corrected the regular expression
-
-        let match;
-        const codes: { language: string; code: string; fileName?: string }[] = [];
-
-        while ((match = codeBlockRegex.exec(content)) !== null) {
-          const language = match[1] || "plaintext";  // Default language if none provided
-          const fileName = match[2] || getDefaultFileName(language);  // Get the file name or default one
-          const code = match[3].trim();  // Extract the actual code
-
-          codes.push({
-            language,
-            code,
-            fileName
-          });
-        }
-
-        return codes;
-      };
-
-      const getDefaultFileName = (language: string): string => {
-        const extensionMap: Record<string, string> = {
-          javascript: 'script.js',
-          typescript: 'script.ts',
-          python: 'script.py',
-          html: 'index.html',
-          css: 'styles.css',
-          jsx: 'component.jsx',
-          tsx: 'component.tsx',
-          json: 'data.json',
-          php: 'script.php',
-          java: 'Main.java',
-          cpp: 'main.cpp',
-          c: 'main.c',
-          go: 'main.go',
-          rust: 'main.rs',
-          ruby: 'script.rb',
-          sql: 'query.sql',
-          plaintext: 'file.txt'
-        };
-
-        return extensionMap[language.toLowerCase()] || 'code.txt';
-      };
-
-  // Función para procesar imágenes cargadas
+  // Process uploaded image file
   const processImageFile = (file: File, fileName: string) => {
-    // Comprobar que sea un archivo de imagen
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Error de formato",
@@ -922,7 +790,6 @@ const AssistantChat: React.FC = () => {
 
     setIsLoading(true);
 
-    // Preparar mensaje para mostrar al usuario
     setMessages((prev) => [
       ...prev,
       {
@@ -931,14 +798,14 @@ const AssistantChat: React.FC = () => {
       }
     ]);
 
-    // Función para comprimir imagen
+    // Function to compress image
     const compressImage = (imgBase64: string, maxWidth = 1200): Promise<string> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.src = imgBase64;
 
         img.onload = () => {
-          // Calcular nuevas dimensiones manteniendo proporción
+          // Calculate new dimensions maintaining ratio
           let width = img.width;
           let height = img.height;
 
@@ -948,12 +815,12 @@ const AssistantChat: React.FC = () => {
             height = height * ratio;
           }
 
-          // Crear canvas para la compresión
+          // Create canvas for compression
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
 
-          // Dibujar imagen redimensionada en el canvas
+          // Draw resized image on canvas
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             reject(new Error("No se pudo crear el contexto del canvas"));
@@ -962,7 +829,7 @@ const AssistantChat: React.FC = () => {
 
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Obtener imagen comprimida (ajustar calidad según necesidad)
+          // Get compressed image (adjust quality as needed)
           resolve(canvas.toDataURL('image/jpeg', 0.7));
         };
 
@@ -971,7 +838,8 @@ const AssistantChat: React.FC = () => {
         };
       });
     };
-    // Enviar la imagen para análisis (base64)
+
+    // Send image for analysis (base64)
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -980,7 +848,7 @@ const AssistantChat: React.FC = () => {
           throw new Error("No se pudo leer la imagen");
         }
 
-        // Comprimir imagen si es grande (>1MB)
+        // Compress image if large (>1MB)
         let processedImage = base64Image;
         if (file.size > 1024 * 1024) {
           toast({
@@ -991,10 +859,10 @@ const AssistantChat: React.FC = () => {
           processedImage = await compressImage(base64Image);
         }
 
-        // Obtener solo la parte base64 sin el prefijo
+        // Get only the base64 part without the prefix
         const base64Data = processedImage.split(',')[1];
 
-        // Enviar la imagen al servidor para análisis
+        // Send image to server for analysis
         const response = await fetch("/api/assistant-chat", {
           method: "POST",
           headers: {
@@ -1030,7 +898,7 @@ const AssistantChat: React.FC = () => {
           ...prev,
           {
             role: "assistant",
-            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta con otra imagen de menor tamaño o con un formato diferente.*`
+            content: `## ⚠️ Error al procesar la imagen\n\n❌ No se pudo analizar la imagen debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta con otra imagen de menor tamaño o con un formato diferente.*`
           }
         ]);
         sounds.play("error");
@@ -1039,73 +907,33 @@ const AssistantChat: React.FC = () => {
       }
     };
 
-    // Leer la imagen como base64
+    // Read image as base64
     reader.readAsDataURL(file);
   };
 
-  // Función para resaltar emojis en el contenido y agregar automáticamente emojis a puntos importantes
+  // Enhance content with emojis
   const enhanceContentWithEmojis = (content: string) => {
-    // Reemplazar etiquetas de emoji existentes
+    // Replace existing emoji tags
     let enhancedContent = content.replace(/:([\w_]+):/g, (match, emojiName) => {
       const emojiMap: Record<string, string> = {
-        smile: "😊",
-        grinning: "😀",
-        thumbsup: "👍",
-        rocket: "🚀",
-        fire: "🔥",
-        warning: "⚠️",
-        bulb: "💡",
-        memo: "📝",
-        computer: "💻",
-        white_check_mark: "✅",
-        x: "❌",
-        question: "❓",
-        gear: "⚙️",
-        star: "⭐",
-        sparkles: "✨",
-        zap: "⚡",
-        tada: "🎉",
-        trophy: "🏆",
-        heart: "❤️",
-        bell: "🔔",
-        books: "📚",
-        wrench: "🔧",
-        mag: "🔍",
-        lock: "🔒",
-        key: "🔑",
-        chart: "📊",
-        calendar: "📅",
-        clipboard: "📋",
-        package: "📦",
-        speaker: "🔊",
-        idea: "💡",
-        important: "❗",
-        info: "ℹ️",
-        tip: "💁",
-        success: "✅",
-        error: "❌",
-        alert: "🚨",
-        // Emojis adicionales
-        bookmark: "🔖",
-        target: "🎯",
-        link: "🔗",
-        tool: "🛠️",
-        folder: "📁",
-        document: "📄",
-        code: "👨‍💻",
-        database: "🗃️",
-        cloud: "☁️",
-        time: "⏱️",
-        bug: "🐛",
-        fix: "🔧"
+        smile: "😊", grinning: "😀", thumbsup: "👍", rocket: "🚀", fire: "🔥",
+        warning: "⚠️", bulb: "💡", memo: "📝", computer: "💻", white_check_mark: "✅",
+        x: "❌", question: "❓", gear: "⚙️", star: "⭐", sparkles: "✨",
+        zap: "⚡", tada: "🎉", trophy: "🏆", heart: "❤️", bell: "🔔",
+        books: "📚", wrench: "🔧", mag: "🔍", lock: "🔒", key: "🔑",
+        chart: "📊", calendar: "📅", clipboard: "📋", package: "📦", speaker: "🔊",
+        idea: "💡", important: "❗", info: "ℹ️", tip: "💁", success: "✅",
+        error: "❌", alert: "🚨", bookmark: "🔖", target: "🎯", link: "🔗",
+        tool: "🛠️", folder: "📁", document: "📄", code: "👨‍💻", database: "🗃️",
+        cloud: "☁️", time: "⏱️", bug: "🐛", fix: "🔧"
       };
       return emojiMap[emojiName] || match;
     });
 
-    // Añadir emojis en los puntos importantes (títulos, listas, etc.)
+    // Add emojis to important points (titles, lists, etc.)
     enhancedContent = enhancedContent
-      // Títulos con emojis
-      .replace(/^(#{1,3})\s+(.+)\\\$/gm, (_, hashes, title) => {
+      // Titles with emojis
+      .replace(/^(#{1,3})\s+(.+)\\$/gm, (_, hashes, title) => {
         if (title.includes("importante") || title.includes("atención"))
           return `${hashes} 🚨 ${title}`;
         if (title.includes("nota") || title.includes("recuerda"))
@@ -1122,8 +950,8 @@ const AssistantChat: React.FC = () => {
           return `${hashes} 📦 ${title}`;
         return `${hashes} ✨ ${title}`;
       })
-      // Elementos de lista con emojis
-      .replace(/^(\s*[-*+])\s+(.+)\\\$/gm, (_, bullet, item) => {
+      // List elements with emojis
+      .replace(/^(\s*[-*+])\s+(.+)\\$/gm, (_, bullet, item) => {
         if (item.includes("importante") || item.includes("clave"))
           return `${bullet} 🔑 ${item}`;
         if (item.includes("ejemplo") || item.includes("muestra"))
@@ -1134,8 +962,8 @@ const AssistantChat: React.FC = () => {
           return `${bullet} ✅ ${item}`;
         return `${bullet} • ${item}`;
       })
-      // Líneas numeradas con emojis
-      .replace(/^(\s*\d+\.)\s+(.+)\\\$/gm, (_, number, item) => {
+      // Numbered lines with emojis
+      .replace(/^(\s*\d+\.)\s+(.+)\\$/gm, (_, number, item) => {
         if (item.includes("paso") || item.includes("etapa"))
           return `${number} 🔄 ${item}`;
         if (item.includes("primero") || item.includes("inicial"))
@@ -1148,7 +976,7 @@ const AssistantChat: React.FC = () => {
     return enhancedContent;
   };
 
-  // Instalar paquete desde comando con actualización automática
+  // Install package from command
   const handlePackageInstall = async () => {
     if (!installPackageInput.trim()) return;
 
@@ -1167,7 +995,6 @@ const AssistantChat: React.FC = () => {
       const result = await response.json();
 
       if (result.success) {
-        // Agregar mensaje de éxito a la conversación
         setMessages((prevMessages) => [
           ...prevMessages,
           {
@@ -1175,14 +1002,10 @@ const AssistantChat: React.FC = () => {
             content: `El paquete "${result.packageName}" se instaló correctamente.`
           }
         ]);
-        // Actualizar la lista de paquetes instalados (si es necesario)
         setDetectedPackages((prevPackages) => [...prevPackages, result.packageName]);
-        // Ocultar el diálogo
         setShowPackageDialog(false);
-        // Restablecer el campo de entrada
         setInstallPackageInput("");
       } else {
-        // Agregar mensaje de error a la conversación
         setMessages((prevMessages) => [
           ...prevMessages,
           {
@@ -1197,7 +1020,7 @@ const AssistantChat: React.FC = () => {
         ...prev,
         {
           role: "assistant",
-          content: `## ⚠️ Error al instalar el paquete\n\n❌ No se pudo instalar el paquete "${installPackageInput}" debido a un error:\n\`\`\`\n\${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o instala el paquete manualmente.*`
+          content: `## ⚠️ Error al instalar el paquete\n\n❌ No se pudo instalar el paquete "${installPackageInput}" debido a un error:\n\`\`\`\n${error instanceof Error ? error.message : "Error desconocido"}\n\`\`\`\n\n*Por favor, intenta nuevamente o instala el paquete manualmente.*`
         },
       ]);
       sounds.play("error");
@@ -1206,40 +1029,24 @@ const AssistantChat: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (scrollToBottom && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, scrollToBottom]);
-
-  // Actualizar estado cuando se modifican los mensajes
-  useEffect(() => {
-    if (currentConversationId && messages.length > 0) {
-      setSavedStatus('unsaved');
-    }
-  }, [messages]);
-
+  // Execute in terminal
   const executeInTerminal = (command: string) => {
-    // Aquí se implementaría la lógica para ejecutar el comando en la terminal
-    // Por ahora, se simula la ejecución mostrando un mensaje:
     console.log(`Ejecutando comando en terminal: ${command}`);
     setMessages((prevMessages) => [
       ...prevMessages,
       {
         role: "assistant",
-        content: `Ejecutando comando en terminal: \`\${command}\``
+        content: `Ejecutando comando en terminal: \`${command}\``
       },
       {
         role: "assistant",
-        content: `Salida de terminal: (Simulación) Comando ejecutado exitosamente.` // Reemplazar con la salida real
+        content: `Salida de terminal: (Simulación) Comando ejecutado exitosamente.`
       }
     ]);
   };
 
-  // Agregar esta función para manejar el envío al generador
+  // Send files to generator
   const handleSendToGenerator = (files: Array<{name: string, content: string, extension: string}>) => {
-    console.log("Enviando archivos al generador:", files); // Agregar log para debug
-
     try {
       const sendToGeneratorEvent = new CustomEvent('send-files-to-generator', {
         detail: {
@@ -1253,7 +1060,7 @@ const AssistantChat: React.FC = () => {
 
       window.dispatchEvent(sendToGeneratorEvent);
 
-      // Forzar la actualización del panel de archivos generados
+      // Force update of generated files panel
       const refreshEvent = new CustomEvent('refresh-generated-files');
       window.dispatchEvent(refreshEvent);
 
@@ -1274,16 +1081,30 @@ const AssistantChat: React.FC = () => {
     }
   };
 
-  const socket = io();
+  // Handle model change
+  const handleModelChange = (newModelId: string) => {
+    setModelId(newModelId);
+    try {
+      localStorage.setItem('preferred-model', newModelId);
+      console.log(`Modelo cambiado a: ${newModelId}`);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!input.trim()) return;
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `## 🔄 Modelo de lenguaje actualizado\n\nAhora estás usando el modelo **${newModelId}**. Las nuevas respuestas utilizarán este modelo.`
+        }
+      ]);
 
-    if (input.startsWith('/')) {
-      socket.emit('chat-command', input.slice(1));
-      return;
+      setSavedStatus('unsaved');
+    } catch (error) {
+      console.error("Error al guardar preferencia de modelo:", error);
     }
+  };
+
+  // Send message
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
     setInput("");
@@ -1309,7 +1130,6 @@ const AssistantChat: React.FC = () => {
         throw new Error(`Error al comunicarse con el asistente: ${response.status} ${response.statusText}`);
       }
 
-      // Verificar el tipo de contenido antes de intentar parsear como JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
@@ -1325,20 +1145,16 @@ const AssistantChat: React.FC = () => {
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
-      if (sounds && sounds.play) {
-        sounds.play("notification");
-      }
+      sounds.play("notification");
 
-      // Marcar como no guardado para activar el guardado automático
       setSavedStatus('unsaved');
 
-      // Detectar y sugerir paquetes
+      // Detect and suggest packages
       const packages = detectPackages(assistantMessage);
       if (packages.length > 0) {
         setPendingPackages(packages);
         setShowPackageDialog(true);
 
-        // Agregar un indicador visual en la interfaz
         setTimeout(() => {
           const packageIndicator = document.getElementById('package-indicator');
           if (packageIndicator) {
@@ -1357,15 +1173,15 @@ const AssistantChat: React.FC = () => {
           role: "assistant",
           content: `## ⚠️ Error en la solicitud
 
-  🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
-  \`\`\`
-  ${error instanceof Error ? error.message : "Error desconocido"}
-  \`\`\`
+🚨 Lo siento, ha ocurrido un error al procesar tu solicitud:
+\`\`\`
+${error instanceof Error ? error.message : "Error desconocido"}
+\`\`\`
 
-  ### 🔍 Posibles soluciones:
-  * 🔄 Verifica que el servidor de la API esté funcionando correctamente
-  * 📡 Comprueba tu conexión a internet
-  * 🔧 Reinicia la aplicación si el problema persiste`
+### 🔍 Posibles soluciones:
+* 🔄 Verifica que el servidor de la API esté funcionando correctamente
+* 📡 Comprueba tu conexión a internet
+* 🔧 Reinicia la aplicación si el problema persiste`
         },
       ]);
       sounds.play("error");
@@ -1374,13 +1190,26 @@ const AssistantChat: React.FC = () => {
     }
   };
 
+  // Handle form submission
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!input.trim()) return;
+
+    if (input.startsWith('/')) {
+      socket.emit('chat-command', input.slice(1));
+      return;
+    }
+
+    await handleSendMessage();
+  };
+
   return (
     <div className="flex h-full">
-      {/* Panel lateral de conversaciones */}
+      {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:relative \${
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:relative ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
+        }`}
       >
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
@@ -1406,9 +1235,6 @@ const AssistantChat: React.FC = () => {
               <Plus className="h-4 w-4 mr-2" />
               Nueva conversación
             </Button>
-            <div className="relative">
-              {/* Search input removed for brevity */}
-            </div>
           </div>
           <div className="flex-1 overflow-auto">
             <ConversationList
@@ -1437,7 +1263,7 @@ const AssistantChat: React.FC = () => {
                     )}
                     {savedStatus === 'unsaved' && (
                       <span className="flex items-center">
-                        <Save className="h-3 w-3 mr-1 text-amber-500" />
+                        <SaveIcon className="h-3 w-3 mr-1 text-amber-500" />
                         Sin guardar
                       </span>
                     )}
@@ -1463,9 +1289,9 @@ const AssistantChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido principal */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col h-full">
-        {/* Barra superior */}
+        {/* Top bar */}
         <div className="border-b p-2 flex items-center justify-between sticky top-0 bg-background z-10">
           <div className="flex items-center gap-2">
             <Button
@@ -1583,7 +1409,7 @@ const AssistantChat: React.FC = () => {
           </div>
         </div>
 
-        {/* Área de mensajes */}
+        {/* Messages area */}
         <div className="flex-1 overflow-y-auto overscroll-y-contain p-4 mobile-scroll">
           <ScrollArea className="h-full min-h-[calc(100vh-16rem)]">
             <div className="space-y-4 pb-20">
@@ -1665,52 +1491,50 @@ const AssistantChat: React.FC = () => {
                       {message.role === 'assistant' ? (
                         <>
                           {message.content.split(/(```[\s\S]*?```)/g).map((part, index) => {
-                           if (part.startsWith('```') && part.endsWith('```')) {
+                            if (part.startsWith('```') && part.endsWith('```')) {
+                              const codes = extractCodeFromMessage(part);
+                              return codes.map((codeBlock, codeIndex) => (
+                                <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
+                                  <div className="code-actions">
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => handleSaveCode(codeBlock.code)}
+                                    >
+                                      <Save className="h-4 w-4 mr-1" />
+                                      Guardar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(codeBlock.code);
+                                        toast({
+                                          title: "Copiado",
+                                          description: "Código copiado al portapapeles",
+                                          duration: 2000
+                                        });
+                                      }}
+                                    >
+                                      <Copy className="h-4 w-4 mr-1" />
+                                      Copiar
+                                    </Button>
+                                  </div>
+                                  <CodeBlock
+                                    code={codeBlock.code}
+                                    language={codeBlock.language}
+                                    fileName={codeBlock.fileName}
+                                    showLineNumbers={true}
+                                  />
+                                </div>
+                              ));
+                            }
 
-  const codes = extractCodeFromMessage(part);
-  return codes.map((codeBlock, codeIndex) => (
-    <div key={`code-${index}-${codeIndex}`} className="my-4 code-block">
-      <div className="code-actions">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => handleSaveCode(codeBlock.code)}
-        >
-          <Save className="h-4 w-4 mr-1" />
-          Guardar
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            navigator.clipboard.writeText(codeBlock.code);
-            toast({
-              title: "Copiado",
-              description: "Código copiado al portapapeles",
-              duration: 2000
-            });
-          }}
-        >
-          <Copy className="h-4 w-4 mr-1" />
-          Copiar
-        </Button>
-      </div>
-      <CodeBlock
-        code={codeBlock.code}
-        language={codeBlock.language}
-        fileName={codeBlock.fileName}
-        showLineNumbers={true}
-      />
-    </div>
-  ));
-}
-
-// For non-code parts, render as Markdown
-return (
-  <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
-    {enhanceContentWithEmojis(part)}
-  </ReactMarkdown>
-);
+                            return (
+                              <ReactMarkdown key={`text-${index}`} remarkPlugins={[remarkGfm]}>
+                                {enhanceContentWithEmojis(part)}
+                              </ReactMarkdown>
+                            );
                           })}
                         </>
                       ) : (
@@ -1727,7 +1551,7 @@ return (
           </ScrollArea>
         </div>
 
-        {/* Área de entrada */}
+        {/* Input area */}
         <div className="border-t p-2 sm:p-4 sticky bottom-0 bg-background mobile-safe-bottom">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex space-x-1">
@@ -1761,7 +1585,6 @@ return (
                           const fileExtension = file.name.split('.').pop()?.toLowerCase();
                           const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension || '');
 
-                          // Procesamiento especial para imágenes
                           if (isImage) {
                             toast({
                               title: "Procesando imagen",
@@ -1769,14 +1592,11 @@ return (
                               duration: 3000,
                             });
 
-                            // Usar la función para procesar imágenes
                             processImageFile(file, file.name);
                             return;
                           }
 
-                          // Procesamiento especial para DOC/DOCX
                           if (fileExtension === 'doc' || fileExtension === 'docx') {
-                            // Para archivos DOC/DOCX, enviarlos al servidor para procesamiento
                             toast({
                               title: "Procesando documento",
                               description: `Preparando ${file.name} para análisis...`,
@@ -1798,18 +1618,14 @@ return (
                               })
                               .then((data) => {
                                 const content = data.text || "No se pudo extraer contenido del documento.";
-
-                                // Preparar mensaje con el contenido del archivo
-                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\\${fileExtension}\n`;
-
-                                // Limitar el contenido si es muy grande
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
                                 const maxLength = 10000;
                                 const truncatedContent =
                                   content.length > maxLength
                                     ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
                                     : content;
 
-                                const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
+                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
 
                                 toast({
@@ -1822,28 +1638,24 @@ return (
                                 console.error("Error procesando documento:", error);
                                 toast({
                                   title: "Error al procesar documento",
-                                  description: "No se pudo extraer el contenido del archivo. Intente con un formato diferente (.txt, .md).",
+                                  description: "No se pudo extraer el contenido del archivo. Intenta con un formato diferente (.txt, .md).",
                                   variant: "destructive",
                                   duration: 5000,
                                 });
                               });
                           } else {
-                            // Para otros formatos, usar el método existente
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               const content = event.target?.result as string;
                               if (content) {
-                                // Preparar mensaje con el contenido del archivo
-                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`\\${fileExtension}\n`;
-
-                                // Limitar el contenido si es muy grande
+                                const messagePrefix = `He cargado el archivo "${file.name}" para análisis:\n\n\`\`\`${fileExtension}\n`;
                                 const maxLength = 10000;
                                 const truncatedContent =
                                   content.length > maxLength
                                     ? content.substring(0, maxLength) + "\n\n[Contenido truncado debido al tamaño...]"
                                     : content;
 
-                                const finalMessage = messagePrefix + truncatedContent + "\n\`\`\`\n\nPor favor analiza este contenido.";
+                                const finalMessage = messagePrefix + truncatedContent + "\n```\n\nPor favor analiza este contenido.";
                                 setInput(finalMessage);
 
                                 toast({
@@ -1865,7 +1677,7 @@ return (
             </div>
           </div>
 
-          <div className="relative overflow-hidden">
+          <form onSubmit={handleSubmit} className="relative overflow-hidden">
             <Textarea
               placeholder="Escribe un mensaje..."
               value={input}
@@ -1880,7 +1692,7 @@ return (
               rows={3}
             />
             <Button
-              onClick={handleSendMessage}
+              type="submit"
               disabled={isLoading || !input.trim()}
               className="absolute right-2 bottom-2"
               size="icon"
@@ -1892,10 +1704,10 @@ return (
                 <Send className="w-5 h-5" />
               )}
             </Button>
-          </div>
+          </form>
         </div>
 
-        {/* Diálogo de confirmación para eliminar */}
+        {/* Confirmation dialog for delete */}
         <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1913,7 +1725,7 @@ return (
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Diálogo para guardar conversación */}
+        {/* Dialog to save conversation */}
         <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1949,7 +1761,7 @@ return (
           </DialogContent>
         </Dialog>
 
-        {/* Diálogo para instalar paquetes */}
+        {/* Dialog to install packages */}
         <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -2031,18 +1843,16 @@ return (
           </DialogContent>
         </Dialog>
 
-        {/* Overlay para móviles cuando el sidebar está abierto */}
+        {/* Mobile overlay when sidebar is open */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-20 md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
-
-        {/* Final del componente */}
-        </div>
       </div>
+    </div>
   );
 };
 
-export default AssistantChat
+export default AssistantChat;
