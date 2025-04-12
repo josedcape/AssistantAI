@@ -1268,39 +1268,63 @@ let height = img.height;
     ]);
   };
 
-  // Agregar esta función para manejar el envío al generador
-  const handleSendToGenerator = (files: Array<{name: string, content: string, extension: string}>) => {
-    console.log("Enviando archivos al generador:", files); // Agregar log para debug
-
+  // Handle sending files to generator
+  const handleSendToGenerator = async (files: {name: string, content: string, extension: string}[]) => {
     try {
-      const sendToGeneratorEvent = new CustomEvent('send-files-to-generator', {
-        detail: { 
-          files: files.map(file => ({
-            name: file.name,
-            content: file.content,
-            extension: file.extension || file.type || 'txt'
-          }))
+      if (!files || files.length === 0) return;
+
+      // Create a more descriptive message based on number of files
+      let userMessage = "";
+      if (files.length === 1) {
+        const file = files[0];
+        userMessage = `He creado un archivo llamado "${file.name}":\n\n\`\`\`${file.extension}\n${file.content}\n\`\`\`\n\nPor favor, analiza este código y proporciona sugerencias para mejorarlo, explicando su funcionamiento y posibles optimizaciones.`;
+      } else {
+        userMessage = `He creado los siguientes archivos:\n\n`;
+        for (const file of files) {
+          userMessage += `### ${file.name}\n\`\`\`${file.extension}\n${file.content}\n\`\`\`\n\n`;
         }
-      });
+        userMessage += `Por favor, analiza estos archivos y proporciona sugerencias para mejorarlos, explicando su funcionamiento, cómo interactúan entre sí y posibles optimizaciones.`;
+      }
 
-      window.dispatchEvent(sendToGeneratorEvent);
+      // Add to messages
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: userMessage }
+      ]);
 
-      // Forzar la actualización del panel de archivos generados
-      const refreshEvent = new CustomEvent('refresh-generated-files');
-      window.dispatchEvent(refreshEvent);
+      // Focus on chat input and scroll to bottom
+      const chatInput = document.querySelector('textarea[placeholder="Escribe un mensaje..."]');
+      if (chatInput) {
+        (chatInput as HTMLTextAreaElement).focus();
+      }
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
 
+      // Switch to chat tab if needed
+      const chatTabEvent = new CustomEvent('activate-chat-tab');
+      window.dispatchEvent(chatTabEvent);
+
+      // Automatically send the message to get AI response
+      setTimeout(() => {
+        handleSendMessage();
+      }, 500);
+
+      // Show feedback to user
       toast({
-        title: "Archivos enviados",
-        description: `Se han enviado ${files.length} archivo(s) al generador`,
+        title: "Archivos enviados al generador",
+        description: `Se han enviado ${files.length} archivo(s) para análisis detallado`,
         duration: 3000
       });
       sounds.play("success", 0.3);
-    } catch (e) {
-      console.error("Error al enviar archivos al generador:", e);
+
+    } catch (error) {
+      console.error("Error al enviar al generador:", error);
       toast({
         title: "Error",
         description: "No se pudieron enviar los archivos al generador",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000
       });
       sounds.play("error", 0.3);
     }
