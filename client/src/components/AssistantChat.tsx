@@ -1255,7 +1255,8 @@ const AssistantChat: React.FC = () => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-        </div>
-      );
+    </div>
+  );
+}
 
-      export default AssistantChat;
+export default AssistantChat;
