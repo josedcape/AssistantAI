@@ -35,7 +35,7 @@ npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
 requiredFiles = [".replit", "replit.nix", ".config"]
 
 [workflows]
-runButton = "Start App"
+runButton = "Dev Server"
 
 [[workflows.workflow]]
 name = "Run Server"

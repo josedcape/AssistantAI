@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -38,7 +37,8 @@ export function Terminal({ className }: TerminalProps) {
     fitAddon.fit();
 
     // Conectar WebSocket
-    const ws = new WebSocket(`ws://${window.location.host}/terminal`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/terminal`);
     wsRef.current = ws;
 
     ws.onopen = () => {
